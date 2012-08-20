@@ -1,0 +1,8 @@
+syntax: glob
+*.suo
+obj/*
+bin/*
+*.user
+*.sdf
+lua-5.1.5/Release/*
+lua-5.1.5/ipch/*
