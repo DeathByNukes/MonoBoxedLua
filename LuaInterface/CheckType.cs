@@ -118,6 +118,8 @@ namespace LuaInterface
             {
                 if (luatype == LuaTypes.LUA_TTABLE)
                     return extractValues[runtimeHandleValue];
+                else if (luatype == LuaTypes.LUA_TNIL)
+                    return extractNetObject; // tkopal - silently convert nil to a null table
             }
             else if (paramType == typeof(LuaUserData))
             {

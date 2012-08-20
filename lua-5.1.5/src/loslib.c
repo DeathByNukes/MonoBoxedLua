@@ -217,18 +217,19 @@ static int os_exit (lua_State *L) {
   exit(luaL_optint(L, 1, EXIT_SUCCESS));
 }
 
+/* elisee - Some functions disabled to prevent messing with the system too much */
 static const luaL_Reg syslib[] = {
   {"clock",     os_clock},
   {"date",      os_date},
   {"difftime",  os_difftime},
-  {"execute",   os_execute},
+  /*{"execute",   os_execute},
   {"exit",      os_exit},
   {"getenv",    os_getenv},
   {"remove",    os_remove},
   {"rename",    os_rename},
-  {"setlocale", os_setlocale},
+  {"setlocale", os_setlocale},*/
   {"time",      os_time},
-  {"tmpname",   os_tmpname},
+  /*{"tmpname",   os_tmpname},*/
   {NULL, NULL}
 };
 

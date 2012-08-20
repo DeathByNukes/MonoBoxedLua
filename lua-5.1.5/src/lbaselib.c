@@ -46,6 +46,9 @@ static int luaB_print (lua_State *L) {
     lua_pop(L, 1);  /* pop result */
   }
   fputs("\n", stdout);
+  
+  // elisee - Flush stdout so that it updates in real-time
+  fflush(stdout);
   return 0;
 }
 
