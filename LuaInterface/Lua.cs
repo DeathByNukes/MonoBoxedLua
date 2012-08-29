@@ -596,6 +596,8 @@ namespace LuaInterface
 			LuaTable table = translator.getTable( luaState,-1 );
 			LuaDLL.lua_settop( luaState, oldTop );
 
+			table.IsOrphaned = true;
+
 			return table;
 		}
 

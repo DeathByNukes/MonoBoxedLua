@@ -324,7 +324,16 @@ namespace LuaInterface
                         if (_LastCalledMethod.cachedMethod.IsConstructor)
                             _Translator.push(luaState, ((ConstructorInfo)_LastCalledMethod.cachedMethod).Invoke(_LastCalledMethod.args));
                         else
-                            _Translator.push(luaState, _LastCalledMethod.cachedMethod.Invoke(targetObject, _LastCalledMethod.args));
+                        {
+                            object returnValue = _LastCalledMethod.cachedMethod.Invoke( targetObject, _LastCalledMethod.args );
+                            _Translator.push(luaState, returnValue );
+                            
+                            LuaTable returnValueLuaBase = returnValue as LuaTable;
+                            if( returnValueLuaBase != null && returnValueLuaBase.IsOrphaned )
+                            {
+                                returnValueLuaBase.Dispose();
+                            }
+                        }
                     }
                 }
                 catch (TargetInvocationException e)
@@ -341,7 +350,16 @@ namespace LuaInterface
             for (int index = 0; index < _LastCalledMethod.outList.Length; index++)
             {
                 nReturnValues++;
-                _Translator.push(luaState, _LastCalledMethod.args[_LastCalledMethod.outList[index]]);
+
+                object outArg = _LastCalledMethod.args[_LastCalledMethod.outList[index]];
+
+                _Translator.push(luaState, outArg );
+
+                LuaTable outArgLuaBase = outArg as LuaTable;
+                if( outArgLuaBase != null && outArgLuaBase.IsOrphaned )
+                {
+                    outArgLuaBase.Dispose();
+                }
             }
 
             //by isSingle 2010-09-10 11:26:31

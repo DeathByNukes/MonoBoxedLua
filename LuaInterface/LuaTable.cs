@@ -13,6 +13,8 @@ namespace LuaInterface
      */
     public class LuaTable : LuaBase
     {
+        public bool IsOrphaned;
+
         //internal int _Reference;
         //private Lua _Interpreter;
         public LuaTable(int reference, Lua interpreter)
@@ -125,6 +127,7 @@ namespace LuaInterface
         {
             return "table";
         }
+
         //public override bool Equals(object o)
         //{
         //    if (o is LuaTable)
