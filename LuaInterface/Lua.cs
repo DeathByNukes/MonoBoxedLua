@@ -268,6 +268,11 @@ namespace LuaInterface
         }
 
 
+        public void CollectGarbage()
+        {
+            LuaDLL.lua_gc( luaState, LuaGCOptions.LUA_GCCOLLECT, 0 );
+        }
+
         /*
          * Indexer for global variables from the LuaInterpreter
          * Supports navigation of tables by using . operator
