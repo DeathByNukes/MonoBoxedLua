@@ -130,14 +130,14 @@ namespace LuaInterface
         {
             LuaDLL.lua_pushstdcallcfunction(luaState,metaFunctions.indexFunction);
             LuaDLL.lua_setglobal(luaState,"get_object_member");
-            LuaDLL.lua_pushstdcallcfunction(luaState,importTypeFunction);
+            /*LuaDLL.lua_pushstdcallcfunction(luaState,importTypeFunction);
             LuaDLL.lua_setglobal(luaState,"import_type");
             LuaDLL.lua_pushstdcallcfunction(luaState,loadAssemblyFunction);
             LuaDLL.lua_setglobal(luaState,"load_assembly");
             LuaDLL.lua_pushstdcallcfunction(luaState,registerTableFunction);
             LuaDLL.lua_setglobal(luaState,"make_object");
             LuaDLL.lua_pushstdcallcfunction(luaState,unregisterTableFunction);
-            LuaDLL.lua_setglobal(luaState,"free_object");
+            LuaDLL.lua_setglobal(luaState,"free_object");*/
             LuaDLL.lua_pushstdcallcfunction(luaState,getMethodSigFunction);
             LuaDLL.lua_setglobal(luaState,"get_method_bysig");
             LuaDLL.lua_pushstdcallcfunction(luaState,getConstructorSigFunction);
