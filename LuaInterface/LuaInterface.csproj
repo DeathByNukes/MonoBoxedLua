@@ -102,8 +102,8 @@
       <Link>liblua-linux.so</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Include="..\lua-5.1.5\Release\liblua-osx.so" Condition=" '$(Configuration)' == 'Debug OS X' or '$(Configuration)' == 'Release OS X' ">
-      <Link>liblua-osx.so</Link>
+    <None Include="..\lua-5.1.5\Release\liblua-osx.dylib" Condition=" '$(Configuration)' == 'Debug OS X' or '$(Configuration)' == 'Release OS X' ">
+      <Link>liblua-osx.dylib</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Include="LuaInterface.dll.config">

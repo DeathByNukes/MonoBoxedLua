@@ -1,8 +1,10 @@
 syntax: glob
+.DS_Store
 *.suo
 obj/*
 bin/*
 *.user
 *.sdf
+*.o
 lua-5.1.5/Release/*
 lua-5.1.5/ipch/*
