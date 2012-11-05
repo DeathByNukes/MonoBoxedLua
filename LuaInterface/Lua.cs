@@ -166,7 +166,7 @@ namespace LuaInterface
             executing = true;
             try
             {
-                if (LuaDLL.luaL_loadbuffer(luaState, chunk, chunk.Length, name) != 0)
+                if (LuaDLL.luaL_loadbuffer(luaState, chunk, System.Text.Encoding.UTF8.GetByteCount( chunk ), name) != 0)
                     ThrowExceptionFromError(oldTop);
             }
             finally { executing = false; }
@@ -214,7 +214,7 @@ namespace LuaInterface
         {
             int oldTop = LuaDLL.lua_gettop(luaState);
             executing = true;
-            if (LuaDLL.luaL_loadbuffer(luaState, chunk, chunk.Length, chunkName) == 0)
+            if (LuaDLL.luaL_loadbuffer(luaState, chunk, System.Text.Encoding.UTF8.GetByteCount( chunk ), chunkName) == 0)
             {
                 try
                 {
