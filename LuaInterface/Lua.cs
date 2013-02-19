@@ -166,8 +166,8 @@ namespace LuaInterface
             executing = true;
             try
             {
-                // Somehow, on OS X, we need to use the UTF-8 byte count rather than the string length
-#if MACOSX
+                // Somehow, on OS X and Linux, we need to use the UTF-8 byte count rather than the string length
+#if MACOSX || LINUX
                 if (LuaDLL.luaL_loadbuffer(luaState, chunk, System.Text.Encoding.UTF8.GetByteCount( chunk ), name) != 0)
 #else
                 if (LuaDLL.luaL_loadbuffer(luaState, chunk, chunk.Length, name) != 0)
@@ -221,7 +221,7 @@ namespace LuaInterface
             executing = true;
 
             // Somehow, on OS X, we need to use the UTF-8 byte count rather than the string length
-#if MACOSX
+#if MACOSX || LINUX
             if (LuaDLL.luaL_loadbuffer(luaState, chunk, System.Text.Encoding.UTF8.GetByteCount( chunk ), chunkName) == 0)
 #else
             if (LuaDLL.luaL_loadbuffer(luaState, chunk, chunk.Length, chunkName) == 0)

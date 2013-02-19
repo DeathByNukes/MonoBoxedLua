@@ -16,9 +16,9 @@
     <OldToolsVersion>3.5</OldToolsVersion>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug Windows|x86' ">
-    <DebugSymbols>True</DebugSymbols>
+    <DebugSymbols>true</DebugSymbols>
     <DebugType>full</DebugType>
-    <Optimize>True</Optimize>
+    <Optimize>true</Optimize>
     <OutputPath>bin\Debug</OutputPath>
     <DefineConstants>DEBUG;WINDOWS</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
@@ -27,7 +27,7 @@
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release Windows|x86' ">
     <DebugType>none</DebugType>
-    <Optimize>False</Optimize>
+    <Optimize>false</Optimize>
     <OutputPath>bin\Release</OutputPath>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
@@ -35,9 +35,9 @@
     <DefineConstants>WINDOWS</DefineConstants>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug Linux|x86' ">
-    <DebugSymbols>True</DebugSymbols>
+    <DebugSymbols>true</DebugSymbols>
     <DebugType>full</DebugType>
-    <Optimize>True</Optimize>
+    <Optimize>true</Optimize>
     <OutputPath>bin\Debug</OutputPath>
     <DefineConstants>DEBUG;LINUX</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
@@ -46,7 +46,7 @@
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release Linux|x86' ">
     <DebugType>none</DebugType>
-    <Optimize>False</Optimize>
+    <Optimize>false</Optimize>
     <OutputPath>bin\Release</OutputPath>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
@@ -54,9 +54,9 @@
     <DefineConstants>LINUX</DefineConstants>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug OS X|x86' ">
-    <DebugSymbols>True</DebugSymbols>
+    <DebugSymbols>true</DebugSymbols>
     <DebugType>full</DebugType>
-    <Optimize>True</Optimize>
+    <Optimize>true</Optimize>
     <OutputPath>bin\Debug</OutputPath>
     <DefineConstants>DEBUG;MACOSX</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
@@ -65,7 +65,7 @@
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release OS X|x86' ">
     <DebugType>none</DebugType>
-    <Optimize>False</Optimize>
+    <Optimize>false</Optimize>
     <OutputPath>bin\Release</OutputPath>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
@@ -101,8 +101,12 @@
       <Link>lua51.dll</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Include="..\lua-5.1.5\Release\liblua-linux.so" Condition=" '$(Configuration)' == 'Debug Linux' or '$(Configuration)' == 'Release Linux' ">
-      <Link>liblua-linux.so</Link>
+    <None Include="..\lua-5.1.5\Release\liblua-linux32.so" Condition=" '$(Configuration)' == 'Debug Linux' or '$(Configuration)' == 'Release Linux' ">
+      <Link>liblua-linux32.so</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="..\lua-5.1.5\Release\liblua-linux64.so" Condition=" '$(Configuration)' == 'Debug Linux' or '$(Configuration)' == 'Release Linux' ">
+      <Link>liblua-linux64.so</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Include="..\lua-5.1.5\Release\liblua-osx.dylib" Condition=" '$(Configuration)' == 'Debug OS X' or '$(Configuration)' == 'Release OS X' ">
