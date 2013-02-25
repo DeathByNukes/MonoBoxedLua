@@ -3,22 +3,42 @@ Microsoft Visual Studio Solution File, Format Version 11.00
 # Visual C# Express 2010
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LuaInterface", "LuaInterface\LuaInterface.csproj", "{E915A0A4-2641-4F7E-8A88-8F123FA88BF1}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LuaInterfaceSample", "LuaInterfaceSample\LuaInterfaceSample.csproj", "{9B821FBD-6A89-4FD7-8FC0-02B5BCF58AA1}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
-		Debug|Any CPU = Debug|Any CPU
-		Debug|x86 = Debug|x86
-		Release|Any CPU = Release|Any CPU
-		Release|x86 = Release|x86
+		Debug Linux|x86 = Debug Linux|x86
+		Debug OS X|x86 = Debug OS X|x86
+		Debug Windows|x86 = Debug Windows|x86
+		Release Linux|x86 = Release Linux|x86
+		Release OS X|x86 = Release OS X|x86
+		Release Windows|x86 = Release Windows|x86
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{E915A0A4-2641-4F7E-8A88-8F123FA88BF1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{E915A0A4-2641-4F7E-8A88-8F123FA88BF1}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{E915A0A4-2641-4F7E-8A88-8F123FA88BF1}.Debug|x86.ActiveCfg = Release|x86
-		{E915A0A4-2641-4F7E-8A88-8F123FA88BF1}.Debug|x86.Build.0 = Release|x86
-		{E915A0A4-2641-4F7E-8A88-8F123FA88BF1}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{E915A0A4-2641-4F7E-8A88-8F123FA88BF1}.Release|Any CPU.Build.0 = Release|Any CPU
-		{E915A0A4-2641-4F7E-8A88-8F123FA88BF1}.Release|x86.ActiveCfg = Release|x86
-		{E915A0A4-2641-4F7E-8A88-8F123FA88BF1}.Release|x86.Build.0 = Release|x86
+		{E915A0A4-2641-4F7E-8A88-8F123FA88BF1}.Debug Linux|x86.ActiveCfg = Debug Linux|x86
+		{E915A0A4-2641-4F7E-8A88-8F123FA88BF1}.Debug Linux|x86.Build.0 = Debug Linux|x86
+		{E915A0A4-2641-4F7E-8A88-8F123FA88BF1}.Debug OS X|x86.ActiveCfg = Debug OS X|x86
+		{E915A0A4-2641-4F7E-8A88-8F123FA88BF1}.Debug OS X|x86.Build.0 = Debug OS X|x86
+		{E915A0A4-2641-4F7E-8A88-8F123FA88BF1}.Debug Windows|x86.ActiveCfg = Debug Windows|x86
+		{E915A0A4-2641-4F7E-8A88-8F123FA88BF1}.Debug Windows|x86.Build.0 = Debug Windows|x86
+		{E915A0A4-2641-4F7E-8A88-8F123FA88BF1}.Release Linux|x86.ActiveCfg = Release Linux|x86
+		{E915A0A4-2641-4F7E-8A88-8F123FA88BF1}.Release Linux|x86.Build.0 = Release Linux|x86
+		{E915A0A4-2641-4F7E-8A88-8F123FA88BF1}.Release OS X|x86.ActiveCfg = Release OS X|x86
+		{E915A0A4-2641-4F7E-8A88-8F123FA88BF1}.Release OS X|x86.Build.0 = Release OS X|x86
+		{E915A0A4-2641-4F7E-8A88-8F123FA88BF1}.Release Windows|x86.ActiveCfg = Release Windows|x86
+		{E915A0A4-2641-4F7E-8A88-8F123FA88BF1}.Release Windows|x86.Build.0 = Release Windows|x86
+		{9B821FBD-6A89-4FD7-8FC0-02B5BCF58AA1}.Debug Linux|x86.ActiveCfg = Debug Linux|x86
+		{9B821FBD-6A89-4FD7-8FC0-02B5BCF58AA1}.Debug Linux|x86.Build.0 = Debug Linux|x86
+		{9B821FBD-6A89-4FD7-8FC0-02B5BCF58AA1}.Debug OS X|x86.ActiveCfg = Debug OS X|x86
+		{9B821FBD-6A89-4FD7-8FC0-02B5BCF58AA1}.Debug OS X|x86.Build.0 = Debug OS X|x86
+		{9B821FBD-6A89-4FD7-8FC0-02B5BCF58AA1}.Debug Windows|x86.ActiveCfg = Debug Windows|x86
+		{9B821FBD-6A89-4FD7-8FC0-02B5BCF58AA1}.Debug Windows|x86.Build.0 = Debug Windows|x86
+		{9B821FBD-6A89-4FD7-8FC0-02B5BCF58AA1}.Release Linux|x86.ActiveCfg = Release Linux|x86
+		{9B821FBD-6A89-4FD7-8FC0-02B5BCF58AA1}.Release Linux|x86.Build.0 = Release Linux|x86
+		{9B821FBD-6A89-4FD7-8FC0-02B5BCF58AA1}.Release OS X|x86.ActiveCfg = Release OS X|x86
+		{9B821FBD-6A89-4FD7-8FC0-02B5BCF58AA1}.Release OS X|x86.Build.0 = Release OS X|x86
+		{9B821FBD-6A89-4FD7-8FC0-02B5BCF58AA1}.Release Windows|x86.ActiveCfg = Release Windows|x86
+		{9B821FBD-6A89-4FD7-8FC0-02B5BCF58AA1}.Release Windows|x86.Build.0 = Release Windows|x86
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
