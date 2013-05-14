@@ -80,6 +80,7 @@ namespace LuaInterface
             if (paramType.Equals(typeof(object)))
                 return extractValues[runtimeHandleValue];
 
+            /*
             //CP: Added support for generic parameters
             if (paramType.IsGenericParameter)
             {
@@ -98,6 +99,7 @@ namespace LuaInterface
                 //else // suppress CS0642
                     ;//an unsupported type was encountered
             }
+            */
 
             if (LuaDLL.lua_isnumber(luaState, stackPos))
                 return extractValues[runtimeHandleValue];
