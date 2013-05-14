@@ -99,10 +99,14 @@ namespace LuaInterface
             }
             else return false;
         }
+
         public override int GetHashCode()
         {
             if (_Reference != 0)
-                return _Reference;
+                // elisee: Used to return _Reference
+                // which doesn't make sense as you can have different refs
+                // to the same function
+                return 0;
             else
                 return function.GetHashCode();
         }
