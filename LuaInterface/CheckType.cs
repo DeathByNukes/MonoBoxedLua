@@ -132,6 +132,8 @@ namespace LuaInterface
             {
                 if (luatype == LuaTypes.LUA_TFUNCTION)
                     return extractValues[runtimeHandleValue];
+                else if (luatype == LuaTypes.LUA_TNIL)
+                    return extractNetObject; // elisee - silently convert nil to a null string pointer
             }
             else if (typeof(Delegate).IsAssignableFrom(paramType) && luatype == LuaTypes.LUA_TFUNCTION)
             {
