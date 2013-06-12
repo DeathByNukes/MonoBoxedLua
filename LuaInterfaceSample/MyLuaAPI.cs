@@ -16,6 +16,8 @@ namespace LuaInterfaceSample
             Lua.NewTable( "MyLuaNameSpace" );
             Lua.RegisterFunction( "MyLuaNameSpace.CoolFunction", this, self.GetMethod( "MyCoolFunction" ) );
             Lua.RegisterFunction( "MyLuaNameSpace.GetVectorLength", this, self.GetMethod( "GetVectorLength" ) );
+
+            Lua["MyLuaNameSpace.SomeConstant" ] = 42;
         }
  
         public void MyCoolFunction( int count )
