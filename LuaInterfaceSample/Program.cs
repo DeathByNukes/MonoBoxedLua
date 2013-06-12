@@ -8,7 +8,8 @@ namespace LuaInterfaceSample
         {
             var luaSample = new MyLuaAPI();
 
-            luaSample.Lua.DoString( "MyLuaNameSpace.CoolFunction(5)" );
+            luaSample.Lua.DoString( "MyLuaNameSpace.CoolFunction( MyLuaNameSpace.SomeConstant )" );
+            luaSample.Lua.DoString( "MyLuaNameSpace.CoolFunction( 123 )" );
             luaSample.Lua.DoString( "local myVector = { x=2, y=5 }; print( MyLuaNameSpace.GetVectorLength( myVector ) )" );
         }
     }
