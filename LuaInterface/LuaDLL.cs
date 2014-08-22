@@ -1,13 +1,8 @@
+using System;
+using System.Runtime.InteropServices;
+
 namespace LuaInterface
 {
-
-	using System;
-	using System.Runtime.InteropServices;
-	using System.Reflection;
-	using System.Collections;
-	using System.Text;
-    using System.Security;
-
 	/*
 	 * Lua types for the API, returned by lua_type function
 	 */
@@ -85,12 +80,12 @@ namespace LuaInterface
 	public delegate string LuaChunkReader(IntPtr luaState,ref ReaderInfo data,ref uint size);
 
 
-    /// <summary>
-    /// Used to handle Lua panics
-    /// </summary>
-    /// <param name="luaState"></param>
-    /// <returns></returns>
-    public delegate int LuaFunctionCallback(IntPtr luaState);
+	/// <summary>
+	/// Used to handle Lua panics
+	/// </summary>
+	/// <param name="luaState"></param>
+	/// <returns></returns>
+	public delegate int LuaFunctionCallback(IntPtr luaState);
 
 	/*
 	 * P/Invoke wrapper of the Lua API
@@ -160,12 +155,12 @@ namespace LuaInterface
 	 */
 	public class LuaDLL
 	{
-        // for debugging
-        // const string BASEPATH = @"C:\development\software\dotnet\tools\PulseRecognizer\PulseRecognizer\bin\Debug\";
-        // const string BASEPATH = @"C:\development\software\ThirdParty\lua\Built\";
+		// for debugging
+		// const string BASEPATH = @"C:\development\software\dotnet\tools\PulseRecognizer\PulseRecognizer\bin\Debug\";
+		// const string BASEPATH = @"C:\development\software\ThirdParty\lua\Built\";
 		const string LUADLL = "lua51.dll";
 		const string LUALIBDLL = LUADLL;
-        const string STUBDLL = LUADLL;
+		const string STUBDLL = LUADLL;
 
 		// steffenj: BEGIN additional Lua API functions new in Lua 5.1
 		[DllImport(LUADLL, CallingConvention = CallingConvention.Cdecl)]
@@ -390,17 +385,17 @@ namespace LuaInterface
 
 		public static string lua_tostring(IntPtr luaState, int index)
 		{
-            int strlen;
+			int strlen;
 
-            IntPtr str = lua_tolstring(luaState, index, out strlen);
-            if (str != IntPtr.Zero)
-                return Marshal.PtrToStringAnsi(str, strlen);
-            else
-                return null;            // treat lua nulls to as C# nulls
+			IntPtr str = lua_tolstring(luaState, index, out strlen);
+			if (str != IntPtr.Zero)
+				return Marshal.PtrToStringAnsi(str, strlen);
+			else
+				return null;            // treat lua nulls to as C# nulls
 		}
 
-        [DllImport(LUADLL, CallingConvention = CallingConvention.Cdecl)]
-        public static extern void lua_atpanic(IntPtr luaState, LuaFunctionCallback panicf);
+		[DllImport(LUADLL, CallingConvention = CallingConvention.Cdecl)]
+		public static extern void lua_atpanic(IntPtr luaState, LuaFunctionCallback panicf);
 
 		[DllImport(LUADLL,CallingConvention=CallingConvention.Cdecl)]
 		public static extern void lua_pushnumber(IntPtr luaState, double number);
@@ -448,9 +443,9 @@ namespace LuaInterface
 		public static extern int lua_next(IntPtr luaState,int index);
 		[DllImport(LUADLL,CallingConvention=CallingConvention.Cdecl)]
 		public static extern void lua_pushlightuserdata(IntPtr luaState, IntPtr udata);
- 		[DllImport(STUBDLL,CallingConvention=CallingConvention.Cdecl)]
+		[DllImport(STUBDLL,CallingConvention=CallingConvention.Cdecl)]
 		public static extern IntPtr luanet_gettag();
-        [DllImport(LUADLL,CallingConvention=CallingConvention.Cdecl)]
-        public static extern void luaL_where (IntPtr luaState, int level);
+		[DllImport(LUADLL,CallingConvention=CallingConvention.Cdecl)]
+		public static extern void luaL_where (IntPtr luaState, int level);
 	}
 }
