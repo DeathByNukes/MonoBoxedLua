@@ -4,12 +4,11 @@ using System.Reflection;
 
 namespace LuaInterface
 {
-	/*
-	 * Type checking and conversion functions.
-	 *
-	 * Author: Fabio Mascarenhas
-	 * Version: 1.0
-	 */
+	/// <summary>Type checking and conversion functions.</summary>
+	/// <remarks>
+	/// Author: Fabio Mascarenhas
+	/// Version: 1.0
+	/// </remarks>
 	class CheckType
 	{
 		private ObjectTranslator translator;
@@ -43,10 +42,7 @@ namespace LuaInterface
 			extractNetObject = new ExtractValue(getAsNetObject);
 		}
 
-		/*
-		 * Checks if the value at Lua stack index stackPos matches paramType,
-		 * returning a conversion function if it does and null otherwise.
-		 */
+		/// <summary>Checks if the value at Lua stack index stackPos matches paramType, returning a conversion function if it does and null otherwise.</summary>
 		internal ExtractValue getExtractor(IReflect paramType)
 		{
 			return getExtractor(paramType.UnderlyingSystemType);
@@ -178,11 +174,7 @@ namespace LuaInterface
 			return null;
 		}
 
-		/*
-		 * The following functions return the value in the Lua stack
-		 * index stackPos as the desired type if it can, or null
-		 * otherwise.
-		 */
+		/// <summary>The following functions return the value in the Lua stack index stackPos as the desired type if it can, or null otherwise.</summary>
 		private object getAsSbyte(IntPtr luaState,int stackPos)
 		{
 			sbyte retVal=(sbyte)LuaDLL.lua_tonumber(luaState,stackPos);

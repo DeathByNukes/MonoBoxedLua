@@ -5,17 +5,18 @@ using System.Reflection;
 
 namespace LuaInterface
 {
-	/*
-	 * Main class of LuaInterface
-	 * Object-oriented wrapper to Lua API
-	 *
-	 * Author: Fabio Mascarenhas
-	 * Version: 1.0
-	 *
-	 * // steffenj: important changes in Lua class:
-	 * - removed all Open*Lib() functions
-	 * - all libs automatically open in the Lua class constructor (just assign nil to unwanted libs)
-	 * */
+	/// <summary>
+	/// Main class of LuaInterface
+	/// Object-oriented wrapper to Lua API
+	///
+	/// // steffenj: important changes in Lua class:
+	/// - removed all Open*Lib() functions
+	/// - all libs automatically open in the Lua class constructor (just assign nil to unwanted libs)
+	/// </summary>
+	/// <remarks>
+	/// Author: Fabio Mascarenhas
+	/// Version: 1.0
+	/// </remarks>
 	public class Lua : IDisposable
 	{
 		/*readonly */ IntPtr luaState;
@@ -48,9 +49,7 @@ namespace LuaInterface
 
 		private bool _StatePassed;
 
-		/*
-		 * CAUTION: LuaInterface.Lua instances can't share the same lua state!
-		 */
+		/// <summary>CAUTION: LuaInterface.Lua instances can't share the same lua state!</summary>
 		public Lua( Int64 luaState )
 		{
 			 // Check for existing LuaInterface marker
@@ -149,12 +148,6 @@ namespace LuaInterface
 		/// </summary>
 		public bool IsExecuting { get { return executing; } }
 
-		/// <summary>
-		///
-		/// </summary>
-		/// <param name="chunk"></param>
-		/// <param name="name"></param>
-		/// <returns></returns>
 		public LuaFunction LoadString(string chunk, string name)
 		{
 			int oldTop = LuaDLL.lua_gettop(luaState);
@@ -178,11 +171,6 @@ namespace LuaInterface
 			return result;
 		}
 
-		/// <summary>
-		///
-		/// </summary>
-		/// <param name="fileName"></param>
-		/// <returns></returns>
 		public LuaFunction LoadFile(string fileName)
 		{
 			int oldTop = LuaDLL.lua_gettop(luaState);
@@ -196,21 +184,16 @@ namespace LuaInterface
 		}
 
 
-		/*
-		 * Excutes a Lua chunk and returns all the chunk's return
-		 * values in an array
-		 */
+		/// <summary>Excutes a Lua chunk and returns all the chunk's return values in an array</summary>
 		public object[] DoString(string chunk)
 		{
 			return DoString(chunk,"chunk");
 		}
 
-		/// <summary>
-		/// Executes a Lua chnk and returns all the chunk's return values in an array.
-		/// </summary>
+		/// <summary>Executes a Lua chunk</summary>
 		/// <param name="chunk">Chunk to execute</param>
 		/// <param name="chunkName">Name to associate with the chunk</param>
-		/// <returns></returns>
+		/// <returns>all the chunk's return values in an array.</returns>
 		public object[] DoString(string chunk, string chunkName)
 		{
 			int oldTop = LuaDLL.lua_gettop(luaState);
@@ -248,10 +231,7 @@ namespace LuaInterface
 			return 1;
 		}
 
-		/*
-		 * Excutes a Lua file and returns all the chunk's return
-		 * values in an array
-		 */
+		/// <summary>Excutes a Lua file and returns all the chunk's return values in an array</summary>
 		public object[] DoFile(string fileName)
 		{
 			LuaDLL.lua_pushstdcallcfunction(luaState,tracebackFunction);
@@ -280,10 +260,7 @@ namespace LuaInterface
 			LuaDLL.lua_gc( luaState, LuaGCOptions.LUA_GCCOLLECT, 0 );
 		}
 
-		/*
-		 * Indexer for global variables from the LuaInterpreter
-		 * Supports navigation of tables by using . operator
-		 */
+		/// <summary>Indexer for global variables from the LuaInterpreter Supports navigation of tables by using . operator</summary>
 		public object this[string fullPath]
 		{
 			get
@@ -437,10 +414,7 @@ namespace LuaInterface
 		}
 		#endregion
 
-		/*
-		 * Navigates a table in the top of the stack, returning
-		 * the value of the specified field
-		 */
+		/// <summary>Navigates a table in the top of the stack, returning the value of the specified field</summary>
 		internal object getObject(string[] remainingPath)
 		{
 			object returnValue=null;
@@ -453,51 +427,37 @@ namespace LuaInterface
 			}
 			return returnValue;
 		}
-		/*
-		 * Gets a numeric global variable
-		 */
+		/// <summary>Gets a numeric global variable</summary>
 		public double GetNumber(string fullPath)
 		{
 			return (double)this[fullPath];
 		}
-		/*
-		 * Gets a string global variable
-		 */
+		/// <summary>Gets a string global variable</summary>
 		public string GetString(string fullPath)
 		{
 			return (string)this[fullPath];
 		}
-		/*
-		 * Gets a table global variable
-		 */
+		/// <summary>Gets a table global variable</summary>
 		public LuaTable GetTable(string fullPath)
 		{
 			return (LuaTable)this[fullPath];
 		}
 
 #if ! __NOGEN__
-		/*
-		 * Gets a table global variable as an object implementing
-		 * the interfaceType interface
-		 */
+		/// <summary>Gets a table global variable as an object implementing the interfaceType interface</summary>
 		public object GetTable(Type interfaceType, string fullPath)
 		{
 				translator.throwError(luaState,"Tables as interfaces not implemented");
 			return CodeGeneration.Instance.GetClassInstance(interfaceType,GetTable(fullPath));
 		}
 #endif
-		/*
-		 * Gets a function global variable
-		 */
+		/// <summary>Gets a function global variable</summary>
 		public LuaFunction GetFunction(string fullPath)
 		{
 			object obj=this[fullPath];
 			return (obj is LuaCSFunction ? new LuaFunction((LuaCSFunction)obj,this) : (LuaFunction)obj);
 		}
-		/*
-		 * Gets a function global variable as a delegate of
-		 * type delegateType
-		 */
+		/// <summary>Gets a function global variable as a delegate of type delegateType</summary>
 		public Delegate GetFunction(Type delegateType,string fullPath)
 		{
 #if __NOGEN__
@@ -507,21 +467,17 @@ namespace LuaInterface
 			return CodeGeneration.Instance.GetDelegate(delegateType,GetFunction(fullPath));
 #endif
 		}
-		/*
-		 * Calls the object as a function with the provided arguments,
-		 * returning the function's returned values inside an array
-		 */
+		/// <summary>Calls the object as a function with the provided arguments, returning the function's returned values inside an array</summary>
 		internal object[] callFunction(object function,object[] args)
 		{
 			return callFunction(function, args, null);
 		}
 
 
-		/*
-		 * Calls the object as a function with the provided arguments and
-		 * casting returned values to the types in returnTypes before returning
-		 * them in an array
-		 */
+		/// <summary>
+		/// Calls the object as a function with the provided arguments and
+		/// casting returned values to the types in returnTypes before returning them in an array
+		/// </summary>
 		internal object[] callFunction(object function,object[] args,Type[] returnTypes)
 		{
 			int nArgs=0;
@@ -551,9 +507,7 @@ namespace LuaInterface
 			else
 				return translator.popValues(luaState, oldTop);
 		}
-		/*
-		 * Navigates a table to set the value of one of its fields
-		 */
+		/// <summary>Navigates a table to set the value of one of its fields</summary>
 		internal void setObject(string[] remainingPath, object val)
 		{
 			for(int i=0; i<remainingPath.Length-1;i++)
@@ -565,10 +519,7 @@ namespace LuaInterface
 			translator.push(luaState,val);
 			LuaDLL.lua_settable(luaState,-3);
 		}
-		/*
-		 * Creates a new table as a global variable or as a field
-		 * inside an existing table
-		 */
+		/// <summary>Creates a new table as a global variable or as a field inside an existing table</summary>
 		public void NewTable(string fullPath)
 		{
 			string[] path=fullPath.Split(new char[] { '.' });
@@ -593,9 +544,7 @@ namespace LuaInterface
 			LuaDLL.lua_settop(luaState,oldTop);
 		}
 
-		/*
-		 * Creates a new unnamed table
-		 */
+		/// <summary>Creates a new unnamed table</summary>
 		public LuaTable NewTable()
 		{
 			int oldTop = LuaDLL.lua_gettop( luaState );
@@ -625,20 +574,14 @@ namespace LuaInterface
 			return dict;
 		}
 
-		/*
-		 * Lets go of a previously allocated reference to a table, function
-		 * or userdata
-		 */
+		/// <summary>Lets go of a previously allocated reference to a table, function or userdata</summary>
 
 		internal void dispose(int reference)
 		{
 			if (luaState != IntPtr.Zero) //Fix submitted by Qingrui Li
 				LuaDLL.lua_unref(luaState,reference);
 		}
-		/*
-		 * Gets a field of the table corresponding to the provided reference
-		 * using rawget (do not use metatables)
-		 */
+		/// <summary>Gets a field of the table corresponding to the provided reference using rawget (do not use metatables)</summary>
 		internal object rawGetObject(int reference,string field)
 		{
 			int oldTop=LuaDLL.lua_gettop(luaState);
@@ -649,9 +592,7 @@ namespace LuaInterface
 			LuaDLL.lua_settop(luaState,oldTop);
 			return obj;
 		}
-		/*
-		 * Gets a field of the table or userdata corresponding to the provided reference
-		 */
+		/// <summary>Gets a field of the table or userdata corresponding to the provided reference</summary>
 		internal object getObject(int reference,string field)
 		{
 			int oldTop=LuaDLL.lua_gettop(luaState);
@@ -660,9 +601,7 @@ namespace LuaInterface
 			LuaDLL.lua_settop(luaState,oldTop);
 			return returnValue;
 		}
-		/*
-		 * Gets a numeric field of the table or userdata corresponding the the provided reference
-		 */
+		/// <summary>Gets a numeric field of the table or userdata corresponding the the provided reference</summary>
 		internal object getObject(int reference,object field)
 		{
 			int oldTop=LuaDLL.lua_gettop(luaState);
@@ -673,10 +612,7 @@ namespace LuaInterface
 			LuaDLL.lua_settop(luaState,oldTop);
 			return returnValue;
 		}
-		/*
-		 * Sets a field of the table or userdata corresponding the the provided reference
-		 * to the provided value
-		 */
+		/// <summary>Sets a field of the table or userdata corresponding the the provided reference to the provided value</summary>
 		internal void setObject(int reference, string field, object val)
 		{
 			int oldTop=LuaDLL.lua_gettop(luaState);
@@ -684,10 +620,7 @@ namespace LuaInterface
 			setObject(field.Split(new char[] {'.'}),val);
 			LuaDLL.lua_settop(luaState,oldTop);
 		}
-		/*
-		 * Sets a numeric field of the table or userdata corresponding the the provided reference
-		 * to the provided value
-		 */
+		/// <summary>Sets a numeric field of the table or userdata corresponding the the provided reference to the provided value</summary>
 		internal void setObject(int reference, object field, object val)
 		{
 			int oldTop=LuaDLL.lua_gettop(luaState);
@@ -698,10 +631,7 @@ namespace LuaInterface
 			LuaDLL.lua_settop(luaState,oldTop);
 		}
 
-		/*
-		 * Registers an object's method as a Lua function (global or table field)
-		 * The method may have any signature
-		 */
+		/// <summary>Registers an object's method as a Lua function (global or table field) The method may have any signature</summary>
 		public LuaFunction RegisterFunction(string path, object target, MethodBase function /*MethodInfo function*/)  //CP: Fix for struct constructor by Alexander Kappner (link: http://luaforge.net/forum/forum.php?thread_id=2859&forum_id=145)
 		{
 			// We leave nothing on the stack when we are done
@@ -719,9 +649,7 @@ namespace LuaInterface
 		}
 
 
-		/*
-		 * Compares the two values referenced by ref1 and ref2 for equality
-		 */
+		/// <summary>Compares the two values referenced by ref1 and ref2 for equality</summary>
 		internal bool compareRef(int ref1, int ref2)
 		{
 			int top=LuaDLL.lua_gettop(luaState);

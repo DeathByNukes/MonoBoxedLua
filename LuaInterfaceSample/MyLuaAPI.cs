@@ -19,7 +19,7 @@ namespace LuaInterfaceSample
 
 			Lua["MyLuaNameSpace.SomeConstant" ] = 42;
 		}
- 
+
 		public void MyCoolFunction( int count )
 		{
 			Console.WriteLine( "Got {0}!", count );

@@ -6,33 +6,24 @@ using System.Threading;
 
 namespace LuaInterface
 {
-	/*
-	 * Structure to store a type and the return types of
-	 * its methods (the type of the returned value and out/ref
-	 * parameters).
-	 */
+	/// <summary>Structure to store a type and the return types of its methods (the type of the returned value and out/ref parameters).</summary>
 	struct LuaClassType
 	{
 		public Type klass;
 		public Type[][] returnTypes;
 	}
 
-	/*
-	 * Common interface for types generated from tables. The method
-	 * returns the table that overrides some or all of the type's methods.
-	 */
+	/// <summary>Common interface for types generated from tables. The method returns the table that overrides some or all of the type's methods.</summary>
 	public interface ILuaGeneratedType
 	{
 		LuaTable __luaInterface_getLuaTable();
 	}
 
-	/*
-	 * Class used for generating delegates that get a function from the Lua
-	 * stack as a delegate of a specific type.
-	 *
-	 * Author: Fabio Mascarenhas
-	 * Version: 1.0
-	 */
+	/// <summary>Class used for generating delegates that get a function from the Lua stack as a delegate of a specific type.</summary>
+	/// <remarks>
+	/// Author: Fabio Mascarenhas
+	/// Version: 1.0
+	/// </remarks>
 	class DelegateGenerator
 	{
 		private ObjectTranslator translator;
@@ -49,13 +40,11 @@ namespace LuaInterface
 		}
 	}
 
-	/*
-	 * Class used for generating delegates that get a table from the Lua
-	 * stack as a an object of a specific type.
-	 *
-	 * Author: Fabio Mascarenhas
-	 * Version: 1.0
-	 */
+	/// <summary>Class used for generating delegates that get a table from the Lua stack as a an object of a specific type.</summary>
+	/// <remarks>
+	/// Author: Fabio Mascarenhas
+	/// Version: 1.0
+	/// </remarks>
 	class ClassGenerator
 	{
 		private ObjectTranslator translator;
@@ -72,14 +61,14 @@ namespace LuaInterface
 		}
 	}
 
-	/*
-	 * Dynamically generates new types from existing types and
-	 * Lua function and table values. Generated types are event handlers,
-	 * delegates, interface implementations and subclasses.
-	 *
-	 * Author: Fabio Mascarenhas
-	 * Version: 1.0
-	 */
+	/// <summary>
+	/// Dynamically generates new types from existing types and Lua function and table values.
+	/// Generated types are event handlers, delegates, interface implementations and subclasses.
+	/// </summary>
+	/// <remarks>
+	/// Author: Fabio Mascarenhas
+	/// Version: 1.0
+	/// </remarks>
 	class CodeGeneration
 	{
 		private Type eventHandlerParent=typeof(LuaEventHandler);
@@ -112,9 +101,7 @@ namespace LuaInterface
 			newModule=newAssembly.DefineDynamicModule("LuaInterface_generatedcode");
 		}
 
-		/*
-		 * Singleton instance of the class
-		 */
+		/// <summary>Singleton instance of the class</summary>
 		public static CodeGeneration Instance
 		{
 			get
@@ -123,9 +110,7 @@ namespace LuaInterface
 			}
 		}
 
-		/*
-		 *  Generates an event handler that calls a Lua function
-		 */
+		/// <summary> Generates an event handler that calls a Lua function</summary>
 		private Type GenerateEvent(Type eventHandlerType)
 		{
 			string typeName;
@@ -162,10 +147,7 @@ namespace LuaInterface
 			return myType.CreateType();
 		}
 
-		/*
-		 * Generates a type that can be used for instantiating a delegate
-		 * of the provided type, given a Lua function.
-		 */
+		/// <summary>Generates a type that can be used for instantiating a delegate of the provided type, given a Lua function.</summary>
 		private Type GenerateDelegate(Type delegateType)
 		{
 			string typeName;
@@ -320,10 +302,7 @@ namespace LuaInterface
 			return myType.CreateType();
 		}
 
-		/*
-		 * Generates an implementation of klass, if it is an interface, or
-		 * a subclass of klass that delegates its virtual methods to a Lua table.
-		 */
+		/// <summary>Generates an implementation of klass, if it is an interface, or a subclass of klass that delegates its virtual methods to a Lua table.</summary>
 		public void GenerateClass(Type klass,out Type newType,out Type[][] returnTypes, LuaTable luaTable)
 		{
 			string typeName;
@@ -398,12 +377,10 @@ namespace LuaInterface
 			newType=myType.CreateType();
 		}
 
-		/*
-		 * Generates an overriden implementation of method inside myType that delegates
-		 * to a function in a Lua table with the same name, if the function exists. If it
-		 * doesn't the method calls the base method (or does nothing, in case of interface
-		 * implementations).
-		 */
+		/// <summary>
+		/// Generates an overriden implementation of method inside myType that delegates to a function in a Lua table with the same name, if the function exists.
+		/// If it doesn't the method calls the base method (or does nothing, in case of interface implementations).
+		/// </summary>
 		private void GenerateMethod(TypeBuilder myType,MethodInfo method,MethodAttributes attributes,
 			int methodIndex,FieldInfo luaTableField,FieldInfo returnTypesField,bool generateBase,out Type[] returnTypes)
 		{
@@ -608,10 +585,7 @@ namespace LuaInterface
 			generator.Emit(OpCodes.Ret);
 		}
 
-		/*
-		 * Gets an event handler for the event type that delegates to the eventHandler Lua function.
-		 * Caches the generated type.
-		 */
+		/// <summary>Gets an event handler for the event type that delegates to the eventHandler Lua function. Caches the generated type.</summary>
 		public LuaEventHandler GetEvent(Type eventHandlerType, LuaFunction eventHandler)
 		{
 			Type eventConsumerType;
@@ -629,10 +603,7 @@ namespace LuaInterface
 			return luaEventHandler;
 		}
 
-		/*
-		 * Gets a delegate with delegateType that calls the luaFunc Lua function
-		 * Caches the generated type.
-		 */
+		/// <summary>Gets a delegate with delegateType that calls the luaFunc Lua function Caches the generated type.</summary>
 		public Delegate GetDelegate(Type delegateType, LuaFunction luaFunc)
 		{
 			List<Type> returnTypes=new List<Type>();
@@ -657,12 +628,10 @@ namespace LuaInterface
 			return Delegate.CreateDelegate(delegateType,luaDelegate,"CallFunction");
 		}
 
-		/*
-		 * Gets an instance of an implementation of the klass interface or
-		 * subclass of klass that delegates public virtual methods to the
-		 * luaTable table.
-		 * Caches the generated type.
-		 */
+		/// <summary>
+		/// Gets an instance of an implementation of the klass interface or subclass of klass that
+		/// delegates public virtual methods to the luaTable table. Caches the generated type.
+		/// </summary>
 		public object GetClassInstance(Type klass, LuaTable luaTable)
 		{
 			LuaClassType luaClassType;

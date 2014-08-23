@@ -3,12 +3,11 @@ using System.Collections;
 
 namespace LuaInterface
 {
-	/*
-	 * Wrapper class for Lua tables
-	 *
-	 * Author: Fabio Mascarenhas
-	 * Version: 1.0
-	 */
+	/// <summary>Wrapper class for Lua tables</summary>
+	/// <remarks>
+	/// Author: Fabio Mascarenhas
+	/// Version: 1.0
+	/// </remarks>
 	public class LuaTable : LuaBase
 	{
 		public bool IsOrphaned;
@@ -19,9 +18,7 @@ namespace LuaInterface
 			_Interpreter = interpreter;
 		}
 
-		/*
-		 * Indexer for string fields of the table
-		 */
+		/// <summary>Indexer for string fields of the table</summary>
 		public object this[string field]
 		{
 			get
@@ -33,9 +30,7 @@ namespace LuaInterface
 				_Interpreter.setObject(_Reference, field, value);
 			}
 		}
-		/*
-		 * Indexer for numeric fields of the table
-		 */
+		/// <summary>Indexer for numeric fields of the table</summary>
 		public object this[object field]
 		{
 			get
@@ -64,10 +59,7 @@ namespace LuaInterface
 			get { return _Interpreter.GetTableDict(this).Values; }
 		}
 
-		/*
-		 * Gets an string fields of a table ignoring its metatable,
-		 * if it exists
-		 */
+		/// <summary>Gets an string fields of a table ignoring its metatable, if it exists</summary>
 		internal object rawget(string field)
 		{
 			return _Interpreter.rawGetObject(_Reference, field);
@@ -83,9 +75,7 @@ namespace LuaInterface
 				return obj;
 		}
 
-		/*
-		 * Pushes this table into the Lua stack
-		 */
+		/// <summary>Pushes this table into the Lua stack</summary>
 		internal void push(IntPtr luaState)
 		{
 			LuaDLL.lua_getref(luaState, _Reference);

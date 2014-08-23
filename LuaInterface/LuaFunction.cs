@@ -21,25 +21,17 @@ namespace LuaInterface
 		}
 
 
-		/*
-		 * Calls the function casting return values to the types
-		 * in returnTypes
-		 */
+		/// <summary>Calls the function casting return values to the types in returnTypes</summary>
 		internal object[] call(object[] args, Type[] returnTypes)
 		{
 			return _Interpreter.callFunction(this, args, returnTypes);
 		}
-		/*
-		 * Calls the function and returns its return values inside
-		 * an array
-		 */
+		/// <summary>Calls the function and returns its return values inside an array</summary>
 		public object[] Call(params object[] args)
 		{
 			return _Interpreter.callFunction(this, args);
 		}
-		/*
-		 * Pushes the function into the Lua stack
-		 */
+		/// <summary>Pushes the function into the Lua stack</summary>
 		internal void push(IntPtr luaState)
 		{
 			if (_Reference != 0)

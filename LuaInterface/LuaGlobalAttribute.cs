@@ -14,7 +14,7 @@ namespace LuaInterface
 		/// An alternative name to use for calling the function in Lua - leave empty for CLR name
 		/// </summary>
 		public string Name { get; set; }
-		
+
 		/// <summary>
 		/// A description of the function
 		/// </summary>

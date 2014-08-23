@@ -3,9 +3,7 @@ using System.Runtime.InteropServices;
 
 namespace LuaInterface
 {
-	/*
-	 * Lua types for the API, returned by lua_type function
-	 */
+	/// <summary>Lua types for the API, returned by lua_type function</summary>
 	public enum LuaTypes
 	{
 		LUA_TNONE=-1,
@@ -20,9 +18,7 @@ namespace LuaInterface
 	}
 
 	// steffenj: BEGIN lua garbage collector options
-	/*
-	 * Lua Garbage Collector options (param "what")
-	 */
+	/// <summary>Lua Garbage Collector options (param "what")</summary>
 	public enum LuaGCOptions
 	{
 		LUA_GCSTOP = 0,
@@ -49,9 +45,7 @@ namespace LuaInterface
 		 */
 	// steffenj: END lua garbage collector options
 
-	/*
-	 * Special stack indexes
-	 */
+	/// <summary>Special stack indexes</summary>
 	sealed class LuaIndexes
 	{
 		public static int LUA_REGISTRYINDEX=-10000;
@@ -59,9 +53,7 @@ namespace LuaInterface
 		public static int LUA_GLOBALSINDEX=-10002;	// steffenj: globalsindex previously was -10001
 	}
 
-	/*
-	 * Structure used by the chunk reader
-	 */
+	/// <summary>Structure used by the chunk reader</summary>
 	[ StructLayout( LayoutKind.Sequential )]
 	public struct ReaderInfo
 	{
@@ -69,39 +61,35 @@ namespace LuaInterface
 		public bool finished;
 	}
 
-	/*
-	 * Delegate for functions passed to Lua as function pointers
-	 */
+	/// <summary>Delegate for functions passed to Lua as function pointers</summary>
 	public delegate int LuaCSFunction(IntPtr luaState);
 
-	/*
-	 * Delegate for chunk readers used with lua_load
-	 */
+	/// <summary>Delegate for chunk readers used with lua_load</summary>
 	public delegate string LuaChunkReader(IntPtr luaState,ref ReaderInfo data,ref uint size);
 
 
 	/// <summary>
 	/// Used to handle Lua panics
 	/// </summary>
-	/// <param name="luaState"></param>
-	/// <returns></returns>
 	public delegate int LuaFunctionCallback(IntPtr luaState);
 
-	/*
-	 * P/Invoke wrapper of the Lua API
-	 *
-	 * Author: Fabio Mascarenhas
-	 * Version: 1.0
-	 *
-	 * // steffenj: noteable changes in the LuaDLL API:
-	 * - luaopen_* functions are gone
-	 *		(however Lua class constructor already calls luaL_openlibs now, so just remove these calls)
-	 * - deprecated functions: lua_open, lua_strlen, lua_dostring
-	 *		(they still work but may be removed with next Lua version)
-	 *
-	 * list of functions of the Lua 5.1.1 C API that are not in LuaDLL
-	 * i thought this may come in handy for the next Lua version upgrade and for anyone to see
-	 * what the differences are in the APIs (C API vs LuaDLL API)
+	/**
+		<summary>
+		P/Invoke wrapper of the Lua API
+
+		Author: Fabio Mascarenhas
+		Version: 1.0
+
+		// steffenj: noteable changes in the LuaDLL API:
+		- luaopen_* functions are gone
+			(however Lua class constructor already calls luaL_openlibs now, so just remove these calls)
+		- deprecated functions: lua_open, lua_strlen, lua_dostring
+			(they still work but may be removed with next Lua version)
+		</summary>
+		<remarks>
+		list of functions of the Lua 5.1.1 C API that are not in LuaDLL
+		i thought this may come in handy for the next Lua version upgrade and for anyone to see
+		what the differences are in the APIs (C API vs LuaDLL API)
 		lua_concat			(use System.String concatenation or similar)
 		lua_cpcall			(no point in calling C functions)
 		lua_dump			(would write to unmanaged memory via lua_Writer)
@@ -152,6 +140,7 @@ namespace LuaInterface
 		lua_sethook
 		lua_setlocal
 		lua_setupvalue
+		</remarks>
 	 */
 	public class LuaDLL
 	{

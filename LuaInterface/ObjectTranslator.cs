@@ -5,12 +5,11 @@ using System.Collections.Generic;
 
 namespace LuaInterface
 {
-	/*
-	 * Passes objects from the CLR to Lua and vice-versa
-	 *
-	 * Author: Fabio Mascarenhas
-	 * Version: 1.0
-	 */
+	/// <summary>Passes objects from the CLR to Lua and vice-versa</summary>
+	/// <remarks>
+	/// Author: Fabio Mascarenhas
+	/// Version: 1.0
+	/// </remarks>
 	public class ObjectTranslator
 	{
 		internal CheckType typeChecker;
@@ -52,9 +51,7 @@ namespace LuaInterface
 			setGlobalFunctions(luaState);
 		}
 
-		/*
-		 * Sets up the list of objects in the Lua side
-		 */
+		/// <summary>Sets up the list of objects in the Lua side</summary>
 		private void createLuaObjectList(IntPtr luaState)
 		{
 			LuaDLL.lua_pushstring(luaState,"luaNet_objects");
@@ -66,10 +63,7 @@ namespace LuaInterface
 			LuaDLL.lua_setmetatable(luaState,-2);
 			LuaDLL.lua_settable(luaState, (int) LuaIndexes.LUA_REGISTRYINDEX);
 		}
-		/*
-		 * Registers the indexing function of CLR objects
-		 * passed to Lua
-		 */
+		/// <summary>Registers the indexing function of CLR objects passed to Lua</summary>
 		private void createIndexingMetaFunction(IntPtr luaState)
 		{
 			LuaDLL.lua_pushstring(luaState,"luaNet_indexfunction");
@@ -77,10 +71,7 @@ namespace LuaInterface
 			//LuaDLL.lua_pushstdcallcfunction(luaState,indexFunction);
 			LuaDLL.lua_rawset(luaState, (int) LuaIndexes.LUA_REGISTRYINDEX);
 		}
-		/*
-		 * Creates the metatable for superclasses (the base
-		 * field of registered tables)
-		 */
+		/// <summary>Creates the metatable for superclasses (the base field of registered tables)</summary>
 		private void createBaseClassMetatable(IntPtr luaState)
 		{
 			LuaDLL.luaL_newmetatable(luaState,"luaNet_searchbase");
@@ -98,9 +89,7 @@ namespace LuaInterface
 			LuaDLL.lua_settable(luaState,-3);
 			LuaDLL.lua_settop(luaState,-2);
 		}
-		/*
-		 * Creates the metatable for type references
-		 */
+		/// <summary>Creates the metatable for type references</summary>
 		private void createClassMetatable(IntPtr luaState)
 		{
 			LuaDLL.luaL_newmetatable(luaState,"luaNet_class");
@@ -121,9 +110,7 @@ namespace LuaInterface
 			LuaDLL.lua_settable(luaState,-3);
 			LuaDLL.lua_settop(luaState,-2);
 		}
-		/*
-		 * Registers the global functions used by LuaInterface
-		 */
+		/// <summary>Registers the global functions used by LuaInterface</summary>
 		private void setGlobalFunctions(IntPtr luaState)
 		{
 			LuaDLL.lua_pushstdcallcfunction(luaState,metaFunctions.indexFunction);
@@ -147,9 +134,7 @@ namespace LuaInterface
 
 		}
 
-		/*
-		 * Creates the metatable for delegates
-		 */
+		/// <summary>Creates the metatable for delegates</summary>
 		private void createFunctionMetatable(IntPtr luaState)
 		{
 			LuaDLL.luaL_newmetatable(luaState,"luaNet_function");
@@ -161,9 +146,7 @@ namespace LuaInterface
 			LuaDLL.lua_settable(luaState,-3);
 			LuaDLL.lua_settop(luaState,-2);
 		}
-		/*
-		 * Passes errors (argument e) to the Lua interpreter
-		 */
+		/// <summary>Passes errors (argument e) to the Lua interpreter</summary>
 		internal void throwError(IntPtr luaState, object e)
 		{
 			// We use this to remove anything pushed by luaL_where
@@ -198,10 +181,7 @@ namespace LuaInterface
 			push(luaState, e);
 			LuaDLL.lua_error(luaState);
 		}
-		/*
-		 * Implementation of load_assembly. Throws an error
-		 * if the assembly is not found.
-		 */
+		/// <summary>Implementation of load_assembly. Throws an error if the assembly is not found.</summary>
 		private int loadAssembly(IntPtr luaState)
 		{
 			try
@@ -250,10 +230,7 @@ namespace LuaInterface
 			return null;
 		}
 
-		/*
-		 * Implementation of import_type. Returns nil if the
-		 * type is not found.
-		 */
+		/// <summary>Implementation of import_type. Returns nil if the type is not found.</summary>
 		private int importType(IntPtr luaState)
 		{
 			string className=LuaDLL.lua_tostring(luaState,1);
@@ -264,11 +241,10 @@ namespace LuaInterface
 				LuaDLL.lua_pushnil(luaState);
 			return 1;
 		}
-		/*
-		 * Implementation of make_object. Registers a table (first
-		 * argument in the stack) as an object subclassing the
-		 * type passed as second argument in the stack.
-		 */
+		/// <summary>
+		/// Implementation of make_object.
+		/// Registers a table (first argument in the stack) as an object subclassing the type passed as second argument in the stack.
+		/// </summary>
 		private int registerTable(IntPtr luaState)
 		{
 #if __NOGEN__
@@ -312,10 +288,10 @@ namespace LuaInterface
 #endif
 			return 0;
 		}
-		/*
-		 * Implementation of free_object. Clears the metatable and the
-		 * base field, freeing the created object for garbage-collection
-		 */
+		/// <summary>
+		/// Implementation of free_object.
+		/// Clears the metatable and the base field, freeing the created object for garbage-collection
+		/// </summary>
 		private int unregisterTable(IntPtr luaState)
 		{
 			try
@@ -343,10 +319,7 @@ namespace LuaInterface
 			}
 			return 0;
 		}
-		/*
-		 * Implementation of get_method_bysig. Returns nil
-		 * if no matching method is not found.
-		 */
+		/// <summary>Implementation of get_method_bysig. Returns nil if no matching method is not found.</summary>
 		private int getMethodSignature(IntPtr luaState)
 		{
 			IReflect klass; object target;
@@ -385,10 +358,7 @@ namespace LuaInterface
 			}
 			return 1;
 		}
-		/*
-		 * Implementation of get_constructor_bysig. Returns nil
-		 * if no matching constructor is found.
-		 */
+		/// <summary>Implementation of get_constructor_bysig. Returns nil if no matching constructor is found.</summary>
 		private int getConstructorSignature(IntPtr luaState)
 		{
 			IReflect klass=null;
@@ -475,24 +445,17 @@ namespace LuaInterface
 			return 1;
 		}
 
-		/*
-		 * Pushes a type reference into the stack
-		 */
+		/// <summary>Pushes a type reference into the stack</summary>
 		internal void pushType(IntPtr luaState, Type t)
 		{
 			pushObject(luaState,new ProxyType(t),"luaNet_class");
 		}
-		/*
-		 * Pushes a delegate into the stack
-		 */
+		/// <summary>Pushes a delegate into the stack</summary>
 		internal void pushFunction(IntPtr luaState, LuaCSFunction func)
 		{
 			pushObject(luaState,func,"luaNet_function");
 		}
-		/*
-		 * Pushes a CLR object into the Lua stack as an userdata
-		 * with the provided metatable
-		 */
+		/// <summary>Pushes a CLR object into the Lua stack as an userdata with the provided metatable</summary>
 		internal void pushObject(IntPtr luaState, object o, string metatable)
 		{
 			int index = -1;
@@ -535,10 +498,7 @@ namespace LuaInterface
 		}
 
 
-		/*
-		 * Pushes a new object into the Lua stack with the provided
-		 * metatable
-		 */
+		/// <summary>Pushes a new object into the Lua stack with the provided metatable</summary>
 		private void pushNewObject(IntPtr luaState,object o,int index,string metatable)
 		{
 			if(metatable=="luaNet_metatable")
@@ -587,10 +547,7 @@ namespace LuaInterface
 			LuaDLL.lua_rawseti(luaState,-3,index);
 			LuaDLL.lua_remove(luaState,-2);
 		}
-		/*
-		 * Gets an object from the Lua stack with the desired type, if it matches, otherwise
-		 * returns null.
-		 */
+		/// <summary>Gets an object from the Lua stack with the desired type, if it matches, otherwise returns null.</summary>
 		internal object getAsType(IntPtr luaState,int stackPos,Type paramType)
 		{
 			ExtractValue extractor=typeChecker.checkType(luaState,stackPos,paramType);
@@ -599,10 +556,7 @@ namespace LuaInterface
 		}
 
 
-		/// <summary>
-		/// Given the Lua int ID for an object remove it from our maps
-		/// </summary>
-		/// <param name="udata"></param>
+		/// <summary>Given the Lua int ID for an object remove it from our maps</summary>
 		internal void collectObject(int udata)
 		{
 			object o;
@@ -619,10 +573,7 @@ namespace LuaInterface
 		}
 
 
-		/// <summary>
-		/// Given an object reference, remove it from our maps
-		/// </summary>
-		/// <param name="udata"></param>
+		/// <summary>Given an object reference, remove it from our maps</summary>
 		void collectObject(object o, int udata)
 		{
 			// Debug.WriteLine("Removing " + o.ToString() + " @ " + udata);
@@ -632,9 +583,7 @@ namespace LuaInterface
 		}
 
 
-		/// <summary>
-		/// We want to ensure that objects always have a unique ID
-		/// </summary>
+		/// <summary>We want to ensure that objects always have a unique ID</summary>
 		int nextObj = 0;
 
 		int addObject(object obj)
@@ -652,9 +601,7 @@ namespace LuaInterface
 
 
 
-		/*
-		 * Gets an object from the Lua stack according to its Lua type.
-		 */
+		/// <summary>Gets an object from the Lua stack according to its Lua type.</summary>
 		internal object getObject(IntPtr luaState,int index)
 		{
 			LuaTypes type=LuaDLL.lua_type(luaState,index);
@@ -692,34 +639,25 @@ namespace LuaInterface
 					return null;
 			}
 		}
-		/*
-		 * Gets the table in the index positon of the Lua stack.
-		 */
+		/// <summary>Gets the table in the index positon of the Lua stack.</summary>
 		internal LuaTable getTable(IntPtr luaState,int index)
 		{
 			LuaDLL.lua_pushvalue(luaState,index);
 			return new LuaTable(LuaDLL.lua_ref(luaState,1),interpreter);
 		}
-		/*
-		 * Gets the userdata in the index positon of the Lua stack.
-		 */
+		/// <summary>Gets the userdata in the index positon of the Lua stack.</summary>
 		internal LuaUserData getUserData(IntPtr luaState,int index)
 		{
 			LuaDLL.lua_pushvalue(luaState,index);
 			return new LuaUserData(LuaDLL.lua_ref(luaState,1),interpreter);
 		}
-		/*
-		 * Gets the function in the index positon of the Lua stack.
-		 */
+		/// <summary>Gets the function in the index positon of the Lua stack.</summary>
 		internal LuaFunction getFunction(IntPtr luaState,int index)
 		{
 			LuaDLL.lua_pushvalue(luaState,index);
 			return new LuaFunction(LuaDLL.lua_ref(luaState,1),interpreter);
 		}
-		/*
-		 * Gets the CLR object in the index positon of the Lua stack. Returns
-		 * delegates as Lua functions.
-		 */
+		/// <summary>Gets the CLR object in the index positon of the Lua stack. Returns delegates as Lua functions.</summary>
 		internal object getNetObject(IntPtr luaState,int index)
 		{
 			int idx=LuaDLL.luanet_tonetobject(luaState,index);
@@ -728,10 +666,7 @@ namespace LuaInterface
 			else
 				return null;
 		}
-		/*
-		 * Gets the CLR object in the index positon of the Lua stack. Returns
-		 * delegates as is.
-		 */
+		/// <summary>Gets the CLR object in the index positon of the Lua stack. Returns delegates as-is.</summary>
 		internal object getRawNetObject(IntPtr luaState,int index)
 		{
 			int udata=LuaDLL.luanet_rawnetobj(luaState,index);
@@ -741,10 +676,7 @@ namespace LuaInterface
 			}
 			return null;
 		}
-		/*
-		 * Pushes the entire array into the Lua stack and returns the number
-		 * of elements pushed.
-		 */
+		/// <summary>Pushes the entire array into the Lua stack and returns the number of elements pushed.</summary>
 		internal int returnValues(IntPtr luaState, object[] returnValues)
 		{
 			if(LuaDLL.lua_checkstack(luaState,returnValues.Length+5))
@@ -757,10 +689,7 @@ namespace LuaInterface
 			} else
 				return 0;
 		}
-		/*
-		 * Gets the values from the provided index to
-		 * the top of the stack and returns them in an array.
-		 */
+		/// <summary>Gets the values from the provided index to the top of the stack and returns them in an array.</summary>
 		internal object[] popValues(IntPtr luaState,int oldTop)
 		{
 			int newTop=LuaDLL.lua_gettop(luaState);
@@ -779,11 +708,10 @@ namespace LuaInterface
 				return returnValues.ToArray();
 			}
 		}
-		/*
-		 * Gets the values from the provided index to
-		 * the top of the stack and returns them in an array, casting
-		 * them to the provided types.
-		 */
+		/// <summary>
+		/// Gets the values from the provided index to the top of the stack and returns them in an array,
+		/// casting them to the provided types.
+		/// </summary>
 		internal object[] popValues(IntPtr luaState,int oldTop,Type[] popTypes)
 		{
 			int newTop=LuaDLL.lua_gettop(luaState);
@@ -826,9 +754,7 @@ namespace LuaInterface
 				return false;
 		}
 
-		/*
-		 * Pushes the object into the Lua stack according to its type.
-		 */
+		/// <summary>Pushes the object into the Lua stack according to its type.</summary>
 		internal void push(IntPtr luaState, object o)
 		{
 			if(o==null)
@@ -880,10 +806,7 @@ namespace LuaInterface
 				pushObject(luaState,o,"luaNet_metatable");
 			}
 		}
-		/*
-		 * Checks if the method matches the arguments in the Lua stack, getting
-		 * the arguments if it does.
-		 */
+		/// <summary>Checks if the method matches the arguments in the Lua stack, getting the arguments if it does.</summary>
 		internal bool matchParameters(IntPtr luaState,MethodBase method,ref MethodCache methodCache)
 		{
 			return metaFunctions.matchParameters(luaState,method,ref methodCache);

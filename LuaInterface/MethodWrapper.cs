@@ -5,9 +5,7 @@ using System.Diagnostics;
 
 namespace LuaInterface
 {
-	/*
-	 * Cached method
-	 */
+	/// <summary>Cached method</summary>
 	struct MethodCache
 	{
 		private MethodBase _cachedMethod;
@@ -40,9 +38,7 @@ namespace LuaInterface
 		public MethodArgs[] argTypes;
 	}
 
-	/*
-	 * Parameter information
-	 */
+	/// <summary>Parameter information</summary>
 	struct MethodArgs
 	{
 		// Position of parameter
@@ -55,17 +51,14 @@ namespace LuaInterface
 		public Type paramsArrayType;
 	}
 
-	/*
-	 * Argument extraction with type-conversion function
-	 */
+	/// <summary>Argument extraction with type-conversion function</summary>
 	delegate object ExtractValue(IntPtr luaState, int stackPos);
 
-	/*
-	 * Wrapper class for methods/constructors accessed from Lua.
-	 *
-	 * Author: Fabio Mascarenhas
-	 * Version: 1.0
-	 */
+	/// <summary>Wrapper class for methods/constructors accessed from Lua.</summary>
+	/// <remarks>
+	/// Author: Fabio Mascarenhas
+	/// Version: 1.0
+	/// </remarks>
 	class LuaMethodWrapper
 	{
 		private ObjectTranslator _Translator;
@@ -78,9 +71,7 @@ namespace LuaInterface
 		private object _Target;
 		private BindingFlags _BindingType;
 
-		/*
-		 * Constructs the wrapper for a known MethodBase instance
-		 */
+		/// <summary>Constructs the wrapper for a known MethodBase instance</summary>
 		public LuaMethodWrapper(ObjectTranslator translator, object target, IReflect targetType, MethodBase method)
 		{
 			_Translator = translator;
@@ -96,9 +87,7 @@ namespace LuaInterface
 			else
 			{ _BindingType = BindingFlags.Instance; }
 		}
-		/*
-		 * Constructs the wrapper for a known method name
-		 */
+		/// <summary>Constructs the wrapper for a known method name</summary>
 		public LuaMethodWrapper(ObjectTranslator translator, IReflect targetType, string methodName, BindingFlags bindingType)
 		{
 			_Translator = translator;
@@ -130,10 +119,7 @@ namespace LuaInterface
 		}
 
 
-		/*
-		 * Calls the method. Receives the arguments from the Lua stack
-		 * and returns values in it.
-		 */
+		/// <summary>Calls the method. Receives the arguments from the Lua stack and returns values in it.</summary>
 		public int call(IntPtr luaState)
 		{
 			MethodBase methodToCall = _Method;
@@ -325,7 +311,7 @@ namespace LuaInterface
 						{
 							object returnValue = _LastCalledMethod.cachedMethod.Invoke( targetObject, _LastCalledMethod.args );
 							_Translator.push(luaState, returnValue );
-							
+
 							LuaTable returnValueLuaBase = returnValue as LuaTable;
 							if( returnValueLuaBase != null && returnValueLuaBase.IsOrphaned )
 							{
@@ -410,13 +396,11 @@ namespace LuaInterface
 	}
 
 
-	/*
-	 * Wrapper class for events that does registration/deregistration
-	 * of event handlers.
-	 *
-	 * Author: Fabio Mascarenhas
-	 * Version: 1.0
-	 */
+	/// <summary>Wrapper class for events that does registration/deregistration of event handlers.</summary>
+	/// <remarks>
+	/// Author: Fabio Mascarenhas
+	/// Version: 1.0
+	/// </remarks>
 	class RegisterEventHandler
 	{
 		object target;
@@ -431,9 +415,7 @@ namespace LuaInterface
 		}
 
 
-		/*
-		 * Adds a new event handler
-		 */
+		/// <summary>Adds a new event handler</summary>
 		public Delegate Add(LuaFunction function)
 		{
 #if __NOGEN__
@@ -461,32 +443,28 @@ namespace LuaInterface
 			//return handlerDelegate;
 		}
 
-		/*
-		 * Removes an existing event handler
-		 */
+		/// <summary>Removes an existing event handler</summary>
 		public void Remove(Delegate handlerDelegate)
 		{
 			RemovePending(handlerDelegate);
 			pendingEvents.Remove(handlerDelegate);
 		}
 
-		/*
-		 * Removes an existing event handler (without updating the pending handlers list)
-		 */
+		/// <summary>Removes an existing event handler (without updating the pending handlers list)</summary>
 		internal void RemovePending(Delegate handlerDelegate)
 		{
 			eventInfo.RemoveEventHandler(target, handlerDelegate);
 		}
 	}
 
-	/*
-	 * Base wrapper class for Lua function event handlers.
-	 * Subclasses that do actual event handling are created
-	 * at runtime.
-	 *
-	 * Author: Fabio Mascarenhas
-	 * Version: 1.0
-	 */
+	/// <summary>
+	/// Base wrapper class for Lua function event handlers.
+	/// Subclasses that do actual event handling are created at runtime.
+	/// </summary>
+	/// <remarks>
+	/// Author: Fabio Mascarenhas
+	/// Version: 1.0
+	/// </remarks>
 	public class LuaEventHandler
 	{
 		public LuaFunction handler = null;
@@ -503,14 +481,14 @@ namespace LuaInterface
 		//}
 	}
 
-	/*
-	 * Wrapper class for Lua functions as delegates
-	 * Subclasses with correct signatures are created
-	 * at runtime.
-	 *
-	 * Author: Fabio Mascarenhas
-	 * Version: 1.0
-	 */
+	/// <summary>
+	/// Wrapper class for Lua functions as delegates.
+	/// Subclasses with correct signatures are created at runtime.
+	/// </summary>
+	/// <remarks>
+	/// Author: Fabio Mascarenhas
+	/// Version: 1.0
+	/// </remarks>
 	public class LuaDelegate
 	{
 		public Type[] returnTypes;
@@ -549,18 +527,14 @@ namespace LuaInterface
 		}
 	}
 
-	/*
-	 * Static helper methods for Lua tables acting as CLR objects.
-	 *
-	 * Author: Fabio Mascarenhas
-	 * Version: 1.0
-	 */
+	/// <summary>Static helper methods for Lua tables acting as CLR objects.</summary>
+	/// <remarks>
+	/// Author: Fabio Mascarenhas
+	/// Version: 1.0
+	/// </remarks>
 	public class LuaClassHelper
 	{
-		/*
-		 *  Gets the function called name from the provided table,
-		 * returning null if it does not exist
-		 */
+		/// <summary> Gets the function called name from the provided table, returning null if it does not exist</summary>
 		public static LuaFunction getTableFunction(LuaTable luaTable, string name)
 		{
 			object funcObj = luaTable.rawget(name);
@@ -569,9 +543,7 @@ namespace LuaInterface
 			else
 				return null;
 		}
-		/*
-		 * Calls the provided function with the provided parameters
-		 */
+		/// <summary>Calls the provided function with the provided parameters</summary>
 		public static object callFunction(LuaFunction function, object[] args, Type[] returnTypes, object[] inArgs, int[] outArgs)
 		{
 			// args is the return array of arguments, inArgs is the actual array

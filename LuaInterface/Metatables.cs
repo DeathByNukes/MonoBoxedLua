@@ -7,18 +7,14 @@ using System.Runtime.InteropServices;
 
 namespace LuaInterface
 {
-	/*
-	 * Functions used in the metatables of userdata representing
-	 * CLR objects
-	 *
-	 * Author: Fabio Mascarenhas
-	 * Version: 1.0
-	 */
+	/// <summary>Functions used in the metatables of userdata representing CLR objects</summary>
+	/// <remarks>
+	/// Author: Fabio Mascarenhas
+	/// Version: 1.0
+	/// </remarks>
 	class MetaFunctions
 	{
-		/*
-		 * __index metafunction for CLR objects. Implemented in Lua.
-		 */
+		/// <summary>__index metafunction for CLR objects. Implemented in Lua.</summary>
 		internal static string luaIndexFunction =
 	@"
 		local function index(obj,name)
@@ -57,18 +53,14 @@ namespace LuaInterface
 			execDelegateFunction = new LuaCSFunction(this.runFunctionDelegate);
 		}
 
-		/*
-		 * __call metafunction of CLR delegates, retrieves and calls the delegate.
-		 */
+		/// <summary>__call metafunction of CLR delegates, retrieves and calls the delegate.</summary>
 		private int runFunctionDelegate(IntPtr luaState)
 		{
 			LuaCSFunction func = (LuaCSFunction)translator.getRawNetObject(luaState, 1);
 			LuaDLL.lua_remove(luaState, 1);
 			return func(luaState);
 		}
-		/*
-		 * __gc metafunction of CLR objects.
-		 */
+		/// <summary>__gc metafunction of CLR objects.</summary>
 		private int collectObject(IntPtr luaState)
 		{
 			int udata = LuaDLL.luanet_rawnetobj(luaState, 1);
@@ -82,9 +74,7 @@ namespace LuaInterface
 			}
 			return 0;
 		}
-		/*
-		 * __tostring metafunction of CLR objects.
-		 */
+		/// <summary>__tostring metafunction of CLR objects.</summary>
 		private int toString(IntPtr luaState)
 		{
 			object obj = translator.getRawNetObject(luaState, 1);
@@ -123,13 +113,11 @@ namespace LuaInterface
 			}
 		}
 
-		/*
-		 * Called by the __index metafunction of CLR objects in case the
-		 * method is not cached or it is a field/property/event.
-		 * Receives the object and the member name as arguments and returns
-		 * either the value of the member or a delegate to call it.
-		 * If the member does not exist returns nil.
-		 */
+		/// <summary>
+		/// Called by the __index metafunction of CLR objects in case the method is not cached or it is a field/property/event.
+		/// Receives the object and the member name as arguments and returns either the value of the member or a delegate to call it.
+		/// If the member does not exist returns nil.
+		/// </summary>
 		private int getMethod(IntPtr luaState)
 		{
 			object obj = translator.getRawNetObject(luaState, 1);
@@ -226,10 +214,10 @@ namespace LuaInterface
 		}
 
 
-		/*
-		 * __index metafunction of base classes (the base field of Lua tables).
-		 * Adds a prefix to the method name to call the base version of the method.
-		 */
+		/// <summary>
+		/// __index metafunction of base classes (the base field of Lua tables).
+		/// Adds a prefix to the method name to call the base version of the method.
+		/// </summary>
 		private int getBaseMethod(IntPtr luaState)
 		{
 			object obj = translator.getRawNetObject(luaState, 1);
@@ -259,12 +247,7 @@ namespace LuaInterface
 		}
 
 
-		/// <summary>
-		/// Does this method exist as either an instance or static?
-		/// </summary>
-		/// <param name="objType"></param>
-		/// <param name="methodName"></param>
-		/// <returns></returns>
+		/// <summary>Does this method exist as either an instance or static?</summary>
 		bool isMemberPresent(IReflect objType, string methodName)
 		{
 			object cachedMember = checkMemberCache(memberCache, objType, methodName);
@@ -277,12 +260,11 @@ namespace LuaInterface
 			return (members.Length > 0);
 		}
 
-		/*
-		 * Pushes the value of a member or a delegate to call it, depending on the type of
-		 * the member. Works with static or instance members.
-		 * Uses reflection to find members, and stores the reflected MemberInfo object in
-		 * a cache (indexed by the type of the object and the name of the member).
-		 */
+		/// <summary>
+		/// Pushes the value of a member or a delegate to call it, depending on the type of the member.
+		/// Works with static or instance members. Uses reflection to find members,
+		/// and stores the reflected MemberInfo object in a cache (indexed by the type of the object and the name of the member).
+		/// </summary>
 		private int getMember(IntPtr luaState, IReflect objType, object obj, string methodName, BindingFlags bindingType)
 		{
 			bool implicitStatic = false;
@@ -419,9 +401,7 @@ namespace LuaInterface
 			translator.push(luaState, false);
 			return 2;
 		}
-		/*
-		 * Checks if a MemberInfo object is cached, returning it or null.
-		 */
+		/// <summary>Checks if a MemberInfo object is cached, returning it or null.</summary>
 		private object checkMemberCache(Hashtable memberCache, IReflect objType, string memberName)
 		{
 			Hashtable members = (Hashtable)memberCache[objType];
@@ -430,9 +410,7 @@ namespace LuaInterface
 			else
 				return null;
 		}
-		/*
-		 * Stores a MemberInfo object in the member cache.
-		 */
+		/// <summary>Stores a MemberInfo object in the member cache.</summary>
 		private void setMemberCache(Hashtable memberCache, IReflect objType, string memberName, object member)
 		{
 			Hashtable members = (Hashtable)memberCache[objType];
@@ -443,11 +421,11 @@ namespace LuaInterface
 			}
 			members[memberName] = member;
 		}
-		/*
-		 * __newindex metafunction of CLR objects. Receives the object,
-		 * the member name and the value to be stored as arguments. Throws
-		 * and error if the assignment is invalid.
-		 */
+		/// <summary>
+		/// __newindex metafunction of CLR objects.
+		/// Receives the object, the member name and the value to be stored as arguments.
+		/// Throws and error if the assignment is invalid.
+		/// </summary>
 		private int setFieldOrProperty(IntPtr luaState)
 		{
 			object target = translator.getRawNetObject(luaState, 1);
@@ -517,13 +495,7 @@ namespace LuaInterface
 			return 0;
 		}
 
-		/// <summary>
-		/// Tries to set a named property or field
-		/// </summary>
-		/// <param name="luaState"></param>
-		/// <param name="targetType"></param>
-		/// <param name="target"></param>
-		/// <param name="bindingType"></param>
+		/// <summary>Tries to set a named property or field</summary>
 		/// <returns>false if unable to find the named member, true for success</returns>
 		private bool trySetMember(IntPtr luaState, IReflect targetType, object target, BindingFlags bindingType, out string detailMessage)
 		{
@@ -601,10 +573,7 @@ namespace LuaInterface
 		}
 
 
-		/*
-		 * Writes to fields or properties, either static or instance. Throws an error
-		 * if the operation is invalid.
-		 */
+		/// <summary>Writes to fields or properties, either static or instance. Throws an error if the operation is invalid.</summary>
 		private int setMember(IntPtr luaState, IReflect targetType, object target, BindingFlags bindingType)
 		{
 			string detail;
@@ -616,10 +585,7 @@ namespace LuaInterface
 			return 0;
 		}
 
-		/// <summary>
-		/// Convert a C# exception into a Lua error
-		/// </summary>
-		/// <param name="e"></param>
+		/// <summary>Convert a C# exception into a Lua error</summary>
 		/// We try to look into the exception to give the most meaningful description
 		void ThrowError(IntPtr luaState, Exception e)
 		{
@@ -632,9 +598,7 @@ namespace LuaInterface
 			translator.throwError(luaState, e);
 		}
 
-		/*
-		 * __index metafunction of type references, works on static members.
-		 */
+		/// <summary>__index metafunction of type references, works on static members.</summary>
 		private int getClassMethod(IntPtr luaState)
 		{
 			IReflect klass;
@@ -663,9 +627,7 @@ namespace LuaInterface
 				else return getMember(luaState, klass, null, methodName, BindingFlags.FlattenHierarchy | BindingFlags.Static | BindingFlags.IgnoreCase);
 			}
 		}
-		/*
-		 * __newindex function of type references, works on static members.
-		 */
+		/// <summary>__newindex function of type references, works on static members.</summary>
 		private int setClassFieldOrProperty(IntPtr luaState)
 		{
 			IReflect target;
@@ -678,12 +640,12 @@ namespace LuaInterface
 			else target = (IReflect)obj;
 			return setMember(luaState, target, null, BindingFlags.FlattenHierarchy | BindingFlags.Static | BindingFlags.IgnoreCase);
 		}
-		/*
-		 * __call metafunction of type references. Searches for and calls
-		 * a constructor for the type. Returns nil if the constructor is not
-		 * found or if the arguments are invalid. Throws an error if the constructor
-		 * generates an exception.
-		 */
+		/// <summary>
+		/// __call metafunction of type references.
+		/// Searches for and calls a constructor for the type.
+		/// Returns nil if the constructor is not found or if the arguments are invalid.
+		/// Throws an error if the constructor generates an exception.
+		/// </summary>
 		private int callConstructor(IntPtr luaState)
 		{
 			MethodCache validConstructor = new MethodCache();
@@ -728,29 +690,29 @@ namespace LuaInterface
 			LuaDLL.lua_pushnil(luaState);
 			return 1;
 		}
-		
-		private static bool IsInteger(double x) {
-			return Math.Ceiling(x) == x;	
-		}			
 
-		
+		private static bool IsInteger(double x) {
+			return Math.Ceiling(x) == x;
+		}
+
+
 		internal Array TableToArray(object luaParamValue, Type paramArrayType) {
 			Array paramArray;
 
 			if (luaParamValue is LuaTable)  {
 				LuaTable table = (LuaTable)luaParamValue;
-				IDictionaryEnumerator tableEnumerator = table.GetEnumerator();				
+				IDictionaryEnumerator tableEnumerator = table.GetEnumerator();
 				tableEnumerator.Reset();
-				paramArray = Array.CreateInstance(paramArrayType, table.Values.Count);                
+				paramArray = Array.CreateInstance(paramArrayType, table.Values.Count);
 
 				int paramArrayIndex = 0;
-				
+
 				while(tableEnumerator.MoveNext())  {
 					object o = tableEnumerator.Value;
-					if (paramArrayType == typeof(object)) { 
+					if (paramArrayType == typeof(object)) {
 						if (o != null && o.GetType() == typeof(double) && IsInteger((double)o))
 							o = Convert.ToInt32((double)o);
-					}													
+					}
 					paramArray.SetValue(Convert.ChangeType(o, paramArrayType), paramArrayIndex);
 					paramArrayIndex++;
 				}
@@ -758,16 +720,16 @@ namespace LuaInterface
 				paramArray = Array.CreateInstance(paramArrayType, 1);
 				paramArray.SetValue(luaParamValue, 0);
 			}
-	
+
 			return paramArray;
-			
+
 		}
-		
-		/*
-		 * Matches a method against its arguments in the Lua stack. Returns
-		 * if the match was succesful. It it was also returns the information
-		 * necessary to invoke the method.
-		 */
+
+		/// <summary>
+		/// Matches a method against its arguments in the Lua stack.
+		/// Returns if the match was succesful.
+		/// It it was also returns the information necessary to invoke the method.
+		/// </summary>
 		internal bool matchParameters(IntPtr luaState, MethodBase method, ref MethodCache methodCache)
 		{
 			ExtractValue extractValue;
@@ -813,8 +775,8 @@ namespace LuaInterface
 				{
 					object luaParamValue = extractValue(luaState, currentLuaParam);
 					Type paramArrayType = currentNetParam.ParameterType.GetElementType();
-					
-					Array paramArray = TableToArray(luaParamValue, paramArrayType);					
+
+					Array paramArray = TableToArray(luaParamValue, paramArrayType);
 					int index = paramList.Add(paramArray);
 
 					MethodArgs methodArg = new MethodArgs();
@@ -852,11 +814,6 @@ namespace LuaInterface
 		/// CP: Fix for operator overloading failure
 		/// Returns true if the type is set and assigns the extract value
 		/// </summary>
-		/// <param name="luaState"></param>
-		/// <param name="currentLuaParam"></param>
-		/// <param name="currentNetParam"></param>
-		/// <param name="extractValue"></param>
-		/// <returns></returns>
 		private bool _IsTypeCorrect(IntPtr luaState, int currentLuaParam, ParameterInfo currentNetParam, out ExtractValue extractValue)
 		{
 			try
