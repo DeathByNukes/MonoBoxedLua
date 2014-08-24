@@ -13,34 +13,21 @@ namespace LuaInterface
 		public bool IsOrphaned;
 
 		public LuaTable(int reference, Lua interpreter)
+		: base(reference, interpreter)
 		{
-			_Reference = reference;
-			_Interpreter = interpreter;
 		}
 
 		/// <summary>Indexer for string fields of the table</summary>
 		public object this[string field]
 		{
-			get
-			{
-				return _Interpreter.getObject(_Reference, field);
-			}
-			set
-			{
-				_Interpreter.setObject(_Reference, field, value);
-			}
+			get { return _Interpreter.getObject(_Reference, field); }
+			set { _Interpreter.setObject(_Reference, field, value); }
 		}
 		/// <summary>Indexer for numeric fields of the table</summary>
 		public object this[object field]
 		{
-			get
-			{
-				return _Interpreter.getObject(_Reference, field);
-			}
-			set
-			{
-				_Interpreter.setObject(_Reference, field, value);
-			}
+			get { return _Interpreter.getObject(_Reference, field); }
+			set { _Interpreter.setObject(_Reference, field, value); }
 		}
 
 

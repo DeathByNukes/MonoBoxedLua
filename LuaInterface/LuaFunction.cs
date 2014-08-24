@@ -4,20 +4,18 @@ namespace LuaInterface
 {
 	public class LuaFunction : LuaBase
 	{
-		internal LuaCSFunction function;
+		internal readonly LuaCSFunction function;
 
 		public LuaFunction(int reference, Lua interpreter)
+		: base(reference, interpreter)
 		{
-			_Reference = reference;
 			this.function = null;
-			_Interpreter = interpreter;
 		}
 
 		public LuaFunction(LuaCSFunction function, Lua interpreter)
+		: base(0, interpreter)
 		{
-			_Reference = 0;
 			this.function = function;
-			_Interpreter = interpreter;
 		}
 
 
@@ -45,15 +43,12 @@ namespace LuaInterface
 		}
 		public override bool Equals(object o)
 		{
-			if (o is LuaFunction)
-			{
-				LuaFunction l = (LuaFunction)o;
-				if (this._Reference != 0 && l._Reference != 0)
-					return _Interpreter.compareRef(l._Reference, this._Reference);
-				else
-					return this.function == l.function;
-			}
-			else return false;
+			var l = o as LuaFunction;
+			if (l == null) return false;
+			if (this._Reference != 0 && l._Reference != 0)
+				return _Interpreter.compareRef(l._Reference, this._Reference);
+			else
+				return this.function == l.function;
 		}
 
 		public override int GetHashCode()

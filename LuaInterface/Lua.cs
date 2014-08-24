@@ -19,7 +19,7 @@ namespace LuaInterface
 	/// </remarks>
 	public class Lua : IDisposable
 	{
-		/*readonly */ IntPtr luaState;
+		IntPtr luaState;
 		ObjectTranslator translator;
 
 		LuaFunctionCallback panicCallback;
@@ -29,6 +29,8 @@ namespace LuaInterface
 		public Lua()
 		{
 			luaState = LuaDLL.luaL_newstate();	// steffenj: Lua 5.1.1 API change (lua_open is gone)
+			if (luaState == IntPtr.Zero)
+				throw new OutOfMemoryException("Failed to allocate a new Lua state.");
 
 			// Load libraries
 			LuaDLL.luaL_openlibs(luaState);
@@ -52,8 +54,10 @@ namespace LuaInterface
 		/// <summary>CAUTION: LuaInterface.Lua instances can't share the same lua state!</summary>
 		public Lua( Int64 luaState )
 		{
+			if (luaState == 0) throw new ArgumentNullException("luaState");
+
 			 // Check for existing LuaInterface marker
-			IntPtr lState = new IntPtr(luaState);
+			var lState = new IntPtr(luaState);
 			LuaDLL.lua_pushstring(lState, "LUAINTERFACE LOADED");
 			LuaDLL.lua_gettable(lState, (int)LuaIndexes.LUA_REGISTRYINDEX);
 
@@ -62,31 +66,18 @@ namespace LuaInterface
 				LuaDLL.lua_settop(lState,-2);
 				throw new LuaException("There is already a LuaInterface.Lua instance associated with this Lua state");
 			}
-			else
-			{
-				// Add LuaInterface marker
-				LuaDLL.lua_settop(lState,-2);
-				LuaDLL.lua_pushstring(lState, "LUAINTERFACE LOADED");
-				LuaDLL.lua_pushboolean(lState, true);
-				LuaDLL.lua_settable(lState, (int)LuaIndexes.LUA_REGISTRYINDEX);
+			// Add LuaInterface marker
+			LuaDLL.lua_settop(lState,-2);
+			LuaDLL.lua_pushstring(lState, "LUAINTERFACE LOADED");
+			LuaDLL.lua_pushboolean(lState, true);
+			LuaDLL.lua_settable(lState, (int)LuaIndexes.LUA_REGISTRYINDEX);
 
-				this.luaState = lState;
-				LuaDLL.lua_pushvalue(lState, (int)LuaIndexes.LUA_GLOBALSINDEX);
+			this.luaState = lState;
+			LuaDLL.lua_pushvalue(lState, (int)LuaIndexes.LUA_GLOBALSINDEX);
 
-				translator = new ObjectTranslator(this, this.luaState);
-			}
+			translator = new ObjectTranslator(this, this.luaState);
 
 			_StatePassed = true;
-		}
-
-		public void Close()
-		{
-			if (_StatePassed)
-				return;
-
-			if (luaState != IntPtr.Zero)
-				LuaDLL.lua_close(luaState);
-			//luaState = IntPtr.Zero; <- suggested by Christopher Cebulski http://luaforge.net/forum/forum.php?thread_id=44593&forum_id=146
 		}
 
 		static int PanicCallback(IntPtr luaState)
@@ -665,24 +656,33 @@ namespace LuaInterface
 			translator.pushFunction(luaState,function);
 		}
 
-		#region IDisposable Members
+		#region IDisposable
 
-		public virtual void Dispose()
+		~Lua()
 		{
-			if (translator != null)
+			Dispose(false);
+		}
+
+		public void Dispose()
+		{
+			Dispose(true);
+			GC.SuppressFinalize(this);
+		}
+
+		protected virtual void Dispose(bool disposing)
+		{
+			if (disposing && translator != null)
 			{
 				translator.pendingEvents.Dispose();
 				translator = null;
 			}
 
-			this.Close();
-			System.GC.Collect();
-			System.GC.WaitForPendingFinalizers();
+			if (!this._StatePassed && this.luaState != IntPtr.Zero)
+				LuaDLL.lua_close(this.luaState);
+
+			this.luaState = IntPtr.Zero;
 		}
 
 		#endregion
    }
-
-
-
 }
