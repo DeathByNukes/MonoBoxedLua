@@ -192,7 +192,9 @@ namespace LuaInterface
 
 				try
 				{
+					#pragma warning disable 618 // LoadWithPartialName deprecated. No alternative exists.
 					assembly = Assembly.LoadWithPartialName(assemblyName);
+					#pragma warning restore 618
 				}
 				catch (BadImageFormatException)
 				{
