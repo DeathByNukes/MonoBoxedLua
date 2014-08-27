@@ -46,11 +46,26 @@ namespace LuaInterface
 			get { return _Interpreter.GetTableDict(this).Values; }
 		}
 
-		/// <summary>Gets an string fields of a table ignoring its metatable, if it exists</summary>
-		internal object rawget(string field)
-		{
-			return _Interpreter.rawGetObject(_Reference, field);
-		}
+
+		/// <summary>Gets a numeric field of a table ignoring its metatable, if it exists</summary>
+		public object RawGet(int    field) { return _Interpreter.rawGetObject(_Reference, field); }
+
+		/// <summary>Gets a string field of a table ignoring its metatable, if it exists</summary>
+		public object RawGet(string field) { return _Interpreter.rawGetObject(_Reference, field); }
+
+		/// <summary>Gets a field of a table ignoring its metatable, if it exists</summary>
+		public object RawGet(object field) { return _Interpreter.rawGetObject(_Reference, field); }
+
+
+		/// <summary>Sets a numeric field of a table ignoring its metatable, if it exists</summary>
+		public void RawSet(int    field, object value) { _Interpreter.rawSetObject(_Reference, field, value); }
+
+		/// <summary>Sets a string field of a table ignoring its metatable, if it exists</summary>
+		public void RawSet(string field, object value) { _Interpreter.rawSetObject(_Reference, field, value); }
+
+		/// <summary>Sets a field of a table ignoring its metatable, if it exists</summary>
+		public void RawSet(object field, object value) { _Interpreter.rawSetObject(_Reference, field, value); }
+
 
 		internal object rawgetFunction(string field)
 		{

@@ -537,7 +537,7 @@ namespace LuaInterface
 		/// <summary> Gets the function called name from the provided table, returning null if it does not exist</summary>
 		public static LuaFunction getTableFunction(LuaTable luaTable, string name)
 		{
-			object funcObj = luaTable.rawget(name);
+			object funcObj = luaTable.RawGet(name);
 			if (funcObj is LuaFunction)
 				return (LuaFunction)funcObj;
 			else
