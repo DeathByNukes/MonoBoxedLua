@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Diagnostics;
+using System.Linq;
 
 namespace LuaInterface
 {
@@ -21,7 +22,15 @@ namespace LuaInterface
 		~LuaBase()
 		{
 			if (Debugger.IsAttached)
-				Debugger.Break(); // you failed to dispose of an IDisposable. shame on you.
+			{
+				if (AppDomain.CurrentDomain.GetAssemblies().Any(a => a.GetName().Name == "LuaInterfaceTest"))
+				{
+					// running a unit test. breaking causes the test to freeze. instead, might as well throw an exception
+					throw new InvalidOperationException("Lua object was not disposed.");
+				}
+				else
+					Debugger.Break(); // you failed to dispose of an IDisposable. shame on you.
+			}
 			Dispose(false);
 		}
 
