@@ -17,6 +17,13 @@ namespace LuaInterface
 		{
 		}
 
+		/// <summary>The result of the Lua length operator ('#'). Note that this is the array length (string etc. keys aren't counted) and it doesn't work reliably on sparse arrays.</summary>
+		/// <seealso href="http://www.lua.org/manual/5.1/manual.html#2.5.5"/>
+		public int Length
+		{
+			get { return _Interpreter.getLength(_Reference); }
+		}
+
 		/// <summary>Indexer for string fields of the table</summary>
 		public object this[string field]
 		{

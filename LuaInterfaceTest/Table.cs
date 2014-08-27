@@ -57,6 +57,8 @@ namespace LuaInterfaceTest
 			{
 				// - try reading normal values, which the metatable can't intercept -
 
+				Assert.AreEqual(TestArrayEnd, table.Length);
+
 				// array
 				for (double i = 1; i <= TestArrayEnd; ++i)
 					Assert.AreEqual(i, (double)table[i]);

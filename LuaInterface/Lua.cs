@@ -572,6 +572,23 @@ namespace LuaInterface
 			if (luaState != IntPtr.Zero) //Fix submitted by Qingrui Li
 				LuaDLL.lua_unref(luaState,reference);
 		}
+
+		/// <summary>
+		/// Gets the "length" of the value corresponding to the provided reference: 
+		/// for strings, this is the string length;
+		/// for tables, this is the result of the length operator ('#');
+		/// for userdata, this is the size of the block of memory allocated for the userdata;
+		/// for other values, it is 0.
+		/// </summary>
+		internal int getLength(int reference)
+		{
+			int oldTop = LuaDLL.lua_gettop(luaState);
+			LuaDLL.lua_getref(luaState, reference);
+			int len = LuaDLL.lua_objlen(luaState, -1);
+			LuaDLL.lua_settop(luaState, oldTop);
+			return len;
+		}
+
 		/// <summary>Gets a numeric field of the table corresponding to the provided reference using rawget (do not use metatables)</summary>
 		internal object rawGetObject(int reference, int field)
 		{
