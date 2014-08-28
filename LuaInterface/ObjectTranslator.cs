@@ -645,19 +645,19 @@ namespace LuaInterface
 		internal LuaTable getTable(IntPtr luaState,int index)
 		{
 			LuaDLL.lua_pushvalue(luaState,index);
-			return new LuaTable(LuaDLL.lua_ref(luaState,1),interpreter);
+			return new LuaTable(LuaDLL.lua_ref(luaState),interpreter);
 		}
 		/// <summary>Gets the userdata in the index positon of the Lua stack.</summary>
 		internal LuaUserData getUserData(IntPtr luaState,int index)
 		{
 			LuaDLL.lua_pushvalue(luaState,index);
-			return new LuaUserData(LuaDLL.lua_ref(luaState,1),interpreter);
+			return new LuaUserData(LuaDLL.lua_ref(luaState),interpreter);
 		}
 		/// <summary>Gets the function in the index positon of the Lua stack.</summary>
 		internal LuaFunction getFunction(IntPtr luaState,int index)
 		{
 			LuaDLL.lua_pushvalue(luaState,index);
-			return new LuaFunction(LuaDLL.lua_ref(luaState,1),interpreter);
+			return new LuaFunction(LuaDLL.lua_ref(luaState),interpreter);
 		}
 		/// <summary>Gets the CLR object in the index positon of the Lua stack. Returns delegates as Lua functions.</summary>
 		internal object getNetObject(IntPtr luaState,int index)

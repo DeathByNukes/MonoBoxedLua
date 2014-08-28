@@ -53,10 +53,9 @@ namespace LuaInterface
 
 			long runtimeHandleValue = paramType.TypeHandle.Value.ToInt64();
 
-			if(extractValues.ContainsKey(runtimeHandleValue))
-				return extractValues[runtimeHandleValue];
-			else
-				return extractNetObject;
+			ExtractValue value;
+			return extractValues.TryGetValue(runtimeHandleValue, out value)
+				? value : extractNetObject;
 		}
 
 		internal ExtractValue checkType(IntPtr luaState,int stackPos,Type paramType)

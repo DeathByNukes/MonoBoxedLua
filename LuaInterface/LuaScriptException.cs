@@ -44,7 +44,8 @@ namespace LuaInterface
 		public override string ToString()
 		{
 			// Prepend the error source
-			return GetType().FullName + ": " + source + Message;
+			return string.Format(string.IsNullOrEmpty(source) ? "{0}: {2}" : "{0}: {1} {2}",
+				GetType().FullName, source, Message);
 		}
 	}
 }

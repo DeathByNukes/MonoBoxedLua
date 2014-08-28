@@ -322,13 +322,10 @@ namespace LuaInterface
 		}
 		[DllImport(LUALIBDLL,CallingConvention=CallingConvention.Cdecl)]
 		public static extern int luaL_ref(IntPtr luaState, int registryIndex);
-		public static int lua_ref(IntPtr luaState, int lockRef)
+		public static int lua_ref(IntPtr luaState /*, int lockRef*/)
 		{
-			if(lockRef!=0)
-			{
-				return LuaDLL.luaL_ref(luaState,LuaIndexes.LUA_REGISTRYINDEX);
-			}
-			else return 0;
+			// unlocked references are obsolete
+			return LuaDLL.luaL_ref(luaState,LuaIndexes.LUA_REGISTRYINDEX);
 		}
 		[DllImport(LUADLL,CallingConvention=CallingConvention.Cdecl)]
 		public static extern void lua_rawgeti(IntPtr luaState, int tableIndex, int index);
@@ -398,7 +395,7 @@ namespace LuaInterface
 		public static extern int luaL_newmetatable(IntPtr luaState, string meta);
 		// steffenj: BEGIN Lua 5.1.1 API change (luaL_getmetatable is now a macro using lua_getfield)
 		[DllImport(LUADLL, CallingConvention = CallingConvention.Cdecl)]
-		public static extern void lua_getfield(IntPtr luaState, int stackPos, string meta);
+		public static extern void lua_getfield(IntPtr luaState, int stackPos, string name);
 		public static void luaL_getmetatable(IntPtr luaState, string meta)
 		{
 			LuaDLL.lua_getfield(luaState, LuaIndexes.LUA_REGISTRYINDEX, meta);
