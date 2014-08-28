@@ -413,6 +413,7 @@ namespace LuaInterface
 			{
 				LuaDLL.lua_pushstring(luaState,remainingPath[i]);
 				LuaDLL.lua_gettable(luaState,-2);
+				var disposable = returnValue as LuaBase; if (disposable != null) disposable.Dispose();
 				returnValue=translator.getObject(luaState,-1);
 				if(returnValue==null) break;
 			}
@@ -621,7 +622,7 @@ namespace LuaInterface
 			LuaDLL.lua_settop(luaState, oldTop);
 			return obj;
 		}
-		/// <summary>Sets a numeric field of the table or userdata corresponding the the provided reference to the provided value using rawset (do not use metatables)</summary>
+		/// <summary>Sets a numeric field of the table corresponding the the provided reference to the provided value using rawset (do not use metatables)</summary>
 		internal void rawSetObject(int reference, int field, object val)
 		{
 			int oldTop = LuaDLL.lua_gettop(luaState);
@@ -630,7 +631,7 @@ namespace LuaInterface
 			LuaDLL.lua_rawseti(luaState, -2, field);
 			LuaDLL.lua_settop(luaState, oldTop);
 		}
-		/// <summary>Sets a field of the table or userdata corresponding the the provided reference to the provided value using rawset (do not use metatables)</summary>
+		/// <summary>Sets a field of the table corresponding the the provided reference to the provided value using rawset (do not use metatables)</summary>
 		internal void rawSetObject(int reference, string field, object val)
 		{
 			int oldTop = LuaDLL.lua_gettop(luaState);
@@ -640,7 +641,7 @@ namespace LuaInterface
 			LuaDLL.lua_rawset(luaState, -3);
 			LuaDLL.lua_settop(luaState, oldTop);
 		}
-		/// <summary>Sets a field of the table or userdata corresponding the the provided reference to the provided value using rawset (do not use metatables)</summary>
+		/// <summary>Sets a field of the table corresponding the the provided reference to the provided value using rawset (do not use metatables)</summary>
 		internal void rawSetObject(int reference, object field, object val)
 		{
 			int oldTop = LuaDLL.lua_gettop(luaState);
@@ -651,13 +652,23 @@ namespace LuaInterface
 			LuaDLL.lua_settop(luaState, oldTop);
 		}
 
-		/// <summary>Gets a field of the table or userdata corresponding to the provided reference</summary>
-		internal object getObject(int reference,string field)
+		/// <summary>Gets a nested field of the table or userdata corresponding to the provided reference</summary>
+		internal object getObject(int reference, string[] path)
 		{
 			int oldTop=LuaDLL.lua_gettop(luaState);
 			LuaDLL.lua_getref(luaState,reference);
-			object returnValue=getObject(field.Split(new char[] {'.'}));
+			object returnValue=getObject(path);
 			LuaDLL.lua_settop(luaState,oldTop);
+			return returnValue;
+		}
+		/// <summary>Gets a field of the table or userdata corresponding to the provided reference</summary>
+		internal object getObject(int reference, string field)
+		{
+			int oldTop = LuaDLL.lua_gettop(luaState);
+			LuaDLL.lua_getref(luaState, reference);
+			LuaDLL.lua_getfield(luaState, -1, field);
+			object returnValue = translator.getObject(luaState,-1);
+			LuaDLL.lua_settop(luaState, oldTop);
 			return returnValue;
 		}
 		/// <summary>Gets a numeric field of the table or userdata corresponding the the provided reference</summary>
@@ -671,12 +682,21 @@ namespace LuaInterface
 			LuaDLL.lua_settop(luaState,oldTop);
 			return returnValue;
 		}
+		/// <summary>Sets a nested field of the table or userdata corresponding the the provided reference to the provided value</summary>
+		internal void setObject(int reference, string[] path, object val)
+		{
+			int oldTop=LuaDLL.lua_gettop(luaState);
+			LuaDLL.lua_getref(luaState,reference);
+			setObject(path, val);
+			LuaDLL.lua_settop(luaState,oldTop);
+		}
 		/// <summary>Sets a field of the table or userdata corresponding the the provided reference to the provided value</summary>
 		internal void setObject(int reference, string field, object val)
 		{
 			int oldTop=LuaDLL.lua_gettop(luaState);
 			LuaDLL.lua_getref(luaState,reference);
-			setObject(field.Split(new char[] {'.'}),val);
+			translator.push(luaState,val);
+			LuaDLL.lua_setfield(luaState, -2, field);
 			LuaDLL.lua_settop(luaState,oldTop);
 		}
 		/// <summary>Sets a numeric field of the table or userdata corresponding the the provided reference to the provided value</summary>
@@ -749,6 +769,8 @@ namespace LuaInterface
 				LuaDLL.lua_close(this.luaState);
 
 			this.luaState = IntPtr.Zero;
+			// setting this to zero is important. dispose(int reference) checks for this before disposing a reference.
+			// this way, it's possible to safely dispose/finalize Lua before disposing/finalizing LuaBase objects.
 		}
 
 		#endregion

@@ -24,6 +24,12 @@ namespace LuaInterface
 			get { return _Interpreter.getLength(_Reference); }
 		}
 
+		/// <summary>Indexer for nested string fields of the table</summary>
+		public object this[params string[] path]
+		{
+			get { return _Interpreter.getObject(_Reference, path); }
+			set { _Interpreter.setObject(_Reference, path, value); }
+		}
 		/// <summary>Indexer for string fields of the table</summary>
 		public object this[string field]
 		{

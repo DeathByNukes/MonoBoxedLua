@@ -8,6 +8,12 @@ namespace LuaInterface
 		: base(reference, interpreter)
 		{
 		}
+		/// <summary>Indexer for nested string fields of the userdata</summary>
+		public object this[params string[] path]
+		{
+			get { return _Interpreter.getObject(_Reference, path); }
+			set { _Interpreter.setObject(_Reference, path, value); }
+		}
 		/// <summary>Indexer for string fields of the userdata</summary>
 		public object this[string field]
 		{
