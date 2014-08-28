@@ -28,6 +28,7 @@ namespace LuaInterfaceTest
 							SIX = 6,
 							six = 'wrong',
 							[1/2] = 'half', -- double key
+							nested = {a={b= setmetatable({c='hi'},meta) }},
 						}, meta  )
 					end
 				", "@Table.cs.NewTest.lua"); // chunk names beginning with @ are filenames
@@ -44,9 +45,12 @@ namespace LuaInterfaceTest
 		readonly IList<string> _Keys = Array.AsReadOnly(new [] { "one", "two", "three", "four", "five", "SIX" });
 		const double _Double = 1.0/2;
 		const string _DoubleValue = "half";
+		string[] _Nested { get { return "nested.a.b.c".Split('.'); } }
+		const string _NestedValue = "hi";
 
 		readonly IList<string> _EmptyKeys = Array.AsReadOnly(new [] { "foo", "bar", "baz", "qux", "ONE", "One" });
 		const double _EmptyDouble = 1.0 / 4;
+		string[] _EmptyNested { get { return "nested.a.b.C".Split('.'); } }
 		const string _MetaRead = "metatable read";
 		const string _MetaWrite = "metatable write";
 
@@ -71,6 +75,9 @@ namespace LuaInterfaceTest
 				// double key
 				Assert.AreEqual(_DoubleValue, (string)table[_Double]);
 
+				// nested
+				Assert.AreEqual(_NestedValue, (string)table[_Nested]);
+
 				// - try reading missing values, which the metatable will intercept -
 
 				for (double i = _ArrayEnd+1; i <= _ArrayEnd*2; ++i)
@@ -78,6 +85,8 @@ namespace LuaInterfaceTest
 
 				foreach (string k in _EmptyKeys)
 					Assert.AreEqual(_MetaRead, table[k]);
+
+				Assert.AreEqual(_MetaRead, (string)table[_EmptyNested]);
 			}
 		}
 
@@ -110,6 +119,11 @@ namespace LuaInterfaceTest
 				table[_Double] = 12;
 				Assert.AreEqual(12.0, (double)table[_Double]);
 
+				// nested
+				Assert.AreEqual(_NestedValue, (string)table[_Nested]);
+				table[_Nested] = 12;
+				Assert.AreEqual(12.0, (double)table[_Nested]);
+
 				// - try adding values, which the metatable will intercept -
 
 				for (double i = _ArrayEnd + 1; i <= _ArrayEnd * 2; ++i)
@@ -125,6 +139,10 @@ namespace LuaInterfaceTest
 					table[k] = 12;
 					Assert.AreEqual(_MetaWrite, table[k]);
 				}
+
+				Assert.AreEqual(null, table[_EmptyNested]);
+				table[_EmptyNested] = 12;
+				Assert.AreEqual(_MetaWrite, (string)table[_EmptyNested]);
 			}
 		}
 
