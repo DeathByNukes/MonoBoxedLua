@@ -549,6 +549,8 @@ namespace LuaInterface
 			return table;
 		}
 
+		#region LuaBase etc method implementations
+
 		public ListDictionary GetTableDict(LuaTable table)
 		{
 			ListDictionary dict = new ListDictionary();
@@ -710,6 +712,25 @@ namespace LuaInterface
 			LuaDLL.lua_settop(luaState,oldTop);
 		}
 
+
+		/// <summary>Compares the two values referenced by ref1 and ref2 for equality</summary>
+		internal bool compareRef(int ref1, int ref2)
+		{
+			int top = LuaDLL.lua_gettop(luaState);
+			LuaDLL.lua_getref(luaState, ref1);
+			LuaDLL.lua_getref(luaState, ref2);
+			int equal = LuaDLL.lua_equal(luaState, -1, -2);
+			LuaDLL.lua_settop(luaState, top);
+			return (equal != 0);
+		}
+
+		internal void pushCSFunction(LuaCSFunction function)
+		{
+			translator.pushFunction(luaState, function);
+		}
+
+		#endregion
+
 		/// <summary>Registers an object's method as a Lua function (global or table field) The method may have any signature</summary>
 		public LuaFunction RegisterFunction(string path, object target, MethodBase function /*MethodInfo function*/)  //CP: Fix for struct constructor by Alexander Kappner (link: http://luaforge.net/forum/forum.php?thread_id=2859&forum_id=145)
 		{
@@ -725,23 +746,6 @@ namespace LuaInterface
 			LuaDLL.lua_settop(luaState, oldTop);
 
 			return f;
-		}
-
-
-		/// <summary>Compares the two values referenced by ref1 and ref2 for equality</summary>
-		internal bool compareRef(int ref1, int ref2)
-		{
-			int top=LuaDLL.lua_gettop(luaState);
-			LuaDLL.lua_getref(luaState,ref1);
-			LuaDLL.lua_getref(luaState,ref2);
-			int equal=LuaDLL.lua_equal(luaState,-1,-2);
-			LuaDLL.lua_settop(luaState,top);
-			return (equal!=0);
-		}
-
-		internal void pushCSFunction(LuaCSFunction function)
-		{
-			translator.pushFunction(luaState,function);
 		}
 
 		#region IDisposable
