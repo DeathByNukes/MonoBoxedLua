@@ -288,6 +288,7 @@ namespace LuaInterface
 				}
 				LuaDLL.lua_settop(luaState,oldTop);
 
+				#if GLOBALS_AUTOCOMPLETE
 				// Globals auto-complete
 				if (value == null)
 				{
@@ -300,10 +301,12 @@ namespace LuaInterface
 					if (!globals.Contains(fullPath))
 						registerGlobal(fullPath, value.GetType(), 0);
 				}
+				#endif
 			}
 		}
 
 		#region Globals auto-complete
+		#if GLOBALS_AUTOCOMPLETE
 		private readonly List<string> globals = new List<string>();
 		private bool globalsSorted;
 
@@ -403,6 +406,7 @@ namespace LuaInterface
 			// List will need to be sorted on next access
 			globalsSorted = false;
 		}
+		#endif
 		#endregion
 
 		/// <summary>Navigates a table in the top of the stack, returning the value of the specified field</summary>
