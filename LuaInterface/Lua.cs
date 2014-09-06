@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
+using System.Diagnostics;
 using System.Reflection;
 
 namespace LuaInterface
@@ -757,6 +758,7 @@ namespace LuaInterface
 		~Lua()
 		{
 			Dispose(false);
+			leaked();
 		}
 
 		public void Dispose()
@@ -779,8 +781,32 @@ namespace LuaInterface
 			this.luaState = IntPtr.Zero;
 			// setting this to zero is important. dispose(int reference) checks for this before disposing a reference.
 			// this way, it's possible to safely dispose/finalize Lua before disposing/finalizing LuaBase objects.
+			// also, it makes use after disposal slightly less dangerous (BUT NOT COMPLETELY)
 		}
 
 		#endregion
-   }
+
+		#if DEBUG
+		/// <summary>The number of LuaInterface IDisposable objects that were disposed by the garbage collector.</summary>
+		public static uint leak_count { get { return g_leak_count; } }
+
+		/// <summary>Gets the current <see cref="leak_count"/> and resets the counter to 0.</summary>
+		public static uint popLeakCount()
+		{
+			var count = g_leak_count;
+			g_leak_count = 0;
+			return count;
+		}
+
+		private static uint g_leak_count = 0;
+		#endif
+
+		[Conditional("DEBUG")]
+		internal static void leaked()
+		{
+			#if DEBUG
+			checked { ++g_leak_count; }
+			#endif
+		}
+	}
 }

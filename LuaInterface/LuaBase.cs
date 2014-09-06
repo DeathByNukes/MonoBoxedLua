@@ -32,6 +32,7 @@ namespace LuaInterface
 		~LuaBase()
 		{
 			Dispose(false);
+			Lua.leaked();
 		}
 
 		public void Dispose()
