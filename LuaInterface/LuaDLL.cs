@@ -17,40 +17,35 @@ namespace LuaInterface
 		LUA_TLIGHTUSERDATA=2
 	}
 
-	// steffenj: BEGIN lua garbage collector options
 	/// <summary>Lua Garbage Collector options (param "what")</summary>
 	public enum LuaGCOptions
 	{
 		LUA_GCSTOP = 0,
-		LUA_GCRESTART = 1,
-		LUA_GCCOLLECT = 2,
-		LUA_GCCOUNT = 3,
-		LUA_GCCOUNTB = 4,
-		LUA_GCSTEP = 5,
-		LUA_GCSETPAUSE = 6,
-		LUA_GCSETSTEPMUL = 7,
+		LUA_GCRESTART,
+		LUA_GCCOLLECT,
+		LUA_GCCOUNT,
+		LUA_GCCOUNTB,
+		LUA_GCSTEP,
+		LUA_GCSETPAUSE,
+		LUA_GCSETSTEPMUL,
 	}
-		/*
-	sealed class LuaGCOptions
-	{
-		public static int LUA_GCSTOP = 0;
-		public static int LUA_GCRESTART = 1;
-		public static int LUA_GCCOLLECT = 2;
-		public static int LUA_GCCOUNT = 3;
-		public static int LUA_GCCOUNTB = 4;
-		public static int LUA_GCSTEP = 5;
-		public static int LUA_GCSETPAUSE = 6;
-		public static int LUA_GCSETSTEPMUL = 7;
-	};
-		 */
-	// steffenj: END lua garbage collector options
 
 	/// <summary>Special stack indexes</summary>
-	sealed class LuaIndexes
+	static class LuaIndexes
 	{
-		public static int LUA_REGISTRYINDEX=-10000;
-		public static int LUA_ENVIRONINDEX=-10001;	// steffenj: added environindex
-		public static int LUA_GLOBALSINDEX=-10002;	// steffenj: globalsindex previously was -10001
+		public const int
+		LUA_REGISTRYINDEX = -10000,
+		LUA_ENVIRONINDEX  = -10001,
+		LUA_GLOBALSINDEX  = -10002;
+	}
+
+	/// <summary>Special references</summary>
+	static class LuaRefs
+	{
+		public const int
+		Min  =  1, // see http://www.lua.org/source/5.1/lauxlib.c.html#luaL_ref, registry[0] is FREELIST_REF
+		None = -2, // LUA_NOREF
+		Nil  = -1; // LUA_REFNIL
 	}
 
 	/// <summary>Structure used by the chunk reader</summary>

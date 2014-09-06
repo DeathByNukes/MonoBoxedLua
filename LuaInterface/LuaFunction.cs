@@ -13,7 +13,7 @@ namespace LuaInterface
 		}
 
 		public LuaFunction(LuaCSFunction function, Lua interpreter)
-		: base(0, interpreter)
+		: base(LuaRefs.None, interpreter)
 		{
 			this.function = function;
 		}
@@ -32,7 +32,7 @@ namespace LuaInterface
 		/// <summary>Pushes the function into the Lua stack</summary>
 		internal void push(IntPtr luaState)
 		{
-			if (_Reference != 0)
+			if (_Reference != LuaRefs.None)
 				LuaDLL.lua_getref(luaState, _Reference);
 			else
 				_Interpreter.pushCSFunction(function);
@@ -45,7 +45,7 @@ namespace LuaInterface
 		{
 			var l = o as LuaFunction;
 			if (l == null) return false;
-			if (this._Reference != 0 && l._Reference != 0)
+			if (this._Reference != LuaRefs.None && l._Reference != LuaRefs.None)
 				return _Interpreter.compareRef(l._Reference, this._Reference);
 			else
 				return this.function == l.function;
@@ -53,7 +53,7 @@ namespace LuaInterface
 
 		public override int GetHashCode()
 		{
-			if (_Reference != 0)
+			if (_Reference != LuaRefs.None)
 				// elisee: Used to return _Reference
 				// which doesn't make sense as you can have different refs
 				// to the same function
