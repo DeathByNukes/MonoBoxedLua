@@ -1,12 +1,38 @@
 ﻿using System;
+using System.Runtime.CompilerServices;
 using LuaInterface;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace LuaInterfaceTest
 {
-	[TestClass] public class Dispose
+	static class GcUtil
 	{
-		private class GCTest
+		/// <summary>Ask the GC to collect and verify that it did something. Asserts that there were no Lua leaks.</summary>
+		public static void GcAll()
+		{
+			var o = new object();
+			while (GC.GetGeneration(o) < GC.MaxGeneration)
+				GcCollect();
+			var gc = new GCTest(o);
+			unref(ref o);
+
+			GcCollect();
+			gc.AssertDead();
+
+			#if DEBUG
+			Assert.AreEqual(0u, Lua.popLeakCount(), "Lua objects were leaked.");
+			#endif
+		}
+
+		/// <summary>Ask the GC to collect.</summary>
+		public static void GcCollect()
+		{
+			GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced);
+			GC.WaitForPendingFinalizers();
+		}
+
+		/// <summary>Tests whether a specific object has been garbage collected.</summary>
+		public class GCTest
 		{
 			readonly WeakReference _weakref;
 			public GCTest(object o) { _weakref = new WeakReference(o); }
@@ -14,41 +40,50 @@ namespace LuaInterfaceTest
 			public void AssertDead() { Assert.IsFalse(_weakref.IsAlive); }
 			public void Kill()
 			{
-				GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced);
-				GC.WaitForPendingFinalizers();
+				GcCollect();
 				this.AssertDead();
 			}
 		}
-		private void Unref<T>(ref T variable) where T : class
+
+		/// <summary>Reliably sets a variable to null, preventing dead store optimization.</summary>
+		[MethodImpl(MethodImplOptions.NoInlining)]
+		public static void unref<T>(ref T variable) where T : class
 		{
 			Assert.IsNotNull(variable);
 			variable = null;
-			Assert.IsNull(variable); // prevent optimization
+		}
+	}
+	[TestClass] public class Dispose
+	{
+		[TestCleanup] public void Cleanup()
+		{
+			GcUtil.GcAll();
 		}
 
 		[TestMethod] public void DisposeLua()
 		{
 			var lua = new Lua();
-			var gc = new GCTest(lua);
+			var gc = new GcUtil.GCTest(lua);
 			lua.Dispose();
 			lua.Dispose();
-			Unref(ref lua);
+			GcUtil.unref(ref lua);
 			gc.Kill();
 		}
 		[TestMethod] public void FinalizeLua()
 		{
-			var gc = new GCTest(new Lua());
+			var gc = new GcUtil.GCTest(new Lua());
 			gc.Kill();
+			Assert.AreEqual(1u, Lua.popLeakCount());
 		}
 
 		[TestMethod] public void DisposeLuaTable()
 		{
 			var lua = new Lua();
 			var table = lua.NewTable();
-			var gc = new GCTest(table);
+			var gc = new GcUtil.GCTest(table);
 			table.Dispose();
 			table.Dispose();
-			Unref(ref table);
+			GcUtil.unref(ref table);
 			gc.Kill();
 			lua.Dispose();
 			lua.Dispose();
@@ -56,12 +91,12 @@ namespace LuaInterfaceTest
 			// dispose in the wrong order
 			lua = new Lua();
 			table = lua.NewTable();
-			gc = new GCTest(table);
+			gc = new GcUtil.GCTest(table);
 			lua.Dispose();
 			lua.Dispose();
 			table.Dispose();
 			table.Dispose();
-			Unref(ref table);
+			GcUtil.unref(ref table);
 			gc.Kill();
 		}
 	}

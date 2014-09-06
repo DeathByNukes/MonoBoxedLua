@@ -8,6 +8,10 @@ namespace LuaInterfaceTest
 {
 	[TestClass] public class Table
 	{
+		[TestCleanup] public void Cleanup()
+		{
+			GcUtil.GcAll();
+		}
 		private Lua NewTest()
 		{
 			var lua = new Lua();
