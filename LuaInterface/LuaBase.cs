@@ -10,24 +10,22 @@ namespace LuaInterface
 		{
 			Debug.Assert(interpreter != null);
 			_Reference = reference;
-			_Interpreter = interpreter;
+			Owner = interpreter;
 		}
 		protected readonly int _Reference;
-		private Lua __Interpreter;
 
-		protected Lua _Interpreter
+		/// <summary>The Lua instance that contains the referenced object.</summary>
+		public Lua Owner
 		{
 			get
 			{
-				Debug.Assert(__Interpreter != null, string.Format("{0} used after disposal.", this.GetType().Name));
-				return __Interpreter;
+				Debug.Assert(_interpreter != null, string.Format("{0} used after disposal.", this.GetType().Name));
+				return _interpreter;
 			}
-			private set { __Interpreter = value; }
+			private set { _interpreter = value; }
 		}
-		public bool IsDisposed { get { return __Interpreter == null; } }
-
-		/// <summary>The Lua instance that contains the referenced object.</summary>
-		public Lua Parent { get { return _Interpreter; } }
+		public bool IsDisposed { get { return _interpreter == null; } }
+		private Lua _interpreter; // should only be directly accessed by the above two members
 
 		~LuaBase()
 		{
@@ -45,8 +43,8 @@ namespace LuaInterface
 		{
 			if (this.IsDisposed) return;
 			if (_Reference >= LuaRefs.Min)
-				_Interpreter.dispose(_Reference);
-			_Interpreter = null;
+				Owner.dispose(_Reference);
+			Owner = null;
 			//if (disposing)
 			//	/* dispose managed objects here */;
 		}
@@ -55,7 +53,7 @@ namespace LuaInterface
 		{
 			var l = o as LuaBase;
 			if (l == null) return false;
-			return _Interpreter.compareRef(l._Reference, _Reference);
+			return Owner.compareRef(l._Reference, _Reference);
 		}
 
 		public override int GetHashCode()

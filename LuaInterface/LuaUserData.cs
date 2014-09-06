@@ -11,25 +11,25 @@ namespace LuaInterface
 		/// <summary>Indexer for nested string fields of the userdata</summary>
 		public object this[params string[] path]
 		{
-			get { return _Interpreter.getObject(_Reference, path); }
-			set { _Interpreter.setObject(_Reference, path, value); }
+			get { return Owner.getObject(_Reference, path); }
+			set { Owner.setObject(_Reference, path, value); }
 		}
 		/// <summary>Indexer for string fields of the userdata</summary>
 		public object this[string field]
 		{
-			get { return _Interpreter.getObject(_Reference, field); }
-			set { _Interpreter.setObject(_Reference, field, value); }
+			get { return Owner.getObject(_Reference, field); }
+			set { Owner.setObject(_Reference, field, value); }
 		}
 		/// <summary>Indexer for numeric fields of the userdata</summary>
 		public object this[object field]
 		{
-			get { return _Interpreter.getObject(_Reference, field); }
-			set { _Interpreter.setObject(_Reference, field, value); }
+			get { return Owner.getObject(_Reference, field); }
+			set { Owner.setObject(_Reference, field, value); }
 		}
 		/// <summary>Calls the userdata and returns its return values inside an array</summary>
 		public object[] Call(params object[] args)
 		{
-			return _Interpreter.callFunction(this, args);
+			return Owner.callFunction(this, args);
 		}
 		/// <summary>Pushes the userdata into the Lua stack</summary>
 		internal void push(IntPtr luaState)

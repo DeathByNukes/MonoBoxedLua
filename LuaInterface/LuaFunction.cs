@@ -22,12 +22,12 @@ namespace LuaInterface
 		/// <summary>Calls the function casting return values to the types in returnTypes</summary>
 		internal object[] call(object[] args, Type[] returnTypes)
 		{
-			return _Interpreter.callFunction(this, args, returnTypes);
+			return Owner.callFunction(this, args, returnTypes);
 		}
 		/// <summary>Calls the function and returns its return values inside an array</summary>
 		public object[] Call(params object[] args)
 		{
-			return _Interpreter.callFunction(this, args);
+			return Owner.callFunction(this, args);
 		}
 		/// <summary>Pushes the function into the Lua stack</summary>
 		internal void push(IntPtr luaState)
@@ -35,7 +35,7 @@ namespace LuaInterface
 			if (_Reference != LuaRefs.None)
 				LuaDLL.lua_getref(luaState, _Reference);
 			else
-				_Interpreter.pushCSFunction(function);
+				Owner.pushCSFunction(function);
 		}
 		public override string ToString()
 		{
@@ -46,7 +46,7 @@ namespace LuaInterface
 			var l = o as LuaFunction;
 			if (l == null) return false;
 			if (this._Reference != LuaRefs.None && l._Reference != LuaRefs.None)
-				return _Interpreter.compareRef(l._Reference, this._Reference);
+				return Owner.compareRef(l._Reference, this._Reference);
 			else
 				return this.function == l.function;
 		}

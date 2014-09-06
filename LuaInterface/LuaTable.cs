@@ -22,32 +22,32 @@ namespace LuaInterface
 		/// <seealso href="http://www.lua.org/manual/5.1/manual.html#2.5.5"/>
 		public int Length
 		{
-			get { return _Interpreter.getLength(_Reference); }
+			get { return Owner.getLength(_Reference); }
 		}
 
 		/// <summary>Counts the number of entries in the table.</summary>
 		public int Count()
 		{
-			return _Interpreter.getCount(this);
+			return Owner.getCount(this);
 		}
 
 		/// <summary>Indexer for nested string fields of the table</summary>
 		public object this[params string[] path]
 		{
-			get { return _Interpreter.getObject(_Reference, path); }
-			set { _Interpreter.setObject(_Reference, path, value); }
+			get { return Owner.getObject(_Reference, path); }
+			set { Owner.setObject(_Reference, path, value); }
 		}
 		/// <summary>Indexer for string fields of the table</summary>
 		public object this[string field]
 		{
-			get { return _Interpreter.getObject(_Reference, field); }
-			set { _Interpreter.setObject(_Reference, field, value); }
+			get { return Owner.getObject(_Reference, field); }
+			set { Owner.setObject(_Reference, field, value); }
 		}
 		/// <summary>Indexer for numeric fields of the table</summary>
 		public object this[object field]
 		{
-			get { return _Interpreter.getObject(_Reference, field); }
-			set { _Interpreter.setObject(_Reference, field, value); }
+			get { return Owner.getObject(_Reference, field); }
+			set { Owner.setObject(_Reference, field, value); }
 		}
 
 		/// <summary>Iterates over the table without making a copy.</summary>
@@ -58,15 +58,15 @@ namespace LuaInterface
 		/// In other words, the C# stack must conceptually resemble the Lua stack.
 		/// This function is the best compromise that can be offered. If you need IEnumerable, see <see cref="ToDict"/> and <see cref="Pairs"/>.
 		/// </remarks>
-		public void ForEach(Action<object, object> body) { _Interpreter.TableForEach(this, body); }
+		public void ForEach(Action<object, object> body) { Owner.TableForEach(this, body); }
 
 		/// <summary>Iterates over the table's integer keys without making a copy.</summary>
 		/// <param name="body">The first parameter is a key and the second is a value.</param>
-		public void ForEachI(Action<int, object> body) { _Interpreter.TableForEachI(this, body); }
+		public void ForEachI(Action<int, object> body) { Owner.TableForEachI(this, body); }
 
 		/// <summary>Iterates over the table's string keys without making a copy.</summary>
 		/// <param name="body">The first parameter is a key and the second is a value.</param>
-		public void ForEachS(Action<string, object> body) { _Interpreter.TableForEachS(this, body); }
+		public void ForEachS(Action<string, object> body) { Owner.TableForEachS(this, body); }
 
 		/// <summary>
 		/// Shallow-copies the table to a new dictionary.
@@ -80,7 +80,7 @@ namespace LuaInterface
 			if (dict == null)
 				dict = new Dictionary<object, object>();
 
-			_Interpreter.TableForEach(this, delegate(object k, object v)
+			Owner.TableForEach(this, delegate(object k, object v)
 			{
 				dict[k] = v;
 			});
@@ -98,7 +98,7 @@ namespace LuaInterface
 			if (dict == null)
 				dict = new Dictionary<string, object>();
 
-			_Interpreter.TableForEachS(this, delegate(string k, object v)
+			Owner.TableForEachS(this, delegate(string k, object v)
 			{
 				dict[k] = v;
 			});
@@ -116,7 +116,7 @@ namespace LuaInterface
 			if (list == null)
 				list = new List<object>(this.Length);
 
-			_Interpreter.TableForEachI(this, delegate(int i, object o)
+			Owner.TableForEachI(this, delegate(int i, object o)
 			{
 				list.Add(o);
 			});
@@ -135,7 +135,7 @@ namespace LuaInterface
 			else
 				Debug.Assert(array.Length <= this.Length);
 
-			_Interpreter.TableForEachI(this, delegate(int i, object o)
+			Owner.TableForEachI(this, delegate(int i, object o)
 			{
 				array[i-1] = o;
 			});
@@ -195,7 +195,7 @@ namespace LuaInterface
 			if (dict == null)
 				dict = new System.Collections.Specialized.ListDictionary();
 
-			_Interpreter.TableForEach(this, delegate(object k, object v)
+			Owner.TableForEach(this, delegate(object k, object v)
 			{
 				dict[k] = v;
 			});
@@ -210,31 +210,31 @@ namespace LuaInterface
 		public System.Collections.ICollection Values { get { return ToLegacyDict().Values; } }
 
 		/// <summary>Gets a numeric field of a table ignoring its metatable, if it exists</summary>
-		public object RawGet(int    field) { return _Interpreter.rawGetObject(_Reference, field); }
+		public object RawGet(int    field) { return Owner.rawGetObject(_Reference, field); }
 
 		/// <summary>Gets a string field of a table ignoring its metatable, if it exists</summary>
-		public object RawGet(string field) { return _Interpreter.rawGetObject(_Reference, field); }
+		public object RawGet(string field) { return Owner.rawGetObject(_Reference, field); }
 
 		/// <summary>Gets a field of a table ignoring its metatable, if it exists</summary>
-		public object RawGet(object field) { return _Interpreter.rawGetObject(_Reference, field); }
+		public object RawGet(object field) { return Owner.rawGetObject(_Reference, field); }
 
 
 		/// <summary>Sets a numeric field of a table ignoring its metatable, if it exists</summary>
-		public void RawSet(int    field, object value) { _Interpreter.rawSetObject(_Reference, field, value); }
+		public void RawSet(int    field, object value) { Owner.rawSetObject(_Reference, field, value); }
 
 		/// <summary>Sets a string field of a table ignoring its metatable, if it exists</summary>
-		public void RawSet(string field, object value) { _Interpreter.rawSetObject(_Reference, field, value); }
+		public void RawSet(string field, object value) { Owner.rawSetObject(_Reference, field, value); }
 
 		/// <summary>Sets a field of a table ignoring its metatable, if it exists</summary>
-		public void RawSet(object field, object value) { _Interpreter.rawSetObject(_Reference, field, value); }
+		public void RawSet(object field, object value) { Owner.rawSetObject(_Reference, field, value); }
 
 
 		internal object rawgetFunction(string field)
 		{
-			object obj = _Interpreter.rawGetObject(_Reference, field);
+			object obj = Owner.rawGetObject(_Reference, field);
 
 			if (obj is LuaCSFunction)
-				return new LuaFunction((LuaCSFunction)obj, _Interpreter);
+				return new LuaFunction((LuaCSFunction)obj, Owner);
 			else
 				return obj;
 		}
