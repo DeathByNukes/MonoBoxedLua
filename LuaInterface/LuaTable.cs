@@ -1,14 +1,15 @@
 ﻿using System;
-using System.Collections;
+using System.Collections.Generic;
+using System.Diagnostics;
+using LuaInterface.Helpers;
 
 namespace LuaInterface
 {
-	/// <summary>Wrapper class for Lua tables</summary>
-	/// <remarks>
-	/// Author: Fabio Mascarenhas
-	/// Version: 1.0
-	/// </remarks>
-	public class LuaTable : LuaBase
+	/// <summary>
+	/// Wrapper class for a Lua table reference.
+	/// Its implementation of IEnumerable is an alias to its <see cref="LuaTable.Pairs"/> property.
+	/// </summary>
+	public class LuaTable : LuaBase, IEnumerable<KeyValuePair<object, object>>
 	{
 		public bool IsOrphaned;
 
@@ -22,6 +23,12 @@ namespace LuaInterface
 		public int Length
 		{
 			get { return _Interpreter.getLength(_Reference); }
+		}
+
+		/// <summary>Counts the number of entries in the table.</summary>
+		public int Count()
+		{
+			return _Interpreter.getCount(this);
 		}
 
 		/// <summary>Indexer for nested string fields of the table</summary>
@@ -43,22 +50,164 @@ namespace LuaInterface
 			set { _Interpreter.setObject(_Reference, field, value); }
 		}
 
+		/// <summary>Iterates over the table without making a copy.</summary>
+		/// <param name="body">The first parameter is a key and the second is a value.</param>
+		/// <remarks>
+		/// Due to the underlying Lua API's stack-based nature, it isn't safe to expose an IEnumerable iterator for tables without making a complete shallow copy or killing performance.
+		/// An IEnumerable could be paused and later resumed inside a different callback, which would have a completely different Lua stack. Memory corruption would likely ensue.
+		/// In other words, the C# stack must conceptually resemble the Lua stack.
+		/// This function is the best compromise that can be offered. If you need IEnumerable, see <see cref="ToDict"/> and <see cref="Pairs"/>.
+		/// </remarks>
+		public void ForEach(Action<object, object> body) { _Interpreter.TableForEach(this, body); }
 
-		public System.Collections.IDictionaryEnumerator GetEnumerator()
+		/// <summary>Iterates over the table's integer keys without making a copy.</summary>
+		/// <param name="body">The first parameter is a key and the second is a value.</param>
+		public void ForEachI(Action<int, object> body) { _Interpreter.TableForEachI(this, body); }
+
+		/// <summary>Iterates over the table's string keys without making a copy.</summary>
+		/// <param name="body">The first parameter is a key and the second is a value.</param>
+		public void ForEachS(Action<string, object> body) { _Interpreter.TableForEachS(this, body); }
+
+		/// <summary>
+		/// Shallow-copies the table to a new dictionary.
+		/// Warning: The dictionary may contain <see cref="IDisposable"/> keys or values, all of which must be disposed.
+		/// </summary>
+		/// <param name="dict">If not null, the table data will be assigned to that dictionary instead of a new one.</param>
+		/// <returns>A new IDictionary or <paramref name="dict"/>.</returns>
+		/// <seealso cref="LuaHelpers.DisposeAll(System.Collections.Generic.IEnumerable{System.Collections.Generic.KeyValuePair{object,object}})"/>
+		public IDictionary<object, object> ToDict(IDictionary<object, object> dict = null)
 		{
-			return _Interpreter.GetTableDict(this).GetEnumerator();
+			if (dict == null)
+				dict = new Dictionary<object, object>();
+
+			_Interpreter.TableForEach(this, delegate(object k, object v)
+			{
+				dict[k] = v;
+			});
+			return dict;
+		}
+		/// <summary>
+		/// Shallow-copies the table to a new dictionary.
+		/// Warning: The dictionary may contain <see cref="IDisposable"/> values, all of which must be disposed.
+		/// </summary>
+		/// <param name="dict">If not null, the table data will be assigned to that dictionary instead of a new one.</param>
+		/// <returns>A new IDictionary or <paramref name="dict"/>.</returns>
+		/// <seealso cref="LuaHelpers.DisposeAll(System.Collections.Generic.IEnumerable{object})"/>
+		public IDictionary<string, object> ToSDict(IDictionary<string, object> dict = null)
+		{
+			if (dict == null)
+				dict = new Dictionary<string, object>();
+
+			_Interpreter.TableForEachS(this, delegate(string k, object v)
+			{
+				dict[k] = v;
+			});
+			return dict;
+		}
+		/// <summary>
+		/// Shallow-copies the table's integer keyed entries to a new list.
+		/// Warning: The list may contain <see cref="IDisposable"/> entries, all of which must be disposed.
+		/// </summary>
+		/// <param name="list">If not null, the table data will be assigned to that list instead of a new one.</param>
+		/// <returns>A new IList or <paramref name="list"/>.</returns>
+		/// <seealso cref="LuaHelpers.DisposeAll(System.Collections.Generic.IEnumerable{object})"/>
+		public IList<object> ToList(IList<object> list = null)
+		{
+			if (list == null)
+				list = new List<object>(this.Length);
+
+			_Interpreter.TableForEachI(this, delegate(int i, object o)
+			{
+				list.Add(o);
+			});
+			return list;
+		}
+		/// <summary>
+		/// Shallow-copies the table's integer keyed entries to a new array.
+		/// Warning: The list may contain <see cref="IDisposable"/> entries, all of which must be disposed.
+		/// </summary>
+		/// <param name="array">If not null, the table data will be assigned to that list instead of a new one.</param>
+		/// <returns>A new Object[] or <paramref name="array"/>.</returns>
+		public object[] ToArray(object[] array = null)
+		{
+			if (array == null)
+				array = new object[this.Length];
+			else
+				Debug.Assert(array.Length <= this.Length);
+
+			_Interpreter.TableForEachI(this, delegate(int i, object o)
+			{
+				array[i-1] = o;
+			});
+			return array;
 		}
 
-		public ICollection Keys
+		/// <summary>
+		/// An easy way to iterate over the table.
+		/// All Lua values will be auto disposed when the iteration finishes.
+		/// Note: At the start of enumeration the entire table will be shallow copied to a newly allocated buffer. If this doesn't result in acceptable performance, use <see cref="ForEach"/>.
+		/// </summary>
+		public IEnumerable<KeyValuePair<object, object>> Pairs { get
 		{
-			get { return _Interpreter.GetTableDict(this).Keys; }
+			var dict = this.ToDict();
+			try { foreach (var pair in dict) yield return pair; }
+			finally { dict.DisposeAll(); } // doing this at the end rather than inside the loop because that could leak if they break the loop early
+		}}
+		/// <summary>
+		/// An easy way to iterate over the table's integer-keyed entries.
+		/// All Lua values will be auto disposed when the iteration finishes.
+		/// Note: At the start of enumeration the entire table will be shallow copied to a newly allocated buffer. If this doesn't result in acceptable performance, use <see cref="ForEach"/>.
+		/// </summary>
+		public IEnumerable<object> IPairs { get
+		{
+			var list = this.ToList();
+			try { foreach (var item in list) yield return item; }
+			finally { list.DisposeAll(); }
+		}}
+		/// <summary>
+		/// An easy way to iterate over the table's string-keyed entries.
+		/// All Lua values will be auto disposed when the iteration finishes.
+		/// Note: At the start of enumeration the entire table will be shallow copied to a newly allocated buffer. If this doesn't result in acceptable performance, use <see cref="ForEach"/>.
+		/// </summary>
+		public IEnumerable<KeyValuePair<string, object>> SPairs { get
+		{
+			var dict = this.ToSDict();
+			try { foreach (var pair in dict) yield return pair; }
+			finally { dict.Values.DisposeAll(); }
+		}}
+
+		/// <summary>Iterates over <see cref="Pairs"/>.</summary>
+		IEnumerator<KeyValuePair<object, object>> IEnumerable<KeyValuePair<object, object>>.GetEnumerator() {
+			return this.Pairs.GetEnumerator();
+		}
+		System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() {
+			return this.Pairs.GetEnumerator();
 		}
 
-		public ICollection Values
+		/// <summary>
+		/// Shallow-copies the table to a new non-generic dictionary.
+		/// Warning: The dictionary may contain <see cref="IDisposable"/> keys or values, all of which must be disposed.
+		/// </summary>
+		/// <param name="dict">If not null, the table data will be assigned to that dictionary instead of a new one.</param>
+		/// <returns>A new IDictionary or <paramref name="dict"/>.</returns>
+		public System.Collections.IDictionary ToLegacyDict(System.Collections.IDictionary dict = null)
 		{
-			get { return _Interpreter.GetTableDict(this).Values; }
-		}
+			if (dict == null)
+				dict = new System.Collections.Specialized.ListDictionary();
 
+			_Interpreter.TableForEach(this, delegate(object k, object v)
+			{
+				dict[k] = v;
+			});
+			return dict;
+		}
+		// this had to be removed so "var" can be used in foreach with the new GetEnumerator
+		//[Obsolete("Use ToLegacyDict(), ToDict(), or ForEach() instead.")]
+		//public System.Collections.IDictionaryEnumerator GetEnumerator() { return ToLegacyDict().GetEnumerator(); }
+		[Obsolete("Use ToLegacyDict(), ToDict(), or ForEach() instead.")]
+		public System.Collections.ICollection Keys   { get { return ToLegacyDict().Keys;   } }
+		[Obsolete("Use ToLegacyDict(), ToDict(), or ForEach() instead.")]
+		public System.Collections.ICollection Values { get { return ToLegacyDict().Values; } }
 
 		/// <summary>Gets a numeric field of a table ignoring its metatable, if it exists</summary>
 		public object RawGet(int    field) { return _Interpreter.rawGetObject(_Reference, field); }

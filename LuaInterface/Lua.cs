@@ -1,6 +1,4 @@
 using System;
-using System.Collections.Generic;
-using System.Collections.Specialized;
 using System.Diagnostics;
 using System.Reflection;
 
@@ -556,25 +554,71 @@ namespace LuaInterface
 
 		#region LuaBase etc method implementations
 
-		public ListDictionary GetTableDict(LuaTable table)
+		internal void TableForEach(LuaTable table, Action<object, object> body)
 		{
-			ListDictionary dict = new ListDictionary();
-
 			int oldTop = LuaDLL.lua_gettop(luaState);
-			translator.push(luaState, table);
+			try
+			{
+				table.push(luaState);
+				LuaDLL.lua_pushnil(luaState);
+				while (LuaDLL.lua_next(luaState, -2) != 0)
+				{
+					body(translator.getObject(luaState, -2), translator.getObject(luaState, -1));
+					LuaDLL.lua_settop(luaState, -2);
+				}
+			}
+			finally { LuaDLL.lua_settop(luaState, oldTop); }
+		}
+		internal void TableForEachI(LuaTable table, Action<int, object> body)
+		{
+			int oldTop = LuaDLL.lua_gettop(luaState);
+			try
+			{
+				table.push(luaState);
+				for (int i = 1; ; ++i)
+				{
+					LuaDLL.lua_rawgeti(luaState, -1, i);
+					object obj = translator.getObject(luaState, -1);
+					if (obj == null) break;
+					body(i, obj);
+					LuaDLL.lua_settop(luaState, -2);
+				}
+			}
+			finally { LuaDLL.lua_settop(luaState, oldTop); }
+		}
+		internal void TableForEachS(LuaTable table, Action<string, object> body)
+		{
+			int oldTop = LuaDLL.lua_gettop(luaState);
+			try
+			{
+				table.push(luaState);
+				LuaDLL.lua_pushnil(luaState);
+				while (LuaDLL.lua_next(luaState, -2) != 0)
+				{
+					if (LuaDLL.lua_type(luaState, -2) == LuaTypes.LUA_TSTRING)
+						body(LuaDLL.lua_tostring(luaState, -2), translator.getObject(luaState, -1));
+					LuaDLL.lua_settop(luaState, -2);
+				}
+			}
+			finally { LuaDLL.lua_settop(luaState, oldTop); }
+		}
+
+		internal int getCount(LuaTable table)
+		{
+			int count = 0;
+			int oldTop = LuaDLL.lua_gettop(luaState);
+			table.push(luaState);
 			LuaDLL.lua_pushnil(luaState);
 			while (LuaDLL.lua_next(luaState, -2) != 0)
 			{
-				dict[translator.getObject(luaState, -2)] = translator.getObject(luaState, -1);
+				++count;
 				LuaDLL.lua_settop(luaState, -2);
 			}
 			LuaDLL.lua_settop(luaState, oldTop);
-
-			return dict;
+			return count;
 		}
 
 		/// <summary>Lets go of a previously allocated reference to a table, function or userdata</summary>
-
 		internal void dispose(int reference)
 		{
 			if (luaState != IntPtr.Zero) //Fix submitted by Qingrui Li
@@ -582,7 +626,7 @@ namespace LuaInterface
 		}
 
 		/// <summary>
-		/// Gets the "length" of the value corresponding to the provided reference: 
+		/// Gets the "length" of the value corresponding to the provided reference:
 		/// for strings, this is the string length;
 		/// for tables, this is the result of the length operator ('#');
 		/// for userdata, this is the size of the block of memory allocated for the userdata;

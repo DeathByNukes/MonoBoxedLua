@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using LuaInterface;
+using LuaInterface.Helpers;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace LuaInterfaceTest
@@ -64,9 +65,10 @@ namespace LuaInterfaceTest
 			using (var lua = NewTest())
 			using (var table = (LuaTable) lua.DoString("return newTestTable(true, false)", "@Table.cs.Get.lua")[0])
 			{
-				// - try reading normal values, which the metatable can't intercept -
-
 				Assert.AreEqual(_ArrayEnd, table.Length);
+				Assert.AreEqual(15, table.Count());
+
+				// - try reading normal values, which the metatable can't intercept -);
 
 				// array
 				for (double i = 1; i <= _ArrayEnd; ++i)
@@ -222,6 +224,71 @@ namespace LuaInterfaceTest
 				Assert.IsNull(table[_EmptyDouble]);
 				table.RawSet(_EmptyDouble, 12);
 				Assert.AreEqual(12.0, table[_EmptyDouble]);
+			}
+		}
+
+		private object TestFormat(object o)
+		{
+			if (o is string) return string.Format("'{0}'", o);
+			if (o is LuaTable) return "table";
+			return o;
+		}
+		private string TestFormatPair<K,V>(KeyValuePair<K,V> pair)
+		{
+			return string.Format("{0}={1}", TestFormat(pair.Key), TestFormat(pair.Value));
+		}
+
+		[TestMethod] public void ToDict()
+		{
+			using (var lua = new Lua())
+			using (var table = (LuaTable)lua.DoString("return {'1', 2, 'three', nil, 5, 2*3, seven=7, eight={8}}", "@Table.cs.ToDict.lua")[0])
+			{
+				// just a quick hardcoded test based on its own output
+				const string expected = "1='1', 2=2, 3='three', 5=5, 6=6, 'eight'=table, 'seven'=7";
+
+				var dict = table.ToDict();
+				using (dict.DeferDisposeAll())
+					Assert.AreEqual(expected, string.Join(", ", dict.Select(TestFormatPair)));
+
+				Assert.AreEqual(expected, string.Join(", ", table.Pairs.Select(TestFormatPair)));
+
+				Assert.AreEqual(expected, string.Join(", ", table.Select(TestFormatPair)));
+			}
+		}
+
+		[TestMethod] public void ToSDict()
+		{
+			using (var lua = new Lua())
+			using (var table = (LuaTable)lua.DoString("return {'1', 2, 'three', nil, 5, 2*3, seven=7, eight={8}}", "@Table.cs.ToDict.lua")[0])
+			{
+				const string expected = "'eight'=table, 'seven'=7";
+
+				var dict = table.ToSDict();
+				using (dict.Values.DeferDisposeAll())
+					Assert.AreEqual(expected, string.Join(", ", dict.Select(TestFormatPair)));
+
+				Assert.AreEqual(expected, string.Join(", ", table.SPairs.Select(TestFormatPair)));
+			}
+		}
+
+		[TestMethod] public void ToList()
+		{
+			using (var lua = new Lua())
+			using (var table = (LuaTable)lua.DoString("return {'1', 2, 'three', 4, 5, 2*3, {7}}", "@Table.cs.ToList.lua")[0])
+			{
+				const string expected = "'1', 2, 'three', 4, 5, 6, table";
+
+				var list = table.ToList();
+				using (list.DeferDisposeAll())
+					Assert.AreEqual(expected, string.Join(", ", list.Select(TestFormat)));
+				list = null;
+
+				var array = table.ToArray();
+				using (array.DeferDisposeAll())
+					Assert.AreEqual(expected, string.Join(", ", array.Select(TestFormat)));
+				array = null;
+
+				Assert.AreEqual(expected, string.Join(", ", table.IPairs.Select(TestFormat)));
 			}
 		}
 	}

@@ -699,23 +699,20 @@ namespace LuaInterface
 		internal Array TableToArray(object luaParamValue, Type paramArrayType) {
 			Array paramArray;
 
-			if (luaParamValue is LuaTable)  {
-				LuaTable table = (LuaTable)luaParamValue;
-				IDictionaryEnumerator tableEnumerator = table.GetEnumerator();
-				tableEnumerator.Reset();
-				paramArray = Array.CreateInstance(paramArrayType, table.Values.Count);
+			var table = luaParamValue as LuaTable;
+			if (table != null)  {
+				paramArray = Array.CreateInstance(paramArrayType, table.Length);
 
-				int paramArrayIndex = 0;
-
-				while(tableEnumerator.MoveNext())  {
-					object o = tableEnumerator.Value;
-					if (paramArrayType == typeof(object)) {
-						if (o != null && o.GetType() == typeof(double) && IsInteger((double)o))
-							o = Convert.ToInt32((double)o);
+				table.ForEachI(delegate(int i, object o)
+				{
+					if (paramArrayType == typeof(object) && o is double)
+					{
+						var d = (double) o;
+						if (IsInteger(d))
+							o = Convert.ToInt32(d);
 					}
-					paramArray.SetValue(Convert.ChangeType(o, paramArrayType), paramArrayIndex);
-					paramArrayIndex++;
-				}
+					paramArray.SetValue(Convert.ChangeType(o, paramArrayType), i-1);
+				 });
 			} else {
 				paramArray = Array.CreateInstance(paramArrayType, 1);
 				paramArray.SetValue(luaParamValue, 0);
