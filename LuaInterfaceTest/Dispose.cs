@@ -20,7 +20,7 @@ namespace LuaInterfaceTest
 			gc.AssertDead();
 
 			#if DEBUG
-			Assert.AreEqual(0u, Lua.popLeakCount(), "Lua objects were leaked.");
+			Assert.AreEqual(0u, Lua.PopLeakCount(), "Lua objects were leaked.");
 			#endif
 		}
 
@@ -73,7 +73,7 @@ namespace LuaInterfaceTest
 		{
 			var gc = new GcUtil.GCTest(new Lua());
 			gc.Kill();
-			Assert.AreEqual(1u, Lua.popLeakCount());
+			Assert.AreEqual(1u, Lua.PopLeakCount());
 		}
 
 		[TestMethod] public void DisposeLuaTable()

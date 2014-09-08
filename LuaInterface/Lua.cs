@@ -832,10 +832,10 @@ namespace LuaInterface
 
 		#if DEBUG
 		/// <summary>The number of LuaInterface IDisposable objects that were disposed by the garbage collector.</summary>
-		public static uint leak_count { get { return g_leak_count; } }
+		public static uint LeakCount { get { return g_leak_count; } }
 
-		/// <summary>Gets the current <see cref="leak_count"/> and resets the counter to 0.</summary>
-		public static uint popLeakCount()
+		/// <summary>Gets the current <see cref="LeakCount"/> and resets the counter to 0.</summary>
+		public static uint PopLeakCount()
 		{
 			var count = g_leak_count;
 			g_leak_count = 0;
