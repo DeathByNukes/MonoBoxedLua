@@ -253,6 +253,10 @@ namespace LuaInterfaceTest
 				Assert.AreEqual(expected, string.Join(", ", table.Pairs.Select(TestFormatPair)));
 
 				Assert.AreEqual(expected, string.Join(", ", table.Select(TestFormatPair)));
+
+				using (var t2 = table.NewReference())
+					Assert.AreEqual(expected, string.Join(", ", t2.Select(TestFormatPair)));
+				Assert.AreEqual(expected, string.Join(", ", table.Select(TestFormatPair)));
 			}
 		}
 

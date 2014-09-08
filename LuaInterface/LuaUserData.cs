@@ -8,6 +8,8 @@ namespace LuaInterface
 		: base(reference, interpreter)
 		{
 		}
+		/// <summary>Makes a new reference the same userdata.</summary>
+		public LuaUserData NewReference() { return new LuaUserData(Owner.newReference(_Reference), Owner); }
 		/// <summary>Indexer for nested string fields of the userdata</summary>
 		public object this[params string[] path]
 		{

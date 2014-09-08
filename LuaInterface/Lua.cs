@@ -641,6 +641,16 @@ namespace LuaInterface
 			return len;
 		}
 
+		/// <summary>Makes a new reference the same object as an existing reference.</summary>
+		internal int newReference(int reference)
+		{
+			int oldTop = LuaDLL.lua_gettop(luaState);
+			LuaDLL.lua_getref(luaState, reference);
+			int new_ref = LuaDLL.lua_ref(luaState);
+			LuaDLL.lua_settop(luaState, oldTop);
+			return new_ref;
+		}
+
 		/// <summary>Gets a numeric field of the table corresponding to the provided reference using rawget (do not use metatables)</summary>
 		internal object rawGetObject(int reference, int field)
 		{

@@ -17,6 +17,13 @@ namespace LuaInterface
 		{
 			this.function = function;
 		}
+		
+		/// <summary>Makes a new reference the same function.</summary>
+		public LuaFunction NewReference() {
+			return _Reference != LuaRefs.None
+				? new LuaFunction(Owner.newReference(_Reference), Owner)
+				: new LuaFunction(function, Owner);
+		}
 
 
 		/// <summary>Calls the function casting return values to the types in returnTypes</summary>

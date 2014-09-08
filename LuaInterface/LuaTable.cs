@@ -17,6 +17,9 @@ namespace LuaInterface
 		: base(reference, interpreter)
 		{
 		}
+		
+		/// <summary>Makes a new reference the same table.</summary>
+		public LuaTable NewReference() { return new LuaTable(Owner.newReference(_Reference), Owner); }
 
 		/// <summary>The result of the Lua length operator ('#'). Note that this is the array length (string etc. keys aren't counted) and it doesn't work reliably on sparse arrays.</summary>
 		/// <seealso href="http://www.lua.org/manual/5.1/manual.html#2.5.5"/>
