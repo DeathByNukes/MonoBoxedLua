@@ -763,9 +763,13 @@ namespace LuaInterface
 			{
 				LuaDLL.lua_pushnil(luaState);
 			}
+			else if(o is double)
+			{
+				LuaDLL.lua_pushnumber(luaState,(double)o);
+			}
 			else if(o is sbyte || o is byte || o is short || o is ushort ||
 				o is int || o is uint || o is long || o is float ||
-				o is ulong || o is decimal || o is double)
+				o is ulong || o is decimal)
 			{
 				double d=Convert.ToDouble(o);
 				LuaDLL.lua_pushnumber(luaState,d);

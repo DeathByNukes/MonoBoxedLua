@@ -589,11 +589,7 @@ namespace LuaInterface
 		public LuaEventHandler GetEvent(Type eventHandlerType, LuaFunction eventHandler)
 		{
 			Type eventConsumerType;
-			if (eventHandlerCollection.ContainsKey(eventHandlerType))
-			{
-				eventConsumerType=eventHandlerCollection[eventHandlerType];
-			}
-			else
+			if (!eventHandlerCollection.TryGetValue(eventHandlerType, out eventConsumerType))
 			{
 				eventConsumerType=GenerateEvent(eventHandlerType);
 				eventHandlerCollection[eventHandlerType] = eventConsumerType;
@@ -603,16 +599,12 @@ namespace LuaInterface
 			return luaEventHandler;
 		}
 
-		/// <summary>Gets a delegate with delegateType that calls the luaFunc Lua function Caches the generated type.</summary>
+		/// <summary>Gets a delegate with delegateType that calls the luaFunc Lua function. Caches the generated type.</summary>
 		public Delegate GetDelegate(Type delegateType, LuaFunction luaFunc)
 		{
 			List<Type> returnTypes=new List<Type>();
 			Type luaDelegateType;
-			if (delegateCollection.ContainsKey(delegateType))
-			{
-				luaDelegateType=delegateCollection[delegateType];
-			}
-			else
+			if (!delegateCollection.TryGetValue(delegateType, out luaDelegateType))
 			{
 				luaDelegateType=GenerateDelegate(delegateType);
 				delegateCollection[delegateType] = luaDelegateType;
@@ -635,11 +627,7 @@ namespace LuaInterface
 		public object GetClassInstance(Type klass, LuaTable luaTable)
 		{
 			LuaClassType luaClassType;
-			if (classCollection.ContainsKey(klass))
-			{
-				luaClassType=classCollection[klass];
-			}
-			else
+			if (!classCollection.TryGetValue(klass, out luaClassType))
 			{
 				luaClassType=new LuaClassType();
 				GenerateClass(klass,out luaClassType.klass,out luaClassType.returnTypes,luaTable);
