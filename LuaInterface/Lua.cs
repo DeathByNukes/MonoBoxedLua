@@ -442,7 +442,6 @@ namespace LuaInterface
 		/// <summary>Gets a table global variable as an object implementing the interfaceType interface</summary>
 		public object GetTable(Type interfaceType, string fullPath)
 		{
-				translator.throwError(luaState,"Tables as interfaces not implemented");
 			return CodeGeneration.Instance.GetClassInstance(interfaceType,GetTable(fullPath));
 		}
 #endif
