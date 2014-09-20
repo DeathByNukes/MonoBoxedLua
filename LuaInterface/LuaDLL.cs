@@ -187,7 +187,7 @@ namespace LuaInterface
 		// steffenj: BEGIN Lua 5.1.1 API change (lua_open replaced by luaL_newstate)
 		[DllImport(LUALIBDLL, CallingConvention = CallingConvention.Cdecl)]
 		public static extern IntPtr luaL_newstate();
-		/// <summary>DEPRECATED - use luaL_newstate() instead!</summary>
+		[Obsolete("use luaL_newstate() instead!")]
 		public static IntPtr lua_open()
 		{
 			return LuaDLL.luaL_newstate();
@@ -218,7 +218,7 @@ namespace LuaInterface
 		// steffenj: BEGIN Lua 5.1.1 API change (lua_strlen is now lua_objlen)
 		[DllImport(LUADLL, CallingConvention = CallingConvention.Cdecl)]
 		public static extern int lua_objlen(IntPtr luaState, int stackPos);
-		/// <summary>DEPRECATED - use lua_objlen(IntPtr luaState, int stackPos) instead!</summary>
+		[Obsolete("use lua_objlen(IntPtr luaState, int stackPos) instead!")]
 		public static int lua_strlen(IntPtr luaState, int stackPos)
 		{
 			return lua_objlen(luaState, stackPos);
@@ -235,7 +235,7 @@ namespace LuaInterface
 
 			return LuaDLL.lua_pcall(luaState, 0, -1, 0);
 		}
-		/// <summary>DEPRECATED - use luaL_dostring(IntPtr luaState, string chunk) instead!</summary>
+		[Obsolete("use luaL_dostring(IntPtr luaState, string chunk) instead!")]
 		public static int lua_dostring(IntPtr luaState, string chunk)
 		{
 			return LuaDLL.luaL_dostring(luaState, chunk);
