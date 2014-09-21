@@ -541,7 +541,10 @@ namespace LuaInterface
 			LuaDLL.lua_settop(luaState,oldTop);
 		}
 
-		/// <summary>Creates a new unnamed table</summary>
+		/// <summary>
+		/// Creates a new unnamed table.
+		/// The table will have <see cref="LuaTable.IsOrphaned"/> set to <see langword="true"/> by default.
+		/// </summary>
 		public LuaTable NewTable()
 		{
 			int oldTop = LuaDLL.lua_gettop( luaState );

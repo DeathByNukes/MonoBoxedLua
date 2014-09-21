@@ -11,6 +11,9 @@ namespace LuaInterface
 	/// </summary>
 	public class LuaTable : LuaBase, IEnumerable<KeyValuePair<object, object>>
 	{
+		/// <summary>Returning an orphaned reference from a function that was called by Lua will automatically dispose that reference at a safe time.</summary>
+		/// <remarks>Defaults to <see langword="false"/> except for references returned by <see cref="Lua.NewTable()"/>.</remarks>
+		/// <seealso cref="Lua.NewTable()"/>
 		public bool IsOrphaned;
 
 		public LuaTable(int reference, Lua interpreter)
@@ -34,6 +37,8 @@ namespace LuaInterface
 			return Owner.getCount(this);
 		}
 
+		#region Indexers
+
 		/// <summary>Indexer for nested string fields of the table</summary>
 		public object this[params string[] path]
 		{
@@ -53,7 +58,11 @@ namespace LuaInterface
 			set { Owner.setObject(_Reference, field, value); }
 		}
 
-		/// <summary>Iterates over the table without making a copy.</summary>
+		#endregion
+
+		#region ForEach
+
+		/// <summary>Iterates over the table without making a copy. Like "pairs()" in Lua, the iteration is unordered.</summary>
 		/// <param name="body">The first parameter is a key and the second is a value.</param>
 		/// <remarks>
 		/// Due to the underlying Lua API's stack-based nature, it isn't safe to expose an IEnumerable iterator for tables without making a complete shallow copy or killing performance.
@@ -63,13 +72,20 @@ namespace LuaInterface
 		/// </remarks>
 		public void ForEach(Action<object, object> body) { Owner.TableForEach(this, body); }
 
-		/// <summary>Iterates over the table's integer keys without making a copy.</summary>
+		/// <summary>
+		/// Iterates over the table's integer keys without making a copy.
+		/// Like "ipairs()" in Lua, the iteration is ordered starting from 1 and ends before the first empty index.
+		/// </summary>
 		/// <param name="body">The first parameter is a key and the second is a value.</param>
 		public void ForEachI(Action<int, object> body) { Owner.TableForEachI(this, body); }
 
-		/// <summary>Iterates over the table's string keys without making a copy.</summary>
+		/// <summary>Iterates over the table's string keys without making a copy. Like "pairs()" in Lua, the iteration is unordered.</summary>
 		/// <param name="body">The first parameter is a key and the second is a value.</param>
 		public void ForEachS(Action<string, object> body) { Owner.TableForEachS(this, body); }
+
+		#endregion
+		
+		#region Copiers
 
 		/// <summary>
 		/// Shallow-copies the table to a new dictionary.
@@ -175,6 +191,10 @@ namespace LuaInterface
 			return array;
 		}
 
+		#endregion
+
+		#region Iterators
+
 		/// <summary>
 		/// An easy way to iterate over the table.
 		/// All Lua values will be auto disposed when the iteration finishes.
@@ -217,6 +237,10 @@ namespace LuaInterface
 			return this.Pairs.GetEnumerator();
 		}
 
+		#endregion
+
+		#region Legacy Support
+
 		/// <summary>
 		/// Shallow-copies the table to a new non-generic dictionary.
 		/// Warning: The dictionary may contain <see cref="IDisposable"/> keys or values, all of which must be disposed.
@@ -248,6 +272,10 @@ namespace LuaInterface
 		[Obsolete("Use ToLegacyDict(), ToDict(), or ForEach() instead.")]
 		public System.Collections.ICollection Values { get { return ToLegacyDict().Values; } }
 
+		#endregion
+
+		#region Raw Access
+
 		/// <summary>Gets a numeric field of a table ignoring its metatable, if it exists</summary>
 		public object RawGet(int    field) { return Owner.rawGetObject(_Reference, field); }
 
@@ -267,6 +295,10 @@ namespace LuaInterface
 		/// <summary>Sets a field of a table ignoring its metatable, if it exists</summary>
 		public void RawSet(object field, object value) { Owner.rawSetObject(_Reference, field, value); }
 
+		#endregion
+
+
+		#region Internals
 
 		internal object rawgetFunction(string field)
 		{
@@ -287,5 +319,7 @@ namespace LuaInterface
 		{
 			return "table";
 		}
+
+		#endregion
 	}
 }
