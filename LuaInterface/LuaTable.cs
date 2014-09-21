@@ -20,7 +20,7 @@ namespace LuaInterface
 		: base(reference, interpreter)
 		{
 		}
-		
+
 		/// <summary>Makes a new reference the same table.</summary>
 		public LuaTable NewReference() { return new LuaTable(Owner.newReference(_Reference), Owner); }
 
@@ -107,7 +107,7 @@ namespace LuaInterface
 		public void ForEachS(Action<string, object> body) { Owner.TableForEachS(this, body); }
 
 		#endregion
-		
+
 		#region Copiers
 
 		/// <summary>

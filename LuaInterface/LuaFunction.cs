@@ -17,7 +17,7 @@ namespace LuaInterface
 		{
 			this.function = function;
 		}
-		
+
 		/// <summary>Makes a new reference the same function.</summary>
 		public LuaFunction NewReference() {
 			return _Reference != LuaRefs.None
