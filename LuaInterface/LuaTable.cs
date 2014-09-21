@@ -60,6 +60,29 @@ namespace LuaInterface
 
 		#endregion
 
+		#region Raw Access
+
+		/// <summary>Gets a numeric field of a table ignoring its metatable, if it exists</summary>
+		public object RawGet(int    field) { return Owner.rawGetObject(_Reference, field); }
+
+		/// <summary>Gets a string field of a table ignoring its metatable, if it exists</summary>
+		public object RawGet(string field) { return Owner.rawGetObject(_Reference, field); }
+
+		/// <summary>Gets a field of a table ignoring its metatable, if it exists</summary>
+		public object RawGet(object field) { return Owner.rawGetObject(_Reference, field); }
+
+
+		/// <summary>Sets a numeric field of a table ignoring its metatable, if it exists</summary>
+		public void RawSet(int    field, object value) { Owner.rawSetObject(_Reference, field, value); }
+
+		/// <summary>Sets a string field of a table ignoring its metatable, if it exists</summary>
+		public void RawSet(string field, object value) { Owner.rawSetObject(_Reference, field, value); }
+
+		/// <summary>Sets a field of a table ignoring its metatable, if it exists</summary>
+		public void RawSet(object field, object value) { Owner.rawSetObject(_Reference, field, value); }
+
+		#endregion
+
 		#region ForEach
 
 		/// <summary>Iterates over the table without making a copy. Like "pairs()" in Lua, the iteration is unordered.</summary>
@@ -271,29 +294,6 @@ namespace LuaInterface
 		public System.Collections.ICollection Keys   { get { return ToLegacyDict().Keys;   } }
 		[Obsolete("Use ToLegacyDict(), ToDict(), or ForEach() instead.")]
 		public System.Collections.ICollection Values { get { return ToLegacyDict().Values; } }
-
-		#endregion
-
-		#region Raw Access
-
-		/// <summary>Gets a numeric field of a table ignoring its metatable, if it exists</summary>
-		public object RawGet(int    field) { return Owner.rawGetObject(_Reference, field); }
-
-		/// <summary>Gets a string field of a table ignoring its metatable, if it exists</summary>
-		public object RawGet(string field) { return Owner.rawGetObject(_Reference, field); }
-
-		/// <summary>Gets a field of a table ignoring its metatable, if it exists</summary>
-		public object RawGet(object field) { return Owner.rawGetObject(_Reference, field); }
-
-
-		/// <summary>Sets a numeric field of a table ignoring its metatable, if it exists</summary>
-		public void RawSet(int    field, object value) { Owner.rawSetObject(_Reference, field, value); }
-
-		/// <summary>Sets a string field of a table ignoring its metatable, if it exists</summary>
-		public void RawSet(string field, object value) { Owner.rawSetObject(_Reference, field, value); }
-
-		/// <summary>Sets a field of a table ignoring its metatable, if it exists</summary>
-		public void RawSet(object field, object value) { Owner.rawSetObject(_Reference, field, value); }
 
 		#endregion
 
