@@ -173,7 +173,7 @@ namespace LuaInterface
 			return null;
 		}
 
-		/// <summary>The following functions return the value in the Lua stack index stackPos as the desired type if it can, or null otherwise.</summary>
+		// The following functions return the value in the Lua stack index stackPos as the desired type if it can, or null otherwise.
 		private object getAsSbyte(IntPtr luaState,int stackPos)
 		{
 			sbyte retVal=(sbyte)LuaDLL.lua_tonumber(luaState,stackPos);

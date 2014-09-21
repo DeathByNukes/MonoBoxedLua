@@ -408,6 +408,9 @@ namespace LuaInterface
 		#endif
 		#endregion
 
+		/// <summary>Gets a reference to the global table.</summary>
+		public LuaTable GetGlobals() { return translator.getTable(luaState, LuaIndexes.LUA_GLOBALSINDEX); }
+
 		/// <summary>Navigates a table in the top of the stack, returning the value of the specified field</summary>
 		internal object getObject(string[] remainingPath)
 		{
