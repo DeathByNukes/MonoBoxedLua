@@ -75,70 +75,100 @@ namespace LuaInterface
 		/// Shallow-copies the table to a new dictionary.
 		/// Warning: The dictionary may contain <see cref="IDisposable"/> keys or values, all of which must be disposed.
 		/// </summary>
-		/// <param name="dict">If not null, the table data will be assigned to that dictionary instead of a new one.</param>
+		/// <seealso cref="LuaHelpers.DisposeAll(System.Collections.Generic.IEnumerable{System.Collections.Generic.KeyValuePair{object,object}})"/>
+		public IDictionary<object, object> ToDict() { return ToDict(null); }
+
+		/// <summary>
+		/// Shallow-copies the table to a dictionary.
+		/// Warning: The dictionary may contain <see cref="IDisposable"/> keys or values, all of which must be disposed.
+		/// </summary>
+		/// <param name="dict">If not null, the table data will be assigned to that dictionary.</param>
 		/// <returns>A new IDictionary or <paramref name="dict"/>.</returns>
 		/// <seealso cref="LuaHelpers.DisposeAll(System.Collections.Generic.IEnumerable{System.Collections.Generic.KeyValuePair{object,object}})"/>
-		public IDictionary<object, object> ToDict(IDictionary<object, object> dict = null)
+		public IDictionary<object, object> ToDict(IDictionary<object, object> dict)
 		{
 			if (dict == null)
 				dict = new Dictionary<object, object>();
 
-			Owner.TableForEach(this, delegate(object k, object v)
+			Owner.TableForEach(this, (k,v) =>
 			{
 				dict[k] = v;
 			});
 			return dict;
 		}
+
 		/// <summary>
 		/// Shallow-copies the table to a new dictionary.
 		/// Warning: The dictionary may contain <see cref="IDisposable"/> values, all of which must be disposed.
 		/// </summary>
-		/// <param name="dict">If not null, the table data will be assigned to that dictionary instead of a new one.</param>
+		/// <seealso cref="LuaHelpers.DisposeAll(System.Collections.Generic.IEnumerable{object})"/>
+		public IDictionary<string, object> ToSDict() { return ToSDict(null); }
+
+		/// <summary>
+		/// Shallow-copies the table to a dictionary.
+		/// Warning: The dictionary may contain <see cref="IDisposable"/> values, all of which must be disposed.
+		/// </summary>
+		/// <param name="dict">If not null, the table data will be assigned to that dictionary.</param>
 		/// <returns>A new IDictionary or <paramref name="dict"/>.</returns>
 		/// <seealso cref="LuaHelpers.DisposeAll(System.Collections.Generic.IEnumerable{object})"/>
-		public IDictionary<string, object> ToSDict(IDictionary<string, object> dict = null)
+		public IDictionary<string, object> ToSDict(IDictionary<string, object> dict)
 		{
 			if (dict == null)
 				dict = new Dictionary<string, object>();
 
-			Owner.TableForEachS(this, delegate(string k, object v)
+			Owner.TableForEachS(this, (k,v) =>
 			{
 				dict[k] = v;
 			});
 			return dict;
 		}
+
 		/// <summary>
 		/// Shallow-copies the table's integer keyed entries to a new list.
 		/// Warning: The list may contain <see cref="IDisposable"/> entries, all of which must be disposed.
 		/// </summary>
-		/// <param name="list">If not null, the table data will be assigned to that list instead of a new one.</param>
+		/// <seealso cref="LuaHelpers.DisposeAll(System.Collections.Generic.IEnumerable{object})"/>
+		public IList<object> ToList() { return ToList(null); }
+
+		/// <summary>
+		/// Shallow-copies the table's integer keyed entries to a list.
+		/// Warning: The list may contain <see cref="IDisposable"/> entries, all of which must be disposed.
+		/// </summary>
+		/// <param name="list">If not null, the table data will be assigned to that list.</param>
 		/// <returns>A new IList or <paramref name="list"/>.</returns>
 		/// <seealso cref="LuaHelpers.DisposeAll(System.Collections.Generic.IEnumerable{object})"/>
-		public IList<object> ToList(IList<object> list = null)
+		public IList<object> ToList(IList<object> list)
 		{
 			if (list == null)
 				list = new List<object>(this.Length);
 
-			Owner.TableForEachI(this, delegate(int i, object o)
+			Owner.TableForEachI(this, (i,v) =>
 			{
-				list.Add(o);
+				list.Add(v);
 			});
 			return list;
 		}
+
 		/// <summary>
 		/// Shallow-copies the table's integer keyed entries to a new array.
 		/// Warning: The list may contain <see cref="IDisposable"/> entries, all of which must be disposed.
 		/// </summary>
-		/// <param name="array">If not null, the table data will be assigned to that list instead of a new one.</param>
+		public object[] ToArray() { return ToArray(null); }
+
+		/// <summary>
+		/// Shallow-copies the table's integer keyed entries to an array.
+		/// Warning: The list may contain <see cref="IDisposable"/> entries, all of which must be disposed.
+		/// </summary>
+		/// <param name="array">If not null, the table data will be assigned to that array.</param>
 		/// <returns>A new Object[] or <paramref name="array"/>.</returns>
-		public object[] ToArray(object[] array = null)
+		public object[] ToArray(object[] array)
 		{
 			if (array == null)
 				array = new object[this.Length];
 			else
 				Debug.Assert(array.Length <= this.Length);
 
-			Owner.TableForEachI(this, delegate(int i, object o)
+			Owner.TableForEachI(this, (i,o) =>
 			{
 				array[i-1] = o;
 			});
@@ -191,14 +221,20 @@ namespace LuaInterface
 		/// Shallow-copies the table to a new non-generic dictionary.
 		/// Warning: The dictionary may contain <see cref="IDisposable"/> keys or values, all of which must be disposed.
 		/// </summary>
-		/// <param name="dict">If not null, the table data will be assigned to that dictionary instead of a new one.</param>
+		public System.Collections.IDictionary ToLegacyDict() { return ToLegacyDict(null); }
+
+		/// <summary>
+		/// Shallow-copies the table to a non-generic dictionary.
+		/// Warning: The dictionary may contain <see cref="IDisposable"/> keys or values, all of which must be disposed.
+		/// </summary>
+		/// <param name="dict">If not null, the table data will be assigned to that dictionary.</param>
 		/// <returns>A new IDictionary or <paramref name="dict"/>.</returns>
-		public System.Collections.IDictionary ToLegacyDict(System.Collections.IDictionary dict = null)
+		public System.Collections.IDictionary ToLegacyDict(System.Collections.IDictionary dict)
 		{
 			if (dict == null)
 				dict = new System.Collections.Specialized.ListDictionary();
 
-			Owner.TableForEach(this, delegate(object k, object v)
+			Owner.TableForEach(this, (k,v) =>
 			{
 				dict[k] = v;
 			});
