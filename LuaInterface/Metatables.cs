@@ -56,6 +56,7 @@ namespace LuaInterface
 		/// <summary>__call metafunction of CLR delegates, retrieves and calls the delegate.</summary>
 		private int runFunctionDelegate(IntPtr luaState)
 		{
+			Debug.Assert(luaState == translator.interpreter.luaState); // this is stupid
 			LuaCSFunction func = (LuaCSFunction)translator.getRawNetObject(luaState, 1);
 			LuaDLL.lua_remove(luaState, 1);
 			return func(luaState);
@@ -63,6 +64,7 @@ namespace LuaInterface
 		/// <summary>__gc metafunction of CLR objects.</summary>
 		private int collectObject(IntPtr luaState)
 		{
+			Debug.Assert(luaState == translator.interpreter.luaState);
 			int udata = LuaDLL.luanet_rawnetobj(luaState, 1);
 			if (udata != -1)
 			{
@@ -77,6 +79,7 @@ namespace LuaInterface
 		/// <summary>__tostring metafunction of CLR objects.</summary>
 		private int toString(IntPtr luaState)
 		{
+			Debug.Assert(luaState == translator.interpreter.luaState);
 			object obj = translator.getRawNetObject(luaState, 1);
 			if (obj != null)
 			{
@@ -93,6 +96,7 @@ namespace LuaInterface
 		/// FIXME, move somewhere else
 		public static void dumpStack(ObjectTranslator translator, IntPtr luaState)
 		{
+			Debug.Assert(luaState == translator.interpreter.luaState);
 			int depth = LuaDLL.lua_gettop(luaState);
 
 			Debug.WriteLine("lua stack depth: " + depth);
@@ -120,6 +124,7 @@ namespace LuaInterface
 		/// </summary>
 		private int getMethod(IntPtr luaState)
 		{
+			Debug.Assert(luaState == translator.interpreter.luaState);
 			object obj = translator.getRawNetObject(luaState, 1);
 			if (obj == null)
 			{
@@ -220,6 +225,7 @@ namespace LuaInterface
 		/// </summary>
 		private int getBaseMethod(IntPtr luaState)
 		{
+			Debug.Assert(luaState == translator.interpreter.luaState);
 			object obj = translator.getRawNetObject(luaState, 1);
 			if (obj == null)
 			{
@@ -267,6 +273,7 @@ namespace LuaInterface
 		/// </summary>
 		private int getMember(IntPtr luaState, IReflect objType, object obj, string methodName, BindingFlags bindingType)
 		{
+			Debug.Assert(luaState == translator.interpreter.luaState);
 			bool implicitStatic = false;
 			MemberInfo member = null;
 			object cachedMember = checkMemberCache(memberCache, objType, methodName);
@@ -402,7 +409,7 @@ namespace LuaInterface
 			return 2;
 		}
 		/// <summary>Checks if a MemberInfo object is cached, returning it or null.</summary>
-		private object checkMemberCache(Hashtable memberCache, IReflect objType, string memberName)
+		private static object checkMemberCache(Hashtable memberCache, IReflect objType, string memberName)
 		{
 			Hashtable members = (Hashtable)memberCache[objType];
 			if (members != null)
@@ -411,7 +418,7 @@ namespace LuaInterface
 				return null;
 		}
 		/// <summary>Stores a MemberInfo object in the member cache.</summary>
-		private void setMemberCache(Hashtable memberCache, IReflect objType, string memberName, object member)
+		private static void setMemberCache(Hashtable memberCache, IReflect objType, string memberName, object member)
 		{
 			Hashtable members = (Hashtable)memberCache[objType];
 			if (members == null)
@@ -428,6 +435,7 @@ namespace LuaInterface
 		/// </summary>
 		private int setFieldOrProperty(IntPtr luaState)
 		{
+			Debug.Assert(luaState == translator.interpreter.luaState);
 			object target = translator.getRawNetObject(luaState, 1);
 			if (target == null)
 			{
@@ -499,6 +507,7 @@ namespace LuaInterface
 		/// <returns>false if unable to find the named member, true for success</returns>
 		private bool trySetMember(IntPtr luaState, IReflect targetType, object target, BindingFlags bindingType, out string detailMessage)
 		{
+			Debug.Assert(luaState == translator.interpreter.luaState);
 			detailMessage = null;   // No error yet
 
 			// If not already a string just return - we don't want to call tostring - which has the side effect of
@@ -576,6 +585,7 @@ namespace LuaInterface
 		/// <summary>Writes to fields or properties, either static or instance. Throws an error if the operation is invalid.</summary>
 		private int setMember(IntPtr luaState, IReflect targetType, object target, BindingFlags bindingType)
 		{
+			Debug.Assert(luaState == translator.interpreter.luaState);
 			string detail;
 			bool success = trySetMember(luaState, targetType, target, bindingType, out detail);
 
@@ -589,6 +599,7 @@ namespace LuaInterface
 		/// We try to look into the exception to give the most meaningful description
 		void ThrowError(IntPtr luaState, Exception e)
 		{
+			Debug.Assert(luaState == translator.interpreter.luaState);
 			// If we got inside a reflection show what really happened
 			TargetInvocationException te = e as TargetInvocationException;
 
@@ -601,6 +612,7 @@ namespace LuaInterface
 		/// <summary>__index metafunction of type references, works on static members.</summary>
 		private int getClassMethod(IntPtr luaState)
 		{
+			Debug.Assert(luaState == translator.interpreter.luaState);
 			IReflect klass;
 			object obj = translator.getRawNetObject(luaState, 1);
 			if (obj == null || !(obj is IReflect))
@@ -630,6 +642,7 @@ namespace LuaInterface
 		/// <summary>__newindex function of type references, works on static members.</summary>
 		private int setClassFieldOrProperty(IntPtr luaState)
 		{
+			Debug.Assert(luaState == translator.interpreter.luaState);
 			IReflect target;
 			object obj = translator.getRawNetObject(luaState, 1);
 			if (obj == null || !(obj is IReflect))
@@ -648,6 +661,7 @@ namespace LuaInterface
 		/// </summary>
 		private int callConstructor(IntPtr luaState)
 		{
+			Debug.Assert(luaState == translator.interpreter.luaState);
 			MethodCache validConstructor = new MethodCache();
 			IReflect klass;
 			object obj = translator.getRawNetObject(luaState, 1);
@@ -701,6 +715,7 @@ namespace LuaInterface
 
 			var table = luaParamValue as LuaTable;
 			if (table != null)  {
+				Debug.Assert(table.Owner.luaState == translator.interpreter.luaState); // this is stupid
 				paramArray = Array.CreateInstance(paramArrayType, table.Length);
 
 				table.ForEachI(delegate(int i, object o)
@@ -729,6 +744,7 @@ namespace LuaInterface
 		/// </summary>
 		internal bool matchParameters(IntPtr luaState, MethodBase method, ref MethodCache methodCache)
 		{
+			Debug.Assert(luaState == translator.interpreter.luaState);
 			ExtractValue extractValue;
 			bool isMethod = true;
 			ParameterInfo[] paramInfo = method.GetParameters();
@@ -813,6 +829,7 @@ namespace LuaInterface
 		/// </summary>
 		private bool _IsTypeCorrect(IntPtr luaState, int currentLuaParam, ParameterInfo currentNetParam, out ExtractValue extractValue)
 		{
+			Debug.Assert(luaState == translator.interpreter.luaState);
 			try
 			{
 				return (extractValue = translator.typeChecker.checkType(luaState, currentLuaParam, currentNetParam.ParameterType)) != null;
@@ -827,6 +844,7 @@ namespace LuaInterface
 
 		private bool _IsParamsArray(IntPtr luaState, int currentLuaParam, ParameterInfo currentNetParam, out ExtractValue extractValue)
 		{
+			Debug.Assert(luaState == translator.interpreter.luaState);
 			extractValue = null;
 
 			if (currentNetParam.GetCustomAttributes(typeof(ParamArrayAttribute), false).Length > 0)

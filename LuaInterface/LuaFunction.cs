@@ -42,10 +42,10 @@ namespace LuaInterface
 		#else
 		internal
 		#endif
-		void push(IntPtr luaState)
+		void push()
 		{
 			if (_Reference != LuaRefs.None)
-				LuaDLL.lua_getref(luaState, _Reference);
+				LuaDLL.lua_getref(Owner.luaState, _Reference);
 			else
 				Owner.pushCSFunction(function);
 		}

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Reflection;
 
 namespace LuaInterface
@@ -35,9 +36,9 @@ namespace LuaInterface
 			extractValues.Add(typeof(decimal).TypeHandle.Value.ToInt64(), new ExtractValue(getAsDecimal));
 			extractValues.Add(typeof(bool).TypeHandle.Value.ToInt64(), new ExtractValue(getAsBoolean));
 			extractValues.Add(typeof(string).TypeHandle.Value.ToInt64(), new ExtractValue(getAsString));
-			extractValues.Add(typeof(LuaFunction).TypeHandle.Value.ToInt64(), new ExtractValue(getAsFunction));
-			extractValues.Add(typeof(LuaTable).TypeHandle.Value.ToInt64(), new ExtractValue(getAsTable));
-			extractValues.Add(typeof(LuaUserData).TypeHandle.Value.ToInt64(), new ExtractValue(getAsUserdata));
+			extractValues.Add(typeof(LuaFunction).TypeHandle.Value.ToInt64(), new ExtractValue(translator.getFunction));
+			extractValues.Add(typeof(LuaTable).TypeHandle.Value.ToInt64(), new ExtractValue(translator.getTable));
+			extractValues.Add(typeof(LuaUserData).TypeHandle.Value.ToInt64(), new ExtractValue(translator.getUserData));
 
 			extractNetObject = new ExtractValue(getAsNetObject);
 		}
@@ -60,6 +61,7 @@ namespace LuaInterface
 
 		internal ExtractValue checkType(IntPtr luaState,int stackPos,Type paramType)
 		{
+			Debug.Assert(luaState == translator.interpreter.luaState); // this is stupid
 			LuaTypes luatype = LuaDLL.lua_type(luaState, stackPos);
 
 			if(paramType.IsByRef) paramType=paramType.GetElementType();
@@ -174,102 +176,92 @@ namespace LuaInterface
 		}
 
 		// The following functions return the value in the Lua stack index stackPos as the desired type if it can, or null otherwise.
-		private object getAsSbyte(IntPtr luaState,int stackPos)
+		private static object getAsSbyte(IntPtr luaState,int stackPos)
 		{
 			sbyte retVal=(sbyte)LuaDLL.lua_tonumber(luaState,stackPos);
 			if(retVal==0 && !LuaDLL.lua_isnumber(luaState,stackPos)) return null;
 			return retVal;
 		}
-		private object getAsByte(IntPtr luaState,int stackPos)
+		private static object getAsByte(IntPtr luaState,int stackPos)
 		{
 			byte retVal=(byte)LuaDLL.lua_tonumber(luaState,stackPos);
 			if(retVal==0 && !LuaDLL.lua_isnumber(luaState,stackPos)) return null;
 			return retVal;
 		}
-		private object getAsShort(IntPtr luaState,int stackPos)
+		private static object getAsShort(IntPtr luaState,int stackPos)
 		{
 			short retVal=(short)LuaDLL.lua_tonumber(luaState,stackPos);
 			if(retVal==0 && !LuaDLL.lua_isnumber(luaState,stackPos)) return null;
 			return retVal;
 		}
-		private object getAsUshort(IntPtr luaState,int stackPos)
+		private static object getAsUshort(IntPtr luaState,int stackPos)
 		{
 			ushort retVal=(ushort)LuaDLL.lua_tonumber(luaState,stackPos);
 			if(retVal==0 && !LuaDLL.lua_isnumber(luaState,stackPos)) return null;
 			return retVal;
 		}
-		private object getAsInt(IntPtr luaState,int stackPos)
+		private static object getAsInt(IntPtr luaState,int stackPos)
 		{
 			int retVal=(int)LuaDLL.lua_tonumber(luaState,stackPos);
 			if(retVal==0 && !LuaDLL.lua_isnumber(luaState,stackPos)) return null;
 			return retVal;
 		}
-		private object getAsUint(IntPtr luaState,int stackPos)
+		private static object getAsUint(IntPtr luaState,int stackPos)
 		{
 			uint retVal=(uint)LuaDLL.lua_tonumber(luaState,stackPos);
 			if(retVal==0 && !LuaDLL.lua_isnumber(luaState,stackPos)) return null;
 			return retVal;
 		}
-		private object getAsLong(IntPtr luaState,int stackPos)
+		private static object getAsLong(IntPtr luaState,int stackPos)
 		{
 			long retVal=(long)LuaDLL.lua_tonumber(luaState,stackPos);
 			if(retVal==0 && !LuaDLL.lua_isnumber(luaState,stackPos)) return null;
 			return retVal;
 		}
-		private object getAsUlong(IntPtr luaState,int stackPos)
+		private static object getAsUlong(IntPtr luaState,int stackPos)
 		{
 			ulong retVal=(ulong)LuaDLL.lua_tonumber(luaState,stackPos);
 			if(retVal==0 && !LuaDLL.lua_isnumber(luaState,stackPos)) return null;
 			return retVal;
 		}
-		private object getAsDouble(IntPtr luaState,int stackPos)
+		private static object getAsDouble(IntPtr luaState,int stackPos)
 		{
 			double retVal=LuaDLL.lua_tonumber(luaState,stackPos);
 			if(retVal==0 && !LuaDLL.lua_isnumber(luaState,stackPos)) return null;
 			return retVal;
 		}
-		private object getAsChar(IntPtr luaState,int stackPos)
+		private static object getAsChar(IntPtr luaState,int stackPos)
 		{
 			char retVal=(char)LuaDLL.lua_tonumber(luaState,stackPos);
 			if(retVal==0 && !LuaDLL.lua_isnumber(luaState,stackPos)) return null;
 			return retVal;
 		}
-		private object getAsFloat(IntPtr luaState,int stackPos)
+		private static object getAsFloat(IntPtr luaState,int stackPos)
 		{
 			float retVal=(float)LuaDLL.lua_tonumber(luaState,stackPos);
 			if(retVal==0 && !LuaDLL.lua_isnumber(luaState,stackPos)) return null;
 			return retVal;
 		}
-		private object getAsDecimal(IntPtr luaState,int stackPos)
+		private static object getAsDecimal(IntPtr luaState,int stackPos)
 		{
 			decimal retVal=(decimal)LuaDLL.lua_tonumber(luaState,stackPos);
 			if(retVal==0 && !LuaDLL.lua_isnumber(luaState,stackPos)) return null;
 			return retVal;
 		}
-		private object getAsBoolean(IntPtr luaState,int stackPos)
+		private static object getAsBoolean(IntPtr luaState,int stackPos)
 		{
 			return LuaDLL.lua_toboolean(luaState,stackPos);
 		}
-		private object getAsString(IntPtr luaState,int stackPos)
+		private static object getAsString(IntPtr luaState,int stackPos)
 		{
 			string retVal=LuaDLL.lua_tostring(luaState,stackPos);
 			if(retVal=="" && !LuaDLL.lua_isstring(luaState,stackPos)) return null;
 			return retVal;
 		}
-		private object getAsTable(IntPtr luaState,int stackPos)
-		{
-			return translator.getTable(luaState,stackPos);
-		}
-		private object getAsFunction(IntPtr luaState,int stackPos)
-		{
-			return translator.getFunction(luaState,stackPos);
-		}
-		private object getAsUserdata(IntPtr luaState,int stackPos)
-		{
-			return translator.getUserData(luaState,stackPos);
-		}
+
 		public object getAsObject(IntPtr luaState,int stackPos)
 		{
+			Debug.Assert(luaState == translator.interpreter.luaState); // this is stupid
 			if(LuaDLL.lua_type(luaState,stackPos)==LuaTypes.LUA_TTABLE)
 			{
 				if(LuaDLL.luaL_getmetafield(luaState,stackPos,"__index"))
@@ -290,6 +282,7 @@ namespace LuaInterface
 		}
 		public object getAsNetObject(IntPtr luaState,int stackPos)
 		{
+			Debug.Assert(luaState == translator.interpreter.luaState); // this is stupid
 			object obj=translator.getNetObject(luaState,stackPos);
 			if(obj==null && LuaDLL.lua_type(luaState,stackPos)==LuaTypes.LUA_TTABLE)
 			{

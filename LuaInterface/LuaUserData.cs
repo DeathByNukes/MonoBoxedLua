@@ -39,9 +39,9 @@ namespace LuaInterface
 		#else
 		internal
 		#endif
-		void push(IntPtr luaState)
+		void push()
 		{
-			LuaDLL.lua_getref(luaState, _Reference);
+			LuaDLL.lua_getref(Owner.luaState, _Reference);
 		}
 		public override string ToString()
 		{

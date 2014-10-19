@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Reflection;
 using System.Reflection.Emit;
 using System.Threading;
@@ -36,6 +37,7 @@ namespace LuaInterface
 		}
 		public object extractGenerated(IntPtr luaState,int stackPos)
 		{
+			Debug.Assert(luaState == translator.interpreter.luaState); // this is stupid
 			return CodeGeneration.Instance.GetDelegate(delegateType,translator.getFunction(luaState,stackPos));
 		}
 	}
@@ -57,6 +59,7 @@ namespace LuaInterface
 		}
 		public object extractGenerated(IntPtr luaState,int stackPos)
 		{
+			Debug.Assert(luaState == translator.interpreter.luaState); // this is stupid
 			return CodeGeneration.Instance.GetClassInstance(klass,translator.getTable(luaState,stackPos));
 		}
 	}

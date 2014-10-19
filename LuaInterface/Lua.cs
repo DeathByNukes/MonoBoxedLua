@@ -44,7 +44,7 @@ namespace LuaInterface
 			LuaDLL.lua_pushboolean(luaState, true);
 			LuaDLL.lua_settable(luaState, (int) LuaIndexes.LUA_REGISTRYINDEX);
 
-			translator=new ObjectTranslator(this,luaState);
+			translator=new ObjectTranslator(this);
 
 			tracebackFunction = new LuaCSFunction(traceback);
 
@@ -79,7 +79,7 @@ namespace LuaInterface
 			this.luaState = lState;
 			LuaDLL.lua_pushvalue(lState, (int)LuaIndexes.LUA_GLOBALSINDEX);
 
-			translator = new ObjectTranslator(this, this.luaState);
+			translator = new ObjectTranslator(this);
 
 			_StatePassed = true;
 		}

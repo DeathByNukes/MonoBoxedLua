@@ -122,6 +122,7 @@ namespace LuaInterface
 		/// <summary>Calls the method. Receives the arguments from the Lua stack and returns values in it.</summary>
 		public int call(IntPtr luaState)
 		{
+			Debug.Assert(luaState == _Translator.interpreter.luaState); // this is stupid
 			MethodBase methodToCall = _Method;
 			object targetObject = _Target;
 			bool failedCall = true;
@@ -310,12 +311,16 @@ namespace LuaInterface
 						else
 						{
 							object returnValue = _LastCalledMethod.cachedMethod.Invoke( targetObject, _LastCalledMethod.args );
-							_Translator.push(luaState, returnValue );
 
-							LuaTable returnValueLuaBase = returnValue as LuaTable;
-							if( returnValueLuaBase != null && returnValueLuaBase.IsOrphaned )
+							var returnTable = returnValue as LuaTable;
+							if(returnTable == null)
+								_Translator.push(luaState, returnValue);
+							else
 							{
-								returnValueLuaBase.Dispose();
+								Debug.Assert(luaState == returnTable.Owner.luaState);
+								returnTable.push(); // optimization
+								if (returnTable.IsOrphaned)
+									returnTable.Dispose();
 							}
 						}
 					}
@@ -337,12 +342,15 @@ namespace LuaInterface
 
 				object outArg = _LastCalledMethod.args[_LastCalledMethod.outList[index]];
 
-				_Translator.push(luaState, outArg );
-
-				LuaTable outArgLuaBase = outArg as LuaTable;
-				if( outArgLuaBase != null && outArgLuaBase.IsOrphaned )
+				var outTable = outArg as LuaTable;
+				if(outTable == null)
+					_Translator.push(luaState, outArg);
+				else
 				{
-					outArgLuaBase.Dispose();
+					Debug.Assert(luaState == outTable.Owner.luaState);
+					outTable.push(); // optimization
+					if (outTable.IsOrphaned)
+						outTable.Dispose();
 				}
 			}
 
