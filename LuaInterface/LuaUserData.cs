@@ -34,7 +34,12 @@ namespace LuaInterface
 			return Owner.callFunction(this, args);
 		}
 		/// <summary>Pushes the userdata into the Lua stack</summary>
-		internal void push(IntPtr luaState)
+		#if EXPOSE_STATE
+		public
+		#else
+		internal
+		#endif
+		void push(IntPtr luaState)
 		{
 			LuaDLL.lua_getref(luaState, _Reference);
 		}

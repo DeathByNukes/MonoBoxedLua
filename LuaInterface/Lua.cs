@@ -20,6 +20,11 @@ namespace LuaInterface
 	{
 		IntPtr luaState;
 		ObjectTranslator translator;
+		
+		#if EXPOSE_STATE
+		/// <summary>The internal Lua_state pointer.</summary>
+		public IntPtr LuaState { get { return luaState; } }
+		#endif
 
 		LuaFunctionCallback panicCallback;
 		LuaCSFunction tracebackFunction;

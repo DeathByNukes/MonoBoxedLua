@@ -14,6 +14,11 @@ namespace LuaInterface
 		}
 		protected readonly int _Reference;
 
+		#if EXPOSE_STATE
+		/// <summary>The internal Lua reference number of this object.</summary>
+		public int Reference { get { return _Reference; } }
+		#endif
+
 		/// <summary>The Lua instance that contains the referenced object.</summary>
 		public Lua Owner
 		{
