@@ -18,8 +18,8 @@ namespace LuaInterface
 	/// </remarks>
 	public class Lua : IDisposable
 	{
-		IntPtr luaState;
-		ObjectTranslator translator;
+		internal IntPtr luaState;
+		internal ObjectTranslator translator;
 		
 		#if EXPOSE_STATE
 		/// <summary>The internal Lua_state pointer.</summary>
@@ -564,70 +564,6 @@ namespace LuaInterface
 
 		#region LuaBase etc method implementations
 
-		internal void TableForEach(LuaTable table, Action<object, object> body)
-		{
-			int oldTop = LuaDLL.lua_gettop(luaState);
-			try
-			{
-				table.push(luaState);
-				LuaDLL.lua_pushnil(luaState);
-				while (LuaDLL.lua_next(luaState, -2) != 0)
-				{
-					body(translator.getObject(luaState, -2), translator.getObject(luaState, -1));
-					LuaDLL.lua_settop(luaState, -2);
-				}
-			}
-			finally { LuaDLL.lua_settop(luaState, oldTop); }
-		}
-		internal void TableForEachI(LuaTable table, Action<int, object> body)
-		{
-			int oldTop = LuaDLL.lua_gettop(luaState);
-			try
-			{
-				table.push(luaState);
-				for (int i = 1; ; ++i)
-				{
-					LuaDLL.lua_rawgeti(luaState, -1, i);
-					object obj = translator.getObject(luaState, -1);
-					if (obj == null) break;
-					body(i, obj);
-					LuaDLL.lua_settop(luaState, -2);
-				}
-			}
-			finally { LuaDLL.lua_settop(luaState, oldTop); }
-		}
-		internal void TableForEachS(LuaTable table, Action<string, object> body)
-		{
-			int oldTop = LuaDLL.lua_gettop(luaState);
-			try
-			{
-				table.push(luaState);
-				LuaDLL.lua_pushnil(luaState);
-				while (LuaDLL.lua_next(luaState, -2) != 0)
-				{
-					if (LuaDLL.lua_type(luaState, -2) == LuaTypes.LUA_TSTRING)
-						body(LuaDLL.lua_tostring(luaState, -2), translator.getObject(luaState, -1));
-					LuaDLL.lua_settop(luaState, -2);
-				}
-			}
-			finally { LuaDLL.lua_settop(luaState, oldTop); }
-		}
-
-		internal int getCount(LuaTable table)
-		{
-			int count = 0;
-			int oldTop = LuaDLL.lua_gettop(luaState);
-			table.push(luaState);
-			LuaDLL.lua_pushnil(luaState);
-			while (LuaDLL.lua_next(luaState, -2) != 0)
-			{
-				++count;
-				LuaDLL.lua_settop(luaState, -2);
-			}
-			LuaDLL.lua_settop(luaState, oldTop);
-			return count;
-		}
-
 		/// <summary>Lets go of a previously allocated reference to a table, function or userdata</summary>
 		internal void dispose(int reference)
 		{
@@ -659,68 +595,6 @@ namespace LuaInterface
 			int new_ref = LuaDLL.lua_ref(luaState);
 			LuaDLL.lua_settop(luaState, oldTop);
 			return new_ref;
-		}
-
-		/// <summary>Gets a numeric field of the table corresponding to the provided reference using rawget (do not use metatables)</summary>
-		internal object rawGetObject(int reference, int field)
-		{
-			int oldTop = LuaDLL.lua_gettop(luaState);
-			LuaDLL.lua_getref(luaState, reference);
-			LuaDLL.lua_rawgeti(luaState, -1, field);
-			object obj = translator.getObject(luaState, -1);
-			LuaDLL.lua_settop(luaState, oldTop);
-			return obj;
-		}
-		/// <summary>Gets a field of the table corresponding to the provided reference using rawget (do not use metatables)</summary>
-		internal object rawGetObject(int reference, string field)
-		{
-			int oldTop = LuaDLL.lua_gettop(luaState);
-			LuaDLL.lua_getref(luaState, reference);
-			LuaDLL.lua_pushstring(luaState, field);
-			LuaDLL.lua_rawget(luaState, -2);
-			object obj = translator.getObject(luaState, -1);
-			LuaDLL.lua_settop(luaState, oldTop);
-			return obj;
-		}
-		/// <summary>Gets a field of the table corresponding to the provided reference using rawget (do not use metatables)</summary>
-		internal object rawGetObject(int reference, object field)
-		{
-			int oldTop = LuaDLL.lua_gettop(luaState);
-			LuaDLL.lua_getref(luaState, reference);
-			translator.push(luaState, field);
-			LuaDLL.lua_rawget(luaState, -2);
-			object obj = translator.getObject(luaState, -1);
-			LuaDLL.lua_settop(luaState, oldTop);
-			return obj;
-		}
-		/// <summary>Sets a numeric field of the table corresponding the the provided reference to the provided value using rawset (do not use metatables)</summary>
-		internal void rawSetObject(int reference, int field, object val)
-		{
-			int oldTop = LuaDLL.lua_gettop(luaState);
-			LuaDLL.lua_getref(luaState, reference);
-			translator.push(luaState, val);
-			LuaDLL.lua_rawseti(luaState, -2, field);
-			LuaDLL.lua_settop(luaState, oldTop);
-		}
-		/// <summary>Sets a field of the table corresponding the the provided reference to the provided value using rawset (do not use metatables)</summary>
-		internal void rawSetObject(int reference, string field, object val)
-		{
-			int oldTop = LuaDLL.lua_gettop(luaState);
-			LuaDLL.lua_getref(luaState, reference);
-			LuaDLL.lua_pushstring(luaState, field);
-			translator.push(luaState, val);
-			LuaDLL.lua_rawset(luaState, -3);
-			LuaDLL.lua_settop(luaState, oldTop);
-		}
-		/// <summary>Sets a field of the table corresponding the the provided reference to the provided value using rawset (do not use metatables)</summary>
-		internal void rawSetObject(int reference, object field, object val)
-		{
-			int oldTop = LuaDLL.lua_gettop(luaState);
-			LuaDLL.lua_getref(luaState, reference);
-			translator.push(luaState, field);
-			translator.push(luaState, val);
-			LuaDLL.lua_rawset(luaState, -3);
-			LuaDLL.lua_settop(luaState, oldTop);
 		}
 
 		/// <summary>Gets a nested field of the table or userdata corresponding to the provided reference</summary>

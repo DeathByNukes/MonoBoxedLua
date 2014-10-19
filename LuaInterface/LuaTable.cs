@@ -34,7 +34,18 @@ namespace LuaInterface
 		/// <summary>Counts the number of entries in the table.</summary>
 		public int Count()
 		{
-			return Owner.getCount(this);
+			var L = Owner.luaState;
+			int count = 0;
+			int oldTop = LuaDLL.lua_gettop(L);
+			LuaDLL.lua_getref(L, _Reference);
+			LuaDLL.lua_pushnil(L);
+			while (LuaDLL.lua_next(L, -2) != 0)
+			{
+				++count;
+				LuaDLL.lua_settop(L, -2);
+			}
+			LuaDLL.lua_settop(L, oldTop);
+			return count;
 		}
 
 		#region Indexers
@@ -63,23 +74,78 @@ namespace LuaInterface
 		#region Raw Access
 
 		/// <summary>Gets a numeric field of a table ignoring its metatable, if it exists</summary>
-		public object RawGet(int    field) { return Owner.rawGetObject(_Reference, field); }
+		public object RawGet(int field)
+		{
+			var L = Owner.luaState;
+			int oldTop = LuaDLL.lua_gettop(L);
+			LuaDLL.lua_getref(L, _Reference);
+			LuaDLL.lua_rawgeti(L, -1, field);
+			object obj = Owner.translator.getObject(L, -1);
+			LuaDLL.lua_settop(L, oldTop);
+			return obj;
+		}
 
 		/// <summary>Gets a string field of a table ignoring its metatable, if it exists</summary>
-		public object RawGet(string field) { return Owner.rawGetObject(_Reference, field); }
+		public object RawGet(string field)
+		{
+			var L = Owner.luaState;
+			int oldTop = LuaDLL.lua_gettop(L);
+			LuaDLL.lua_getref(L, _Reference);
+			LuaDLL.lua_pushstring(L, field);
+			LuaDLL.lua_rawget(L, -2);
+			object obj = Owner.translator.getObject(L, -1);
+			LuaDLL.lua_settop(L, oldTop);
+			return obj;
+		}
 
 		/// <summary>Gets a field of a table ignoring its metatable, if it exists</summary>
-		public object RawGet(object field) { return Owner.rawGetObject(_Reference, field); }
+		public object RawGet(object field)
+		{
+			var L = Owner.luaState;
+			int oldTop = LuaDLL.lua_gettop(L);
+			LuaDLL.lua_getref(L, _Reference);
+			Owner.translator.push(L, field);
+			LuaDLL.lua_rawget(L, -2);
+			object obj = Owner.translator.getObject(L, -1);
+			LuaDLL.lua_settop(L, oldTop);
+			return obj;
+		}
 
 
 		/// <summary>Sets a numeric field of a table ignoring its metatable, if it exists</summary>
-		public void RawSet(int    field, object value) { Owner.rawSetObject(_Reference, field, value); }
+		public void RawSet(int    field, object value)
+		{
+			var L = Owner.luaState;
+			int oldTop = LuaDLL.lua_gettop(L);
+			LuaDLL.lua_getref(L, _Reference);
+			Owner.translator.push(L, value);
+			LuaDLL.lua_rawseti(L, -2, field);
+			LuaDLL.lua_settop(L, oldTop);
+		}
 
 		/// <summary>Sets a string field of a table ignoring its metatable, if it exists</summary>
-		public void RawSet(string field, object value) { Owner.rawSetObject(_Reference, field, value); }
+		public void RawSet(string field, object value)
+		{
+			var L = Owner.luaState;
+			int oldTop = LuaDLL.lua_gettop(L);
+			LuaDLL.lua_getref(L, _Reference);
+			LuaDLL.lua_pushstring(L, field);
+			Owner.translator.push(L, value);
+			LuaDLL.lua_rawset(L, -3);
+			LuaDLL.lua_settop(L, oldTop);
+		}
 
 		/// <summary>Sets a field of a table ignoring its metatable, if it exists</summary>
-		public void RawSet(object field, object value) { Owner.rawSetObject(_Reference, field, value); }
+		public void RawSet(object field, object value)
+		{
+			var L = Owner.luaState;
+			int oldTop = LuaDLL.lua_gettop(L);
+			LuaDLL.lua_getref(L, _Reference);
+			Owner.translator.push(L, field);
+			Owner.translator.push(L, value);
+			LuaDLL.lua_rawset(L, -3);
+			LuaDLL.lua_settop(L, oldTop);
+		}
 
 		#endregion
 
@@ -91,20 +157,68 @@ namespace LuaInterface
 		/// Due to the underlying Lua API's stack-based nature, it isn't safe to expose an IEnumerable iterator for tables without making a complete shallow copy or killing performance.
 		/// An IEnumerable could be paused and later resumed inside a different callback, which would have a completely different Lua stack. Memory corruption would likely ensue.
 		/// In other words, the C# stack must conceptually resemble the Lua stack.
-		/// This function is the best compromise that can be offered. If you need IEnumerable, see <see cref="ToDict"/> and <see cref="Pairs"/>.
+		/// This function is the best compromise that can be offered. If you need IEnumerable, see <see cref="ToDict()"/> and <see cref="Pairs"/>.
 		/// </remarks>
-		public void ForEach(Action<object, object> body) { Owner.TableForEach(this, body); }
+		public void ForEach(Action<object, object> body)
+		{
+			var L = Owner.luaState; var translator = Owner.translator;
+			int oldTop = LuaDLL.lua_gettop(L);
+			try
+			{
+				LuaDLL.lua_getref(L, _Reference);
+				LuaDLL.lua_pushnil(L);
+				while (LuaDLL.lua_next(L, -2) != 0)
+				{
+					body(translator.getObject(L, -2), translator.getObject(L, -1));
+					LuaDLL.lua_settop(L, -2);
+				}
+			}
+			finally { LuaDLL.lua_settop(L, oldTop); }
+		}
 
 		/// <summary>
 		/// Iterates over the table's integer keys without making a copy.
 		/// Like "ipairs()" in Lua, the iteration is ordered starting from 1 and ends before the first empty index.
 		/// </summary>
 		/// <param name="body">The first parameter is a key and the second is a value.</param>
-		public void ForEachI(Action<int, object> body) { Owner.TableForEachI(this, body); }
+		public void ForEachI(Action<int, object> body)
+		{
+			var L = Owner.luaState; var translator = Owner.translator;
+			int oldTop = LuaDLL.lua_gettop(L);
+			try
+			{
+				LuaDLL.lua_getref(L, _Reference);
+				for (int i = 1; ; ++i)
+				{
+					LuaDLL.lua_rawgeti(L, -1, i);
+					object obj = translator.getObject(L, -1);
+					if (obj == null) break;
+					body(i, obj);
+					LuaDLL.lua_settop(L, -2);
+				}
+			}
+			finally { LuaDLL.lua_settop(L, oldTop); }
+		}
 
 		/// <summary>Iterates over the table's string keys without making a copy. Like "pairs()" in Lua, the iteration is unordered.</summary>
 		/// <param name="body">The first parameter is a key and the second is a value.</param>
-		public void ForEachS(Action<string, object> body) { Owner.TableForEachS(this, body); }
+		public void ForEachS(Action<string, object> body)
+		{
+			var L = Owner.luaState; var translator = Owner.translator;
+			int oldTop = LuaDLL.lua_gettop(L);
+			try
+			{
+				LuaDLL.lua_getref(L, _Reference);
+				LuaDLL.lua_pushnil(L);
+				while (LuaDLL.lua_next(L, -2) != 0)
+				{
+					if (LuaDLL.lua_type(L, -2) == LuaTypes.LUA_TSTRING)
+						body(LuaDLL.lua_tostring(L, -2), translator.getObject(L, -1));
+					LuaDLL.lua_settop(L, -2);
+				}
+			}
+			finally { LuaDLL.lua_settop(L, oldTop); }
+		}
 
 		#endregion
 
@@ -129,7 +243,7 @@ namespace LuaInterface
 			if (dict == null)
 				dict = new Dictionary<object, object>();
 
-			Owner.TableForEach(this, (k,v) =>
+			this.ForEach((k,v) =>
 			{
 				dict[k] = v;
 			});
@@ -155,7 +269,7 @@ namespace LuaInterface
 			if (dict == null)
 				dict = new Dictionary<string, object>();
 
-			Owner.TableForEachS(this, (k,v) =>
+			this.ForEachS((k,v) =>
 			{
 				dict[k] = v;
 			});
@@ -181,7 +295,7 @@ namespace LuaInterface
 			if (list == null)
 				list = new List<object>(this.Length);
 
-			Owner.TableForEachI(this, (i,v) =>
+			this.ForEachI((i,v) =>
 			{
 				list.Add(v);
 			});
@@ -207,7 +321,7 @@ namespace LuaInterface
 			else
 				Debug.Assert(array.Length <= this.Length);
 
-			Owner.TableForEachI(this, (i,o) =>
+			this.ForEachI((i,o) =>
 			{
 				array[i-1] = o;
 			});
@@ -281,7 +395,7 @@ namespace LuaInterface
 			if (dict == null)
 				dict = new System.Collections.Specialized.ListDictionary();
 
-			Owner.TableForEach(this, (k,v) =>
+			this.ForEach((k,v) =>
 			{
 				dict[k] = v;
 			});
@@ -302,10 +416,11 @@ namespace LuaInterface
 
 		internal object rawgetFunction(string field)
 		{
-			object obj = Owner.rawGetObject(_Reference, field);
+			object obj = this.RawGet(field);
 
-			if (obj is LuaCSFunction)
-				return new LuaFunction((LuaCSFunction)obj, Owner);
+			var f = obj as LuaCSFunction;
+			if (f != null)
+				return new LuaFunction(f, Owner);
 			else
 				return obj;
 		}
