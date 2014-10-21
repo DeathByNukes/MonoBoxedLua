@@ -2,6 +2,7 @@ using System;
 using System.Reflection;
 using System.Collections.Generic;
 using System.Diagnostics;
+using LuaInterface.Helpers;
 
 namespace LuaInterface
 {
@@ -534,11 +535,11 @@ namespace LuaInterface
 		/// <summary> Gets the function called name from the provided table, returning null if it does not exist</summary>
 		public static LuaFunction getTableFunction(LuaTable luaTable, string name)
 		{
-			object funcObj = luaTable.RawGet(name);
-			if (funcObj is LuaFunction)
-				return (LuaFunction)funcObj;
-			else
-				return null;
+			object o = luaTable.RawGet(name);
+			var funcObj = o as LuaFunction;
+			if (funcObj != null) return funcObj;
+			o.TryDispose();
+			return null;
 		}
 		/// <summary>Calls the provided function with the provided parameters</summary>
 		public static object callFunction(LuaFunction function, object[] args, Type[] returnTypes, object[] inArgs, int[] outArgs)

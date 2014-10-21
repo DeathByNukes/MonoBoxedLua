@@ -42,7 +42,7 @@ namespace LuaInterface
 			// Add LuaInterface marker
 			LuaDLL.lua_pushstring(luaState, "LUAINTERFACE LOADED");
 			LuaDLL.lua_pushboolean(luaState, true);
-			LuaDLL.lua_settable(luaState, (int) LuaIndexes.LUA_REGISTRYINDEX);
+			LuaDLL.lua_settable(luaState, LuaIndexes.LUA_REGISTRYINDEX);
 
 			translator=new ObjectTranslator(this);
 
@@ -63,7 +63,7 @@ namespace LuaInterface
 			 // Check for existing LuaInterface marker
 			var lState = new IntPtr(luaState);
 			LuaDLL.lua_pushstring(lState, "LUAINTERFACE LOADED");
-			LuaDLL.lua_gettable(lState, (int)LuaIndexes.LUA_REGISTRYINDEX);
+			LuaDLL.lua_gettable(lState, LuaIndexes.LUA_REGISTRYINDEX);
 
 			if(LuaDLL.lua_toboolean(lState,-1))
 			{
@@ -74,10 +74,10 @@ namespace LuaInterface
 			LuaDLL.lua_settop(lState,-2);
 			LuaDLL.lua_pushstring(lState, "LUAINTERFACE LOADED");
 			LuaDLL.lua_pushboolean(lState, true);
-			LuaDLL.lua_settable(lState, (int)LuaIndexes.LUA_REGISTRYINDEX);
+			LuaDLL.lua_settable(lState, LuaIndexes.LUA_REGISTRYINDEX);
 
 			this.luaState = lState;
-			LuaDLL.lua_pushvalue(lState, (int)LuaIndexes.LUA_GLOBALSINDEX);
+			LuaDLL.lua_pushvalue(lState, LuaIndexes.LUA_GLOBALSINDEX);
 
 			translator = new ObjectTranslator(this);
 
@@ -482,19 +482,16 @@ namespace LuaInterface
 		/// </summary>
 		internal object[] callFunction(object function,object[] args,Type[] returnTypes)
 		{
-			int nArgs=0;
+			int nArgs = args==null ? 0 : args.Length;
 			int oldTop=LuaDLL.lua_gettop(luaState);
-			if(!LuaDLL.lua_checkstack(luaState,args.Length+6))
+			if(!LuaDLL.lua_checkstack(luaState,nArgs+6))
 				throw new LuaException("Lua stack overflow");
+
 			translator.push(luaState,function);
-			if(args!=null)
-			{
-				nArgs=args.Length;
-				for(int i=0;i<args.Length;i++)
-				{
-					translator.push(luaState,args[i]);
-				}
-			}
+
+			for(int i = 0; i < nArgs; ++i)
+				translator.push(luaState,args[i]);
+
 			executing = true;
 			try
 			{

@@ -15,7 +15,7 @@ namespace LuaInterface
 	class MetaFunctions
 	{
 		/// <summary>__index metafunction for CLR objects. Implemented in Lua.</summary>
-		internal static string luaIndexFunction =
+		internal const string luaIndexFunction =
 	@"
 		local function index(obj,name)
 		local meta=getmetatable(obj)
@@ -33,9 +33,9 @@ namespace LuaInterface
 	end
 	return index";
 
-		private ObjectTranslator translator;
-		private Hashtable memberCache = new Hashtable();
-		internal LuaCSFunction gcFunction, indexFunction, newindexFunction,
+		private readonly ObjectTranslator translator;
+		private readonly Hashtable memberCache = new Hashtable();
+		internal readonly LuaCSFunction gcFunction, indexFunction, newindexFunction,
 			baseIndexFunction, classIndexFunction, classNewindexFunction,
 			execDelegateFunction, callConstructorFunction, toStringFunction;
 
@@ -57,7 +57,7 @@ namespace LuaInterface
 		private int runFunctionDelegate(IntPtr luaState)
 		{
 			Debug.Assert(luaState == translator.interpreter.luaState); // this is stupid
-			LuaCSFunction func = (LuaCSFunction)translator.getRawNetObject(luaState, 1);
+			var func = (LuaCSFunction)translator.getRawNetObject(luaState, 1);
 			LuaDLL.lua_remove(luaState, 1);
 			return func(luaState);
 		}
@@ -70,10 +70,7 @@ namespace LuaInterface
 			{
 				translator.collectObject(udata);
 			}
-			else
-			{
-				// Debug.WriteLine("not found: " + udata);
-			}
+			// else Debug.WriteLine("not found: " + udata);
 			return 0;
 		}
 		/// <summary>__tostring metafunction of CLR objects.</summary>
@@ -411,7 +408,7 @@ namespace LuaInterface
 		/// <summary>Checks if a MemberInfo object is cached, returning it or null.</summary>
 		private static object checkMemberCache(Hashtable memberCache, IReflect objType, string memberName)
 		{
-			Hashtable members = (Hashtable)memberCache[objType];
+			var members = (Hashtable)memberCache[objType];
 			if (members != null)
 				return members[memberName];
 			else
@@ -420,7 +417,7 @@ namespace LuaInterface
 		/// <summary>Stores a MemberInfo object in the member cache.</summary>
 		private static void setMemberCache(Hashtable memberCache, IReflect objType, string memberName, object member)
 		{
-			Hashtable members = (Hashtable)memberCache[objType];
+			var members = (Hashtable)memberCache[objType];
 			if (members == null)
 			{
 				members = new Hashtable();
@@ -601,7 +598,7 @@ namespace LuaInterface
 		{
 			Debug.Assert(luaState == translator.interpreter.luaState);
 			// If we got inside a reflection show what really happened
-			TargetInvocationException te = e as TargetInvocationException;
+			var te = e as TargetInvocationException;
 
 			if (te != null)
 				e = te.InnerException;
@@ -662,7 +659,7 @@ namespace LuaInterface
 		private int callConstructor(IntPtr luaState)
 		{
 			Debug.Assert(luaState == translator.interpreter.luaState);
-			MethodCache validConstructor = new MethodCache();
+			var validConstructor = new MethodCache();
 			IReflect klass;
 			object obj = translator.getRawNetObject(luaState, 1);
 			if (obj == null || !(obj is IReflect))
@@ -710,7 +707,8 @@ namespace LuaInterface
 		}
 
 
-		internal Array TableToArray(object luaParamValue, Type paramArrayType) {
+		internal Array TableToArray(object luaParamValue, Type paramArrayType)
+		{
 			Array paramArray;
 
 			var table = luaParamValue as LuaTable;
@@ -718,7 +716,7 @@ namespace LuaInterface
 				Debug.Assert(table.Owner.luaState == translator.interpreter.luaState); // this is stupid
 				paramArray = Array.CreateInstance(paramArrayType, table.Length);
 
-				table.ForEachI(delegate(int i, object o)
+				table.ForEachI((i, o) =>
 				{
 					if (paramArrayType == typeof(object) && o is double)
 					{
@@ -734,7 +732,6 @@ namespace LuaInterface
 			}
 
 			return paramArray;
-
 		}
 
 		/// <summary>
@@ -750,9 +747,9 @@ namespace LuaInterface
 			ParameterInfo[] paramInfo = method.GetParameters();
 			int currentLuaParam = 1;
 			int nLuaParams = LuaDLL.lua_gettop(luaState);
-			ArrayList paramList = new ArrayList();
-			List<int> outList = new List<int>();
-			List<MethodArgs> argTypes = new List<MethodArgs>();
+			var paramList = new ArrayList();
+			var outList = new List<int>();
+			var argTypes = new List<MethodArgs>();
 			foreach (ParameterInfo currentNetParam in paramInfo)
 			{
 				if (!currentNetParam.IsIn && currentNetParam.IsOut)  // Skips out params

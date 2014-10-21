@@ -12,35 +12,37 @@ namespace LuaInterface
 	/// </remarks>
 	class CheckType
 	{
-		private ObjectTranslator translator;
+		readonly ObjectTranslator translator;
 
-		ExtractValue extractNetObject;
-		Dictionary<long, ExtractValue> extractValues = new Dictionary<long, ExtractValue>();
+		readonly ExtractValue extractNetObject;
+		readonly Dictionary<RuntimeTypeHandle, ExtractValue> extractValues;
 
 		public CheckType(ObjectTranslator translator)
 		{
 			this.translator = translator;
-
-			extractValues.Add(typeof(object).TypeHandle.Value.ToInt64(), new ExtractValue(getAsObject));
-			extractValues.Add(typeof(sbyte).TypeHandle.Value.ToInt64(), new ExtractValue(getAsSbyte));
-			extractValues.Add(typeof(byte).TypeHandle.Value.ToInt64(), new ExtractValue(getAsByte));
-			extractValues.Add(typeof(short).TypeHandle.Value.ToInt64(), new ExtractValue(getAsShort));
-			extractValues.Add(typeof(ushort).TypeHandle.Value.ToInt64(), new ExtractValue(getAsUshort));
-			extractValues.Add(typeof(int).TypeHandle.Value.ToInt64(), new ExtractValue(getAsInt));
-			extractValues.Add(typeof(uint).TypeHandle.Value.ToInt64(), new ExtractValue(getAsUint));
-			extractValues.Add(typeof(long).TypeHandle.Value.ToInt64(), new ExtractValue(getAsLong));
-			extractValues.Add(typeof(ulong).TypeHandle.Value.ToInt64(), new ExtractValue(getAsUlong));
-			extractValues.Add(typeof(double).TypeHandle.Value.ToInt64(), new ExtractValue(getAsDouble));
-			extractValues.Add(typeof(char).TypeHandle.Value.ToInt64(), new ExtractValue(getAsChar));
-			extractValues.Add(typeof(float).TypeHandle.Value.ToInt64(), new ExtractValue(getAsFloat));
-			extractValues.Add(typeof(decimal).TypeHandle.Value.ToInt64(), new ExtractValue(getAsDecimal));
-			extractValues.Add(typeof(bool).TypeHandle.Value.ToInt64(), new ExtractValue(getAsBoolean));
-			extractValues.Add(typeof(string).TypeHandle.Value.ToInt64(), new ExtractValue(getAsString));
-			extractValues.Add(typeof(LuaFunction).TypeHandle.Value.ToInt64(), new ExtractValue(translator.getFunction));
-			extractValues.Add(typeof(LuaTable).TypeHandle.Value.ToInt64(), new ExtractValue(translator.getTable));
-			extractValues.Add(typeof(LuaUserData).TypeHandle.Value.ToInt64(), new ExtractValue(translator.getUserData));
-
-			extractNetObject = new ExtractValue(getAsNetObject);
+			// rationale for TypeHandle: http://stackoverflow.com/a/126507
+			extractValues = new Dictionary<RuntimeTypeHandle, ExtractValue>
+			{
+				{typeof(object)     .TypeHandle, getAsObject},
+				{typeof(sbyte)      .TypeHandle, getAsSbyte},
+				{typeof(byte)       .TypeHandle, getAsByte},
+				{typeof(short)      .TypeHandle, getAsShort},
+				{typeof(ushort)     .TypeHandle, getAsUshort},
+				{typeof(int)        .TypeHandle, getAsInt},
+				{typeof(uint)       .TypeHandle, getAsUint},
+				{typeof(long)       .TypeHandle, getAsLong},
+				{typeof(ulong)      .TypeHandle, getAsUlong},
+				{typeof(double)     .TypeHandle, getAsDouble},
+				{typeof(char)       .TypeHandle, getAsChar},
+				{typeof(float)      .TypeHandle, getAsFloat},
+				{typeof(decimal)    .TypeHandle, getAsDecimal},
+				{typeof(bool)       .TypeHandle, getAsBoolean},
+				{typeof(string)     .TypeHandle, getAsString},
+				{typeof(LuaFunction).TypeHandle, translator.getFunction},
+				{typeof(LuaTable)   .TypeHandle, translator.getTable},
+				{typeof(LuaUserData).TypeHandle, translator.getUserData}
+			};
+			extractNetObject = getAsNetObject;
 		}
 
 		/// <summary>Checks if the value at Lua stack index stackPos matches paramType, returning a conversion function if it does and null otherwise.</summary>
@@ -52,10 +54,8 @@ namespace LuaInterface
 		{
 			if(paramType.IsByRef) paramType=paramType.GetElementType();
 
-			long runtimeHandleValue = paramType.TypeHandle.Value.ToInt64();
-
 			ExtractValue value;
-			return extractValues.TryGetValue(runtimeHandleValue, out value)
+			return extractValues.TryGetValue(paramType.TypeHandle, out value)
 				? value : extractNetObject;
 		}
 
@@ -72,63 +72,63 @@ namespace LuaInterface
 				paramType = underlyingType;     // Silently convert nullable types to their non null requics
 			}
 
-			long runtimeHandleValue = paramType.TypeHandle.Value.ToInt64();
+			var paramTypeHandle = paramType.TypeHandle;
 
-			if (paramType.Equals(typeof(object)))
-				return extractValues[runtimeHandleValue];
+			if (paramType == typeof(object))
+				return extractValues[paramTypeHandle];
 
 			/*
 			//CP: Added support for generic parameters
 			if (paramType.IsGenericParameter)
 			{
 				if (luatype == LuaTypes.LUA_TBOOLEAN)
-					return extractValues[typeof(bool).TypeHandle.Value.ToInt64()];
+					return extractValues[typeof(bool).TypeHandle];
 				else if (luatype == LuaTypes.LUA_TSTRING)
-					return extractValues[typeof(string).TypeHandle.Value.ToInt64()];
+					return extractValues[typeof(string).TypeHandle];
 				else if (luatype == LuaTypes.LUA_TTABLE)
-					return extractValues[typeof(LuaTable).TypeHandle.Value.ToInt64()];
+					return extractValues[typeof(LuaTable).TypeHandle];
 				else if (luatype == LuaTypes.LUA_TUSERDATA)
-					return extractValues[typeof(object).TypeHandle.Value.ToInt64()];
+					return extractValues[typeof(object).TypeHandle];
 				else if (luatype == LuaTypes.LUA_TFUNCTION)
-					return extractValues[typeof(LuaFunction).TypeHandle.Value.ToInt64()];
+					return extractValues[typeof(LuaFunction).TypeHandle];
 				else if (luatype == LuaTypes.LUA_TNUMBER)
-					return extractValues[typeof(double).TypeHandle.Value.ToInt64()];
+					return extractValues[typeof(double).TypeHandle];
 				//else // suppress CS0642
 					;//an unsupported type was encountered
 			}
 			*/
 
 			if (LuaDLL.lua_isnumber(luaState, stackPos))
-				return extractValues[runtimeHandleValue];
+				return extractValues[paramTypeHandle];
 
 			if (paramType == typeof(bool))
 			{
-				if (LuaDLL.lua_isboolean(luaState, stackPos))
-					return extractValues[runtimeHandleValue];
+				if (luatype == LuaTypes.LUA_TBOOLEAN)
+					return extractValues[paramTypeHandle];
 			}
 			else if (paramType == typeof(string))
 			{
 				if (LuaDLL.lua_isstring(luaState, stackPos))
-					return extractValues[runtimeHandleValue];
+					return extractValues[paramTypeHandle];
 				else if (luatype == LuaTypes.LUA_TNIL)
 					return extractNetObject; // kevinh - silently convert nil to a null string pointer
 			}
 			else if (paramType == typeof(LuaTable))
 			{
 				if (luatype == LuaTypes.LUA_TTABLE)
-					return extractValues[runtimeHandleValue];
+					return extractValues[paramTypeHandle];
 				else if (luatype == LuaTypes.LUA_TNIL)
 					return extractNetObject; // tkopal - silently convert nil to a null table
 			}
 			else if (paramType == typeof(LuaUserData))
 			{
 				if (luatype == LuaTypes.LUA_TUSERDATA)
-					return extractValues[runtimeHandleValue];
+					return extractValues[paramTypeHandle];
 			}
 			else if (paramType == typeof(LuaFunction))
 			{
 				if (luatype == LuaTypes.LUA_TFUNCTION)
-					return extractValues[runtimeHandleValue];
+					return extractValues[paramTypeHandle];
 				else if (luatype == LuaTypes.LUA_TNIL)
 					return extractNetObject; // elisee - silently convert nil to a null string pointer
 			}
@@ -153,7 +153,7 @@ namespace LuaInterface
 				// kevinh - allow nil to be silently converted to null - extractNetObject will return null when the item ain't found
 				return extractNetObject;
 			}
-			else if (LuaDLL.lua_type(luaState, stackPos) == LuaTypes.LUA_TTABLE)
+			else if (luatype == LuaTypes.LUA_TTABLE)
 			{
 				if (LuaDLL.luaL_getmetafield(luaState, stackPos, "__index"))
 				{
