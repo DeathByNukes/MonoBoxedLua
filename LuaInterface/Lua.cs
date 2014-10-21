@@ -26,8 +26,6 @@ namespace LuaInterface
 		public IntPtr LuaState { get { return luaState; } }
 		#endif
 
-		LuaFunctionCallback panicCallback;
-		LuaCSFunction tracebackFunction;
 		// lockCallback, unlockCallback; used by debug code commented out for now
 
 		public Lua()
@@ -46,10 +44,6 @@ namespace LuaInterface
 
 			translator=new ObjectTranslator(this);
 
-			tracebackFunction = new LuaCSFunction(traceback);
-
-			// We need to keep this in a managed reference so the delegate doesn't get garbage collected
-			panicCallback = new LuaFunctionCallback(PanicCallback);
 			LuaDLL.lua_atpanic(luaState, panicCallback);
 		}
 
@@ -83,8 +77,9 @@ namespace LuaInterface
 
 			_StatePassed = true;
 		}
-
-		static int PanicCallback(IntPtr luaState)
+		
+		// We need to keep this in a managed reference so the delegate doesn't get garbage collected
+		static readonly LuaFunctionCallback panicCallback = luaState =>
 		{
 			// string desc = LuaDLL.lua_tostring(luaState, 1);
 			string reason = String.Format("unprotected error in call to Lua API ({0})", LuaDLL.lua_tostring(luaState, -1));
@@ -92,7 +87,7 @@ namespace LuaInterface
 		   //        lua_tostring(L, -1);
 
 			throw new LuaException(reason);
-		}
+		};
 
 
 
@@ -136,18 +131,19 @@ namespace LuaInterface
 				return 0;
 		}
 
-		private bool executing;
+		// incremented whenever execution passes from CLR to Lua and decremented when it returns
+		private uint _executing = 0;
 
 		/// <summary>
 		/// True while a script is being executed
 		/// </summary>
-		public bool IsExecuting { get { return executing; } }
+		public bool IsExecuting { get { return _executing != 0; } }
 
 		public LuaFunction LoadString(string chunk, string name)
 		{
 			int oldTop = LuaDLL.lua_gettop(luaState);
 
-			executing = true;
+			++_executing;
 			try
 			{
 				// Somehow, on OS X and Linux, we need to use the UTF-8 byte count rather than the string length
@@ -158,7 +154,7 @@ namespace LuaInterface
 #endif
 					ThrowExceptionFromError(oldTop);
 			}
-			finally { executing = false; }
+			finally { checked { --_executing; } }
 
 			LuaFunction result = translator.getFunction(luaState, -1);
 			translator.popValues(luaState, oldTop);
@@ -192,7 +188,7 @@ namespace LuaInterface
 		public object[] DoString(string chunk, string chunkName)
 		{
 			int oldTop = LuaDLL.lua_gettop(luaState);
-			executing = true;
+			++_executing;
 
 			// Somehow, on OS X, we need to use the UTF-8 byte count rather than the string length
 #if MACOSX || LINUX
@@ -208,7 +204,7 @@ namespace LuaInterface
 					else
 						ThrowExceptionFromError(oldTop);
 				}
-				finally { executing = false; }
+				finally { checked { --_executing; } }
 			}
 			else
 				ThrowExceptionFromError(oldTop);
@@ -216,7 +212,7 @@ namespace LuaInterface
 			return null;            // Never reached - keeps compiler happy
 		}
 
-		private int traceback(IntPtr luaState)
+		static readonly LuaCSFunction tracebackFunction = luaState =>
 		{
 			LuaDLL.lua_getglobal(luaState,"debug");
 			LuaDLL.lua_getfield(luaState,-1,"traceback");
@@ -224,7 +220,7 @@ namespace LuaInterface
 			LuaDLL.lua_pushnumber(luaState,2);
 			LuaDLL.lua_call (luaState,2,1);
 			return 1;
-		}
+		};
 
 		/// <summary>Excutes a Lua file and returns all the chunk's return values in an array</summary>
 		public object[] DoFile(string fileName)
@@ -233,7 +229,7 @@ namespace LuaInterface
 			int oldTop=LuaDLL.lua_gettop(luaState);
 			if(LuaDLL.luaL_loadfile(luaState,fileName)==0)
 			{
-				executing = true;
+				++_executing;
 				try
 				{
 					if (LuaDLL.lua_pcall(luaState, 0, -1, -2) == 0)
@@ -241,7 +237,7 @@ namespace LuaInterface
 					else
 						ThrowExceptionFromError(oldTop);
 				}
-				finally { executing = false; }
+				finally { checked { --_executing; } }
 			}
 			else
 				ThrowExceptionFromError(oldTop);
@@ -492,14 +488,14 @@ namespace LuaInterface
 			for(int i = 0; i < nArgs; ++i)
 				translator.push(luaState,args[i]);
 
-			executing = true;
+			++_executing;
 			try
 			{
 				int error = LuaDLL.lua_pcall(luaState, nArgs, -1, 0);
 				if (error != 0)
 					ThrowExceptionFromError(oldTop);
 			}
-			finally { executing = false; }
+			finally { checked { --_executing; } }
 
 			if(returnTypes != null)
 				return translator.popValues(luaState,oldTop,returnTypes);
