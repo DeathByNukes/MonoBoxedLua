@@ -62,7 +62,7 @@ namespace LuaInterface
 		internal ExtractValue checkType(IntPtr luaState,int stackPos,Type paramType)
 		{
 			Debug.Assert(luaState == translator.interpreter.luaState); // this is stupid
-			LuaTypes luatype = LuaDLL.lua_type(luaState, stackPos);
+			LuaType luatype = LuaDLL.lua_type(luaState, stackPos);
 
 			if(paramType.IsByRef) paramType=paramType.GetElementType();
 
@@ -81,17 +81,17 @@ namespace LuaInterface
 			//CP: Added support for generic parameters
 			if (paramType.IsGenericParameter)
 			{
-				if (luatype == LuaTypes.LUA_TBOOLEAN)
+				if (luatype == LuaType.Boolean)
 					return extractValues[typeof(bool).TypeHandle];
-				else if (luatype == LuaTypes.LUA_TSTRING)
+				else if (luatype == LuaType.String)
 					return extractValues[typeof(string).TypeHandle];
-				else if (luatype == LuaTypes.LUA_TTABLE)
+				else if (luatype == LuaType.Table)
 					return extractValues[typeof(LuaTable).TypeHandle];
-				else if (luatype == LuaTypes.LUA_TUSERDATA)
+				else if (luatype == LuaType.Userdata)
 					return extractValues[typeof(object).TypeHandle];
-				else if (luatype == LuaTypes.LUA_TFUNCTION)
+				else if (luatype == LuaType.Function)
 					return extractValues[typeof(LuaFunction).TypeHandle];
-				else if (luatype == LuaTypes.LUA_TNUMBER)
+				else if (luatype == LuaType.Number)
 					return extractValues[typeof(double).TypeHandle];
 				//else // suppress CS0642
 					;//an unsupported type was encountered
@@ -103,36 +103,36 @@ namespace LuaInterface
 
 			if (paramType == typeof(bool))
 			{
-				if (luatype == LuaTypes.LUA_TBOOLEAN)
+				if (luatype == LuaType.Boolean)
 					return extractValues[paramTypeHandle];
 			}
 			else if (paramType == typeof(string))
 			{
 				if (LuaDLL.lua_isstring(luaState, stackPos))
 					return extractValues[paramTypeHandle];
-				else if (luatype == LuaTypes.LUA_TNIL)
+				else if (luatype == LuaType.Nil)
 					return extractNetObject; // kevinh - silently convert nil to a null string pointer
 			}
 			else if (paramType == typeof(LuaTable))
 			{
-				if (luatype == LuaTypes.LUA_TTABLE)
+				if (luatype == LuaType.Table)
 					return extractValues[paramTypeHandle];
-				else if (luatype == LuaTypes.LUA_TNIL)
+				else if (luatype == LuaType.Nil)
 					return extractNetObject; // tkopal - silently convert nil to a null table
 			}
 			else if (paramType == typeof(LuaUserData))
 			{
-				if (luatype == LuaTypes.LUA_TUSERDATA)
+				if (luatype == LuaType.Userdata)
 					return extractValues[paramTypeHandle];
 			}
 			else if (paramType == typeof(LuaFunction))
 			{
-				if (luatype == LuaTypes.LUA_TFUNCTION)
+				if (luatype == LuaType.Function)
 					return extractValues[paramTypeHandle];
-				else if (luatype == LuaTypes.LUA_TNIL)
+				else if (luatype == LuaType.Nil)
 					return extractNetObject; // elisee - silently convert nil to a null string pointer
 			}
-			else if (typeof(Delegate).IsAssignableFrom(paramType) && luatype == LuaTypes.LUA_TFUNCTION)
+			else if (typeof(Delegate).IsAssignableFrom(paramType) && luatype == LuaType.Function)
 			{
 #if __NOGEN__
 				translator.throwError(luaState,"Delegates not implemented");
@@ -140,7 +140,7 @@ namespace LuaInterface
 				return new ExtractValue(new DelegateGenerator(translator, paramType).extractGenerated);
 #endif
 			}
-			else if (paramType.IsInterface && luatype == LuaTypes.LUA_TTABLE)
+			else if (paramType.IsInterface && luatype == LuaType.Table)
 			{
 #if __NOGEN__
 				translator.throwError(luaState,"Interfaces not implemented");
@@ -148,12 +148,12 @@ namespace LuaInterface
 				return new ExtractValue(new ClassGenerator(translator, paramType).extractGenerated);
 #endif
 			}
-			else if ((paramType.IsInterface || paramType.IsClass) && luatype == LuaTypes.LUA_TNIL)
+			else if ((paramType.IsInterface || paramType.IsClass) && luatype == LuaType.Nil)
 			{
 				// kevinh - allow nil to be silently converted to null - extractNetObject will return null when the item ain't found
 				return extractNetObject;
 			}
-			else if (luatype == LuaTypes.LUA_TTABLE)
+			else if (luatype == LuaType.Table)
 			{
 				if (LuaDLL.luaL_getmetafield(luaState, stackPos, "__index"))
 				{
@@ -262,7 +262,7 @@ namespace LuaInterface
 		public object getAsObject(IntPtr luaState,int stackPos)
 		{
 			Debug.Assert(luaState == translator.interpreter.luaState); // this is stupid
-			if(LuaDLL.lua_type(luaState,stackPos)==LuaTypes.LUA_TTABLE)
+			if(LuaDLL.lua_type(luaState,stackPos)==LuaType.Table)
 			{
 				if(LuaDLL.luaL_getmetafield(luaState,stackPos,"__index"))
 				{
@@ -284,7 +284,7 @@ namespace LuaInterface
 		{
 			Debug.Assert(luaState == translator.interpreter.luaState); // this is stupid
 			object obj=translator.getNetObject(luaState,stackPos);
-			if(obj==null && LuaDLL.lua_type(luaState,stackPos)==LuaTypes.LUA_TTABLE)
+			if(obj==null && LuaDLL.lua_type(luaState,stackPos)==LuaType.Table)
 			{
 				if(LuaDLL.luaL_getmetafield(luaState,stackPos,"__index"))
 				{

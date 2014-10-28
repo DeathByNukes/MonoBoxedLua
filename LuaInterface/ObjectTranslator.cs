@@ -1,5 +1,4 @@
 using System;
-using System.Collections;
 using System.Diagnostics;
 using System.Reflection;
 using System.Collections.Generic;
@@ -63,7 +62,7 @@ namespace LuaInterface
 			LuaDLL.lua_pushstring(luaState,"v");
 			LuaDLL.lua_settable(luaState,-3);
 			LuaDLL.lua_setmetatable(luaState,-2);
-			LuaDLL.lua_settable(luaState, LuaIndexes.LUA_REGISTRYINDEX);
+			LuaDLL.lua_settable(luaState, LUA.REGISTRYINDEX);
 		}
 		/// <summary>Registers the indexing function of CLR objects passed to Lua</summary>
 		private static void createIndexingMetaFunction(IntPtr luaState)
@@ -71,7 +70,7 @@ namespace LuaInterface
 			LuaDLL.lua_pushstring(luaState,"luaNet_indexfunction");
 			LuaDLL.luaL_dostring(luaState,MetaFunctions.luaIndexFunction);	// steffenj: lua_dostring renamed to luaL_dostring
 			//LuaDLL.lua_pushstdcallcfunction(luaState,indexFunction);
-			LuaDLL.lua_rawset(luaState, LuaIndexes.LUA_REGISTRYINDEX);
+			LuaDLL.lua_rawset(luaState, LUA.REGISTRYINDEX);
 		}
 		/// <summary>Creates the metatable for superclasses (the base field of registered tables)</summary>
 		private void createBaseClassMetatable(IntPtr luaState)
@@ -262,7 +261,7 @@ namespace LuaInterface
 #if __NOGEN__
 			throwError(luaState,"Tables as Objects not implemented");
 #else
-			if(LuaDLL.lua_type(luaState,1)==LuaTypes.LUA_TTABLE)
+			if(LuaDLL.lua_type(luaState,1)==LuaType.Table)
 			{
 				string superclassName = LuaDLL.lua_tostring(luaState, 2);
 				if (superclassName != null)
@@ -308,7 +307,7 @@ namespace LuaInterface
 			Debug.Assert(luaState == interpreter.luaState); // this is stupid
 			try
 			{
-				if (LuaDLL.lua_getmetatable(luaState, 1) == 0)
+				if (!LuaDLL.lua_getmetatable(luaState, 1))
 					throwError(luaState, "unregister_table: arg is not valid table");
 				else
 				{
@@ -439,12 +438,12 @@ namespace LuaInterface
 				return pushError(luaState,"not an enum");
 			}
 			object res = null;
-			LuaTypes lt = LuaDLL.lua_type(luaState,2);
-			if (lt == LuaTypes.LUA_TNUMBER) {
+			LuaType lt = LuaDLL.lua_type(luaState,2);
+			if (lt == LuaType.Number) {
 				int ival = (int)LuaDLL.lua_tonumber(luaState,2);
 				res = Enum.ToObject(t,ival);
 			} else
-			if (lt == LuaTypes.LUA_TSTRING) {
+			if (lt == LuaType.String) {
 				string sflags = LuaDLL.lua_tostring(luaState,2);
 				string err = null;
 				try {
@@ -497,8 +496,8 @@ namespace LuaInterface
 				// this routine and find the element missing from luaNet_objects, but collectObject() has not yet been called.  In that case, we go ahead and call collect
 				// object here
 				// did we find a non nil object in our table? if not, we need to call collect object
-				LuaTypes type = LuaDLL.lua_type(luaState, -1);
-				if (type != LuaTypes.LUA_TNIL)
+				LuaType type = LuaDLL.lua_type(luaState, -1);
+				if (type != LuaType.Nil)
 				{
 					LuaDLL.lua_remove(luaState, -2); // drop the metatable - we're going to leave our object on the stack
 					return;
@@ -534,7 +533,7 @@ namespace LuaInterface
 					LuaDLL.lua_rawset(luaState,-3);
 					LuaDLL.lua_pushstring(luaState,"__index");
 					LuaDLL.lua_pushstring(luaState,"luaNet_indexfunction");
-					LuaDLL.lua_rawget(luaState, LuaIndexes.LUA_REGISTRYINDEX);
+					LuaDLL.lua_rawget(luaState, LUA.REGISTRYINDEX);
 					LuaDLL.lua_rawset(luaState,-3);
 					LuaDLL.lua_pushstring(luaState,"__gc");
 					LuaDLL.lua_pushstdcallcfunction(luaState,metaFunctions.gcFunction);
@@ -612,32 +611,35 @@ namespace LuaInterface
 			Debug.Assert(luaState == interpreter.luaState); // this is stupid
 			switch(LuaDLL.lua_type(luaState,index))
 			{
-			case LuaTypes.LUA_TNONE:
+			case LuaType.None:
 				throw new ArgumentException("index points to an empty stack position", "index");
 
-			case LuaTypes.LUA_TNIL:
+			case LuaType.Nil:
 				return null;
 
-			case LuaTypes.LUA_TNUMBER:
+			case LuaType.Number:
 				return LuaDLL.lua_tonumber(luaState,index);
 
-			case LuaTypes.LUA_TSTRING:
+			case LuaType.String:
 				return LuaDLL.lua_tostring(luaState,index);
 
-			case LuaTypes.LUA_TBOOLEAN:
+			case LuaType.Boolean:
 				return LuaDLL.lua_toboolean(luaState,index);
 
-			case LuaTypes.LUA_TTABLE:
+			case LuaType.Table:
 				return getTable(luaState,index);
 
-			case LuaTypes.LUA_TFUNCTION:
+			case LuaType.Function:
 				return getFunction(luaState,index);
 
-			case LuaTypes.LUA_TUSERDATA:
+			case LuaType.Userdata:
 				return getNetObject(luaState,index) ?? getUserData(luaState,index);
 
-			case LuaTypes.LUA_TLIGHTUSERDATA:
+			case LuaType.LightUserdata:
 				return LuaDLL.lua_touserdata(luaState, index);
+
+			case LuaType.Thread:
+				return LuaType.Thread; // not supported
 
 			default:
 				// all LuaTypes have a case, so this shouldn't happen
@@ -728,11 +730,11 @@ namespace LuaInterface
 			LuaDLL.lua_settop(luaState,oldTop);
 			return values;
 		}
-		
+
 		static bool IsILua(object o)
 		{
 #if ! __NOGEN__
-			if(o is ILuaGeneratedType) 
+			if(o is ILuaGeneratedType)
 			{
 				// remoting proxies always return a match for 'is'
 				// Make sure we are _really_ ILuaGenerated
@@ -745,7 +747,7 @@ namespace LuaInterface
 		{
 #if ! __NOGEN__
 			var result = o as ILuaGeneratedType;
-			if (result != null && o.GetType().GetInterface("ILuaGeneratedType") != null) 
+			if (result != null && o.GetType().GetInterface("ILuaGeneratedType") != null)
 				return result;
 #endif
 			return null;
@@ -799,7 +801,7 @@ namespace LuaInterface
 			{	var x = o as LuaUserData;
 				if(x!=null) { Debug.Assert(luaState == x.Owner.luaState); // this is stupid
 				              x.push(); return; }  }
-			
+
 			pushObject(luaState,o,"luaNet_metatable");
 		}
 		/// <summary>Checks if the method matches the arguments in the Lua stack, getting the arguments if it does.</summary>

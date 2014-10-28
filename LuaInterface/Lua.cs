@@ -20,7 +20,7 @@ namespace LuaInterface
 	{
 		internal IntPtr luaState;
 		internal ObjectTranslator translator;
-		
+
 		#if EXPOSE_STATE
 		/// <summary>The internal Lua_state pointer.</summary>
 		public IntPtr LuaState { get { return luaState; } }
@@ -40,7 +40,7 @@ namespace LuaInterface
 			// Add LuaInterface marker
 			LuaDLL.lua_pushstring(luaState, "LUAINTERFACE LOADED");
 			LuaDLL.lua_pushboolean(luaState, true);
-			LuaDLL.lua_settable(luaState, LuaIndexes.LUA_REGISTRYINDEX);
+			LuaDLL.lua_settable(luaState, LUA.REGISTRYINDEX);
 
 			translator=new ObjectTranslator(this);
 
@@ -57,7 +57,7 @@ namespace LuaInterface
 			 // Check for existing LuaInterface marker
 			var lState = new IntPtr(luaState);
 			LuaDLL.lua_pushstring(lState, "LUAINTERFACE LOADED");
-			LuaDLL.lua_gettable(lState, LuaIndexes.LUA_REGISTRYINDEX);
+			LuaDLL.lua_gettable(lState, LUA.REGISTRYINDEX);
 
 			if(LuaDLL.lua_toboolean(lState,-1))
 			{
@@ -68,16 +68,16 @@ namespace LuaInterface
 			LuaDLL.lua_settop(lState,-2);
 			LuaDLL.lua_pushstring(lState, "LUAINTERFACE LOADED");
 			LuaDLL.lua_pushboolean(lState, true);
-			LuaDLL.lua_settable(lState, LuaIndexes.LUA_REGISTRYINDEX);
+			LuaDLL.lua_settable(lState, LUA.REGISTRYINDEX);
 
 			this.luaState = lState;
-			LuaDLL.lua_pushvalue(lState, LuaIndexes.LUA_GLOBALSINDEX);
+			LuaDLL.lua_pushvalue(lState, LUA.GLOBALSINDEX);
 
 			translator = new ObjectTranslator(this);
 
 			_StatePassed = true;
 		}
-		
+
 		// We need to keep this in a managed reference so the delegate doesn't get garbage collected
 		static readonly LuaFunctionCallback panicCallback = luaState =>
 		{
@@ -146,12 +146,7 @@ namespace LuaInterface
 			++_executing;
 			try
 			{
-				// Somehow, on OS X and Linux, we need to use the UTF-8 byte count rather than the string length
-#if MACOSX || LINUX
-				if (LuaDLL.luaL_loadbuffer(luaState, chunk, System.Text.Encoding.UTF8.GetByteCount( chunk ), name) != 0)
-#else
-				if (LuaDLL.luaL_loadbuffer(luaState, chunk, chunk.Length, name) != 0)
-#endif
+				if (LuaDLL.luaL_loadbuffer(luaState, chunk, name) != LuaStatus.Ok)
 					ThrowExceptionFromError(oldTop);
 			}
 			finally { checked { --_executing; } }
@@ -165,7 +160,7 @@ namespace LuaInterface
 		public LuaFunction LoadFile(string fileName)
 		{
 			int oldTop = LuaDLL.lua_gettop(luaState);
-			if (LuaDLL.luaL_loadfile(luaState, fileName) != 0)
+			if (LuaDLL.luaL_loadfile(luaState, fileName) != LuaStatus.Ok)
 				ThrowExceptionFromError(oldTop);
 
 			LuaFunction result = translator.getFunction(luaState, -1);
@@ -190,16 +185,11 @@ namespace LuaInterface
 			int oldTop = LuaDLL.lua_gettop(luaState);
 			++_executing;
 
-			// Somehow, on OS X, we need to use the UTF-8 byte count rather than the string length
-#if MACOSX || LINUX
-			if (LuaDLL.luaL_loadbuffer(luaState, chunk, System.Text.Encoding.UTF8.GetByteCount( chunk ), chunkName) == 0)
-#else
-			if (LuaDLL.luaL_loadbuffer(luaState, chunk, chunk.Length, chunkName) == 0)
-#endif
+			if (LuaDLL.luaL_loadbuffer(luaState, chunk, chunkName) == LuaStatus.Ok)
 			{
 				try
 				{
-					if (LuaDLL.lua_pcall(luaState, 0, -1, 0) == 0)
+					if (LuaDLL.lua_pcall(luaState, 0, LUA.MULTRET, 0) == 0)
 						return translator.popValues(luaState, oldTop);
 					else
 						ThrowExceptionFromError(oldTop);
@@ -227,12 +217,12 @@ namespace LuaInterface
 		{
 			LuaDLL.lua_pushstdcallcfunction(luaState,tracebackFunction);
 			int oldTop=LuaDLL.lua_gettop(luaState);
-			if(LuaDLL.luaL_loadfile(luaState,fileName)==0)
+			if(LuaDLL.luaL_loadfile(luaState,fileName) == LuaStatus.Ok)
 			{
 				++_executing;
 				try
 				{
-					if (LuaDLL.lua_pcall(luaState, 0, -1, -2) == 0)
+					if (LuaDLL.lua_pcall(luaState, 0, LUA.MULTRET, -2) == 0)
 						return translator.popValues(luaState, oldTop);
 					else
 						ThrowExceptionFromError(oldTop);
@@ -248,7 +238,7 @@ namespace LuaInterface
 
 		public void CollectGarbage()
 		{
-			LuaDLL.lua_gc( luaState, LuaGCOptions.LUA_GCCOLLECT, 0 );
+			LuaDLL.lua_gc(luaState, LuaGC.Collect, 0);
 		}
 
 		/// <summary>Indexer for global variables from the LuaInterpreter Supports navigation of tables by using . operator</summary>
@@ -410,7 +400,7 @@ namespace LuaInterface
 		#endregion
 
 		/// <summary>Gets a reference to the global table.</summary>
-		public LuaTable GetGlobals() { return translator.getTable(luaState, LuaIndexes.LUA_GLOBALSINDEX); }
+		public LuaTable GetGlobals() { return translator.getTable(luaState, LUA.GLOBALSINDEX); }
 
 		/// <summary>Navigates a table in the top of the stack, returning the value of the specified field</summary>
 		internal object getObject(string[] remainingPath)
@@ -491,8 +481,8 @@ namespace LuaInterface
 			++_executing;
 			try
 			{
-				int error = LuaDLL.lua_pcall(luaState, nArgs, -1, 0);
-				if (error != 0)
+				var error = LuaDLL.lua_pcall(luaState, nArgs, LUA.MULTRET, 0);
+				if (error != LuaStatus.Ok)
 					ThrowExceptionFromError(oldTop);
 			}
 			finally { checked { --_executing; } }
@@ -575,7 +565,7 @@ namespace LuaInterface
 		{
 			int oldTop = LuaDLL.lua_gettop(luaState);
 			LuaDLL.lua_getref(luaState, reference);
-			int len = LuaDLL.lua_objlen(luaState, -1);
+			int len = LuaDLL.lua_objlen(luaState, -1).ToInt32();
 			LuaDLL.lua_settop(luaState, oldTop);
 			return len;
 		}
@@ -655,9 +645,9 @@ namespace LuaInterface
 			int top = LuaDLL.lua_gettop(luaState);
 			LuaDLL.lua_getref(luaState, ref1);
 			LuaDLL.lua_getref(luaState, ref2);
-			int equal = LuaDLL.lua_equal(luaState, -1, -2);
+			bool equal = LuaDLL.lua_equal(luaState, -1, -2);
 			LuaDLL.lua_settop(luaState, top);
-			return (equal != 0);
+			return equal;
 		}
 
 		internal void pushCSFunction(LuaCSFunction function)

@@ -1,5 +1,4 @@
-﻿using System;
-
+﻿
 namespace LuaInterface
 {
 	public class LuaUserData : LuaBase
@@ -33,7 +32,7 @@ namespace LuaInterface
 		{
 			return Owner.callFunction(this, args);
 		}
-		/// <summary>Pushes the userdata into the Lua stack</summary>
+		/// <summary>[-0, +1, -] Pushes the userdata into the Lua stack</summary>
 		#if EXPOSE_STATE
 		public
 		#else

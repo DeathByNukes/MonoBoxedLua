@@ -39,7 +39,7 @@ namespace LuaInterface
 			int oldTop = LuaDLL.lua_gettop(L);
 			LuaDLL.lua_getref(L, _Reference);
 			LuaDLL.lua_pushnil(L);
-			while (LuaDLL.lua_next(L, -2) != 0)
+			while (LuaDLL.lua_next(L, -2))
 			{
 				++count;
 				LuaDLL.lua_settop(L, -2);
@@ -167,7 +167,7 @@ namespace LuaInterface
 			{
 				LuaDLL.lua_getref(L, _Reference);
 				LuaDLL.lua_pushnil(L);
-				while (LuaDLL.lua_next(L, -2) != 0)
+				while (LuaDLL.lua_next(L, -2))
 				{
 					body(translator.getObject(L, -2), translator.getObject(L, -1));
 					LuaDLL.lua_settop(L, -2);
@@ -210,9 +210,9 @@ namespace LuaInterface
 			{
 				LuaDLL.lua_getref(L, _Reference);
 				LuaDLL.lua_pushnil(L);
-				while (LuaDLL.lua_next(L, -2) != 0)
+				while (LuaDLL.lua_next(L, -2))
 				{
-					if (LuaDLL.lua_type(L, -2) == LuaTypes.LUA_TSTRING)
+					if (LuaDLL.lua_type(L, -2) == LuaType.String)
 						body(LuaDLL.lua_tostring(L, -2), translator.getObject(L, -1));
 					LuaDLL.lua_settop(L, -2);
 				}
@@ -425,7 +425,7 @@ namespace LuaInterface
 				return obj;
 		}
 
-		/// <summary>Pushes this table into the Lua stack</summary>
+		/// <summary>[-0, +1, -] Pushes this table into the Lua stack</summary>
 		#if EXPOSE_STATE
 		public
 		#else

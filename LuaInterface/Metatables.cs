@@ -99,12 +99,12 @@ namespace LuaInterface
 			Debug.WriteLine("lua stack depth: " + depth);
 			for (int i = 1; i <= depth; i++)
 			{
-				LuaTypes type = LuaDLL.lua_type(luaState, i);
+				LuaType type = LuaDLL.lua_type(luaState, i);
 				// we dump stacks when deep in calls, calling typename while the stack is in flux can fail sometimes, so manually check for key types
-				string typestr = (type == LuaTypes.LUA_TTABLE) ? "table" : LuaDLL.lua_typename(luaState, type);
+				string typestr = (type == LuaType.Table) ? "table" : LuaDLL.lua_typename(luaState, type);
 
 				string strrep = LuaDLL.lua_tostring(luaState, i);
-				if (type == LuaTypes.LUA_TUSERDATA)
+				if (type == LuaType.Userdata)
 				{
 					object obj = translator.getRawNetObject(luaState, i);
 					strrep = obj.ToString();
@@ -240,7 +240,7 @@ namespace LuaInterface
 			}
 			getMember(luaState, obj.GetType(), obj, "__luaInterface_base_" + methodName, BindingFlags.Instance | BindingFlags.IgnoreCase);
 			LuaDLL.lua_settop(luaState, -2);
-			if (LuaDLL.lua_type(luaState, -1) == LuaTypes.LUA_TNIL)
+			if (LuaDLL.lua_type(luaState, -1) == LuaType.Nil)
 			{
 				LuaDLL.lua_settop(luaState, -2);
 				return getMember(luaState, obj.GetType(), obj, methodName, BindingFlags.Instance | BindingFlags.IgnoreCase);
@@ -511,7 +511,7 @@ namespace LuaInterface
 			// changing the lua typecode to string
 			// Note: We don't use isstring because the standard lua C isstring considers either strings or numbers to
 			// be true for isstring.
-			if (LuaDLL.lua_type(luaState, 2) != LuaTypes.LUA_TSTRING)
+			if (LuaDLL.lua_type(luaState, 2) != LuaType.String)
 			{
 				detailMessage = "property names must be strings";
 				return false;
@@ -846,7 +846,7 @@ namespace LuaInterface
 
 			if (currentNetParam.GetCustomAttributes(typeof(ParamArrayAttribute), false).Length > 0)
 			{
-				LuaTypes luaType;
+				LuaType luaType;
 
 				try
 				{
@@ -860,7 +860,7 @@ namespace LuaInterface
 					return false;
 				}
 
-				if (luaType == LuaTypes.LUA_TTABLE)
+				if (luaType == LuaType.Table)
 				{
 					try
 					{
