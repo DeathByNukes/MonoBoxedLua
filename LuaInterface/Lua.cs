@@ -25,7 +25,10 @@ namespace LuaInterface
 
 		// lockCallback, unlockCallback; used by debug code commented out for now
 
-		public Lua()
+		public Lua() : this(false) { }
+
+		/// <param name="allowDebug">Specify true to keep LuaInterface from removing debug functions.</param>
+		public Lua(bool allowDebug)
 		{
 			IntPtr L = LuaDLL.luaL_newstate();	// steffenj: Lua 5.1.1 API change (lua_open is gone)
 			if (L == IntPtr.Zero)
@@ -33,6 +36,15 @@ namespace LuaInterface
 
 			// Load libraries
 			LuaDLL.luaL_openlibs(L);
+
+			// remove potentially exploitable debug functions
+			if (!allowDebug) LuaDLL.luaL_dostring(L, @"
+				local d = debug
+				debug = {
+					getinfo = d.getinfo,
+					traceback = d.traceback,
+				}
+			");
 
 			LuaDLL.lua_atpanic(L, panicCallback);
 			Init(L);
