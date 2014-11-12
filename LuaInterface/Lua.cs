@@ -616,6 +616,43 @@ namespace LuaInterface
 			return new LuaFunction(wrapper, this);
 		}
 
+		/// <summary>Generates a Lua function which matches the behavior of Lua's standard print function but sends the strings to a specified delegate instead of stdout.
+		/// <example><code>
+		/// lua["print"] = lua.NewPrintFunction((lua, args) => Console.WriteLine(string.Join("\t", args)));
+		/// </code></example></summary>
+		/// <param name="callback">The function to call when the print function is called. It is passed the Lua instance that called it and an array of strings corresponding to the print function's arguments.</param>
+		public LuaFunction NewPrintFunction(Action<Lua, string[]> callback)
+		{
+			LuaCSFunction func = L =>
+			{
+				Debug.Assert(L == this.luaState);
+
+				// direct copy-paste of Lua's luaB_print function
+
+				int n = LuaDLL.lua_gettop(L);  /* number of arguments */
+				var results = new string[n];
+				LuaDLL.lua_getglobal(L, "tostring");
+				for (int i=1; i<=n; ++i)
+				{
+					LuaDLL.lua_pushvalue(L, -1);  /* function to be called */
+					LuaDLL.lua_pushvalue(L, i);   /* value to print */
+					LuaDLL.lua_call(L, 1, 1);
+					string s = LuaDLL.lua_tostring(L, -1);  /* get result */
+					if (s == null)
+						return LuaDLL.luaL_error(L, "'tostring' must return a string");
+					results[i-1] = s;
+					LuaDLL.lua_pop(L, 1);  /* pop result */
+				}
+				Debug.Assert(LuaDLL.lua_gettop(L) == n + 1);
+
+				try { callback(this, results); }
+				catch (Exception e) { this.translator.throwError(L, e); }
+
+				return 0;
+			};
+			return new LuaFunction(func, this);
+		}
+
 		#endregion
 
 		#region IDisposable
