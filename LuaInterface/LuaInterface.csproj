@@ -27,6 +27,8 @@
     <CodeAnalysisIgnoreBuiltInRules>false</CodeAnalysisIgnoreBuiltInRules>
     <DocumentationFile>LuaInterface.xml</DocumentationFile>
     <NoWarn>1591</NoWarn>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <CheckForOverflowUnderflow>true</CheckForOverflowUnderflow>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release Windows|x86'">
     <OutputPath>bin\x86\Release Windows\</OutputPath>
@@ -38,6 +40,7 @@
     <Optimize>true</Optimize>
     <DocumentationFile>LuaInterface.xml</DocumentationFile>
     <NoWarn>1591</NoWarn>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug Linux|x86'">
     <DebugSymbols>true</DebugSymbols>
@@ -49,6 +52,8 @@
     <ErrorReport>prompt</ErrorReport>
     <DocumentationFile>LuaInterface.xml</DocumentationFile>
     <NoWarn>1591</NoWarn>
+    <CheckForOverflowUnderflow>true</CheckForOverflowUnderflow>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release Linux|x86'">
     <OutputPath>bin\x86\Release Linux\</OutputPath>
@@ -57,6 +62,7 @@
     <ErrorReport>prompt</ErrorReport>
     <DocumentationFile>LuaInterface.xml</DocumentationFile>
     <NoWarn>1591</NoWarn>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug OS X|x86'">
     <DebugSymbols>true</DebugSymbols>
@@ -68,6 +74,8 @@
     <ErrorReport>prompt</ErrorReport>
     <DocumentationFile>LuaInterface.xml</DocumentationFile>
     <NoWarn>1591</NoWarn>
+    <CheckForOverflowUnderflow>true</CheckForOverflowUnderflow>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release OS X|x86'">
     <OutputPath>bin\x86\Release OS X\</OutputPath>
@@ -76,6 +84,7 @@
     <ErrorReport>prompt</ErrorReport>
     <DocumentationFile>LuaInterface.xml</DocumentationFile>
     <NoWarn>1591</NoWarn>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>
@@ -98,6 +107,7 @@
     <Compile Include="ObjectTranslator.cs" />
     <Compile Include="ProxyType.cs" />
     <Compile Include="Metatables.cs" />
+    <Compile Include="StackAssert.cs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="System" />

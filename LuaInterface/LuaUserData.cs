@@ -1,50 +1,80 @@
-﻿
+﻿using System;
+using System.Diagnostics;
+using System.Runtime.InteropServices;
+
 namespace LuaInterface
 {
-	public class LuaUserData : LuaBase
+	public sealed class LuaUserData : LuaBase
 	{
+		/// <summary>Length + Pointer</summary>
+		public unsafe struct LPtr
+		{
+			public void* Address;
+			public UIntPtr Length;
+		}
+		/// <summary>The address and size of the block of memory allocated for the userdata.</summary>
+		public unsafe LPtr Block
+		{
+			get
+			{
+				var L = Owner.luaState;
+				push(L);
+				var ret = new LPtr {
+					Address = LuaDLL.lua_touserdata(L,-1),
+					Length  = LuaDLL.lua_objlen(L,-1),
+				};
+				LuaDLL.lua_pop(L,1);
+				return ret;
+			}
+		}
+
+		/// <summary>Copies a byte array to/from the block of memory allocated for the userdata.</summary>
+		public unsafe byte[] Contents
+		{
+			get
+			{
+				var block = this.Block;
+				var len = block.Length.ToInt32();
+				var array = new byte[len];
+				Marshal.Copy(new IntPtr(block.Address), array, 0, len);
+				return array;
+			}
+			set
+			{
+				var block = this.Block;
+				int len = block.Length.ToMaxInt32();
+				Marshal.Copy(value, 0, new IntPtr(block.Address), len);
+			}
+		}
+
+		#region Implementation
+
+		/// <summary>Makes a new reference the same userdata.</summary>
+		public LuaUserData NewReference()
+		{
+			var L = Owner.luaState;
+			rawpush(L);
+			try { return new LuaUserData(L, Owner); } catch (InvalidCastException) { Dispose(); throw; }
+		}
+
+		/// <summary>[-1, +0, e] Pops a userdata from the top of the stack and creates a new reference. The value is discarded if a type exception is thrown.</summary>
+		public LuaUserData(IntPtr luaState, Lua interpreter)
+		: base(TryRef(luaState, interpreter, LuaType.Userdata), interpreter)
+		{
+		}
 		public LuaUserData(int reference, Lua interpreter)
 		: base(reference, interpreter)
 		{
+			CheckType(LuaType.Userdata);
 		}
-		/// <summary>Makes a new reference the same userdata.</summary>
-		public LuaUserData NewReference() { return new LuaUserData(Owner.newReference(_Reference), Owner); }
-		/// <summary>Indexer for nested string fields of the userdata</summary>
-		public object this[params string[] path]
+
+		protected internal override void push(IntPtr luaState)
 		{
-			get { return Owner.getObject(_Reference, path); }
-			set { Owner.setObject(_Reference, path, value); }
+			Debug.Assert(luaState == Owner.luaState);
+			LuaDLL.lua_getref(luaState, Reference);
+			CheckType(luaState, LuaType.Userdata);
 		}
-		/// <summary>Indexer for string fields of the userdata</summary>
-		public object this[string field]
-		{
-			get { return Owner.getObject(_Reference, field); }
-			set { Owner.setObject(_Reference, field, value); }
-		}
-		/// <summary>Indexer for numeric fields of the userdata</summary>
-		public object this[object field]
-		{
-			get { return Owner.getObject(_Reference, field); }
-			set { Owner.setObject(_Reference, field, value); }
-		}
-		/// <summary>Calls the userdata and returns its return values inside an array</summary>
-		public object[] Call(params object[] args)
-		{
-			return Owner.callFunction(this, args);
-		}
-		/// <summary>[-0, +1, -] Pushes the userdata into the Lua stack</summary>
-		#if EXPOSE_STATE
-		public
-		#else
-		internal
-		#endif
-		void push()
-		{
-			LuaDLL.lua_getref(Owner.luaState, _Reference);
-		}
-		public override string ToString()
-		{
-			return "userdata";
-		}
+
+		#endregion
 	}
 }

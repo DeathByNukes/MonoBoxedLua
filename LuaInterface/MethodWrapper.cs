@@ -53,7 +53,7 @@ namespace LuaInterface
 	}
 
 	/// <summary>Argument extraction with type-conversion function</summary>
-	delegate object ExtractValue(IntPtr luaState, int stackPos);
+	delegate object ExtractValue(IntPtr luaState, int index);
 
 	/// <summary>Wrapper class for methods/constructors accessed from Lua.</summary>
 	/// <remarks>
@@ -62,15 +62,16 @@ namespace LuaInterface
 	/// </remarks>
 	class LuaMethodWrapper
 	{
-		private ObjectTranslator _Translator;
-		private MethodBase _Method;
+		private readonly ObjectTranslator _Translator;
+		private readonly MethodBase _Method;
+		private readonly string _MethodName;
+		private readonly MemberInfo[] _Members;
+		private readonly ExtractValue _ExtractTarget;
+		private readonly object _Target;
+		private readonly BindingFlags _BindingType;
+
 		private MethodCache _LastCalledMethod = new MethodCache();
-		private string _MethodName;
-		private MemberInfo[] _Members;
 		private IReflect _TargetType;
-		private ExtractValue _ExtractTarget;
-		private object _Target;
-		private BindingFlags _BindingType;
 
 		/// <summary>Constructs the wrapper for a known MethodBase instance</summary>
 		public LuaMethodWrapper(ObjectTranslator translator, object target, IReflect targetType, MethodBase method)
@@ -83,10 +84,7 @@ namespace LuaInterface
 			_Method = method;
 			_MethodName = method.Name;
 
-			if (method.IsStatic)
-			{ _BindingType = BindingFlags.Static; }
-			else
-			{ _BindingType = BindingFlags.Instance; }
+			_BindingType = method.IsStatic ? BindingFlags.Static : BindingFlags.Instance;
 		}
 		/// <summary>Constructs the wrapper for a known method name</summary>
 		public LuaMethodWrapper(ObjectTranslator translator, IReflect targetType, string methodName, BindingFlags bindingType)
@@ -115,15 +113,11 @@ namespace LuaInterface
 			return _Translator.interpreter.SetPendingException(e);
 		}
 
-		private static bool IsInteger(double x) {
-			return Math.Ceiling(x) == x;
-		}
-
 
 		/// <summary>Calls the method. Receives the arguments from the Lua stack and returns values in it.</summary>
 		public int call(IntPtr luaState)
 		{
-			Debug.Assert(luaState == _Translator.interpreter.luaState); // this is stupid
+			Debug.Assert(luaState == _Translator.interpreter.luaState);
 			MethodBase methodToCall = _Method;
 			object targetObject = _Target;
 			bool failedCall = true;
@@ -312,17 +306,10 @@ namespace LuaInterface
 						else
 						{
 							object returnValue = _LastCalledMethod.cachedMethod.Invoke( targetObject, _LastCalledMethod.args );
+							_Translator.push(luaState, returnValue);
 
 							var returnTable = returnValue as LuaTable;
-							if(returnTable == null)
-								_Translator.push(luaState, returnValue);
-							else
-							{
-								Debug.Assert(luaState == returnTable.Owner.luaState);
-								returnTable.push(); // optimization
-								if (returnTable.IsOrphaned)
-									returnTable.Dispose();
-							}
+							if (returnTable != null && returnTable.IsOrphaned) returnTable.Dispose();
 						}
 					}
 				}
@@ -342,17 +329,10 @@ namespace LuaInterface
 				nReturnValues++;
 
 				object outArg = _LastCalledMethod.args[_LastCalledMethod.outList[index]];
+				_Translator.push(luaState, outArg);
 
 				var outTable = outArg as LuaTable;
-				if(outTable == null)
-					_Translator.push(luaState, outArg);
-				else
-				{
-					Debug.Assert(luaState == outTable.Owner.luaState);
-					outTable.push(); // optimization
-					if (outTable.IsOrphaned)
-						outTable.Dispose();
-				}
+				if (outTable != null && outTable.IsOrphaned) outTable.Dispose();
 			}
 
 			//by isSingle 2010-09-10 11:26:31

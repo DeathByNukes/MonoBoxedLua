@@ -45,7 +45,6 @@ namespace LuaInterface
 			extractNetObject = getAsNetObject;
 		}
 
-		/// <summary>Checks if the value at Lua stack index stackPos matches paramType, returning a conversion function if it does and null otherwise.</summary>
 		internal ExtractValue getExtractor(IReflect paramType)
 		{
 			return getExtractor(paramType.UnderlyingSystemType);
@@ -59,10 +58,11 @@ namespace LuaInterface
 				? value : extractNetObject;
 		}
 
-		internal ExtractValue checkType(IntPtr luaState,int stackPos,Type paramType)
+		/// <summary>Checks if the value at the specified Lua stack index matches paramType, returning a conversion function if it does and null otherwise.</summary>
+		internal ExtractValue checkType(IntPtr luaState,int index,Type paramType)
 		{
-			Debug.Assert(luaState == translator.interpreter.luaState); // this is stupid
-			LuaType luatype = LuaDLL.lua_type(luaState, stackPos);
+			Debug.Assert(luaState == translator.interpreter.luaState);
+			LuaType luatype = LuaDLL.lua_type(luaState, index);
 
 			if(paramType.IsByRef) paramType=paramType.GetElementType();
 
@@ -98,7 +98,7 @@ namespace LuaInterface
 			}
 			*/
 
-			if (LuaDLL.lua_isnumber(luaState, stackPos))
+			if (LuaDLL.lua_isnumber(luaState, index))
 				return extractValues[paramTypeHandle];
 
 			if (paramType == typeof(bool))
@@ -108,7 +108,7 @@ namespace LuaInterface
 			}
 			else if (paramType == typeof(string))
 			{
-				if (LuaDLL.lua_isstring(luaState, stackPos))
+				if (LuaDLL.lua_isstring(luaState, index))
 					return extractValues[paramTypeHandle];
 				else if (luatype == LuaType.Nil)
 					return extractNetObject; // kevinh - silently convert nil to a null string pointer
@@ -155,10 +155,10 @@ namespace LuaInterface
 			}
 			else if (luatype == LuaType.Table)
 			{
-				if (LuaDLL.luaL_getmetafield(luaState, stackPos, "__index"))
+				if (LuaDLL.luaL_getmetafield(luaState, index, "__index"))
 				{
 					object obj = translator.getNetObject(luaState, -1);
-					LuaDLL.lua_settop(luaState, -2);
+					LuaDLL.lua_pop(luaState,1);
 					if (obj != null && paramType.IsAssignableFrom(obj.GetType()))
 						return extractNetObject;
 				}
@@ -167,7 +167,7 @@ namespace LuaInterface
 			}
 			else
 			{
-				object obj = translator.getNetObject(luaState, stackPos);
+				object obj = translator.getNetObject(luaState, index);
 				if (obj != null && paramType.IsAssignableFrom(obj.GetType()))
 					return extractNetObject;
 			}
@@ -175,128 +175,128 @@ namespace LuaInterface
 			return null;
 		}
 
-		// The following functions return the value in the Lua stack index stackPos as the desired type if it can, or null otherwise.
-		private static object getAsSbyte(IntPtr luaState,int stackPos)
+		// The following functions return the value in the specified Lua stack index as the desired type if it can, or null otherwise.
+		private static object getAsSbyte(IntPtr luaState,int index)
 		{
-			sbyte retVal=(sbyte)LuaDLL.lua_tonumber(luaState,stackPos);
-			if(retVal==0 && !LuaDLL.lua_isnumber(luaState,stackPos)) return null;
+			sbyte retVal=(sbyte)LuaDLL.lua_tonumber(luaState,index);
+			if(retVal==0 && !LuaDLL.lua_isnumber(luaState,index)) return null;
 			return retVal;
 		}
-		private static object getAsByte(IntPtr luaState,int stackPos)
+		private static object getAsByte(IntPtr luaState,int index)
 		{
-			byte retVal=(byte)LuaDLL.lua_tonumber(luaState,stackPos);
-			if(retVal==0 && !LuaDLL.lua_isnumber(luaState,stackPos)) return null;
+			byte retVal=(byte)LuaDLL.lua_tonumber(luaState,index);
+			if(retVal==0 && !LuaDLL.lua_isnumber(luaState,index)) return null;
 			return retVal;
 		}
-		private static object getAsShort(IntPtr luaState,int stackPos)
+		private static object getAsShort(IntPtr luaState,int index)
 		{
-			short retVal=(short)LuaDLL.lua_tonumber(luaState,stackPos);
-			if(retVal==0 && !LuaDLL.lua_isnumber(luaState,stackPos)) return null;
+			short retVal=(short)LuaDLL.lua_tonumber(luaState,index);
+			if(retVal==0 && !LuaDLL.lua_isnumber(luaState,index)) return null;
 			return retVal;
 		}
-		private static object getAsUshort(IntPtr luaState,int stackPos)
+		private static object getAsUshort(IntPtr luaState,int index)
 		{
-			ushort retVal=(ushort)LuaDLL.lua_tonumber(luaState,stackPos);
-			if(retVal==0 && !LuaDLL.lua_isnumber(luaState,stackPos)) return null;
+			ushort retVal=(ushort)LuaDLL.lua_tonumber(luaState,index);
+			if(retVal==0 && !LuaDLL.lua_isnumber(luaState,index)) return null;
 			return retVal;
 		}
-		private static object getAsInt(IntPtr luaState,int stackPos)
+		private static object getAsInt(IntPtr luaState,int index)
 		{
-			int retVal=(int)LuaDLL.lua_tonumber(luaState,stackPos);
-			if(retVal==0 && !LuaDLL.lua_isnumber(luaState,stackPos)) return null;
+			int retVal=(int)LuaDLL.lua_tonumber(luaState,index);
+			if(retVal==0 && !LuaDLL.lua_isnumber(luaState,index)) return null;
 			return retVal;
 		}
-		private static object getAsUint(IntPtr luaState,int stackPos)
+		private static object getAsUint(IntPtr luaState,int index)
 		{
-			uint retVal=(uint)LuaDLL.lua_tonumber(luaState,stackPos);
-			if(retVal==0 && !LuaDLL.lua_isnumber(luaState,stackPos)) return null;
+			uint retVal=(uint)LuaDLL.lua_tonumber(luaState,index);
+			if(retVal==0 && !LuaDLL.lua_isnumber(luaState,index)) return null;
 			return retVal;
 		}
-		private static object getAsLong(IntPtr luaState,int stackPos)
+		private static object getAsLong(IntPtr luaState,int index)
 		{
-			long retVal=(long)LuaDLL.lua_tonumber(luaState,stackPos);
-			if(retVal==0 && !LuaDLL.lua_isnumber(luaState,stackPos)) return null;
+			long retVal=(long)LuaDLL.lua_tonumber(luaState,index);
+			if(retVal==0 && !LuaDLL.lua_isnumber(luaState,index)) return null;
 			return retVal;
 		}
-		private static object getAsUlong(IntPtr luaState,int stackPos)
+		private static object getAsUlong(IntPtr luaState,int index)
 		{
-			ulong retVal=(ulong)LuaDLL.lua_tonumber(luaState,stackPos);
-			if(retVal==0 && !LuaDLL.lua_isnumber(luaState,stackPos)) return null;
+			ulong retVal=(ulong)LuaDLL.lua_tonumber(luaState,index);
+			if(retVal==0 && !LuaDLL.lua_isnumber(luaState,index)) return null;
 			return retVal;
 		}
-		private static object getAsDouble(IntPtr luaState,int stackPos)
+		private static object getAsDouble(IntPtr luaState,int index)
 		{
-			double retVal=LuaDLL.lua_tonumber(luaState,stackPos);
-			if(retVal==0 && !LuaDLL.lua_isnumber(luaState,stackPos)) return null;
+			double retVal=LuaDLL.lua_tonumber(luaState,index);
+			if(retVal==0 && !LuaDLL.lua_isnumber(luaState,index)) return null;
 			return retVal;
 		}
-		private static object getAsChar(IntPtr luaState,int stackPos)
+		private static object getAsChar(IntPtr luaState,int index)
 		{
-			char retVal=(char)LuaDLL.lua_tonumber(luaState,stackPos);
-			if(retVal==0 && !LuaDLL.lua_isnumber(luaState,stackPos)) return null;
+			char retVal=(char)LuaDLL.lua_tonumber(luaState,index);
+			if(retVal==0 && !LuaDLL.lua_isnumber(luaState,index)) return null;
 			return retVal;
 		}
-		private static object getAsFloat(IntPtr luaState,int stackPos)
+		private static object getAsFloat(IntPtr luaState,int index)
 		{
-			float retVal=(float)LuaDLL.lua_tonumber(luaState,stackPos);
-			if(retVal==0 && !LuaDLL.lua_isnumber(luaState,stackPos)) return null;
+			float retVal=(float)LuaDLL.lua_tonumber(luaState,index);
+			if(retVal==0 && !LuaDLL.lua_isnumber(luaState,index)) return null;
 			return retVal;
 		}
-		private static object getAsDecimal(IntPtr luaState,int stackPos)
+		private static object getAsDecimal(IntPtr luaState,int index)
 		{
-			decimal retVal=(decimal)LuaDLL.lua_tonumber(luaState,stackPos);
-			if(retVal==0 && !LuaDLL.lua_isnumber(luaState,stackPos)) return null;
+			decimal retVal=(decimal)LuaDLL.lua_tonumber(luaState,index);
+			if(retVal==0 && !LuaDLL.lua_isnumber(luaState,index)) return null;
 			return retVal;
 		}
-		private static object getAsBoolean(IntPtr luaState,int stackPos)
+		private static object getAsBoolean(IntPtr luaState,int index)
 		{
-			return LuaDLL.lua_toboolean(luaState,stackPos);
+			return LuaDLL.lua_toboolean(luaState,index);
 		}
-		private static object getAsString(IntPtr luaState,int stackPos)
+		private static object getAsString(IntPtr luaState,int index)
 		{
-			string retVal=LuaDLL.lua_tostring(luaState,stackPos);
-			if(retVal=="" && !LuaDLL.lua_isstring(luaState,stackPos)) return null;
+			string retVal=LuaDLL.lua_tostring(luaState,index);
+			if(retVal=="" && !LuaDLL.lua_isstring(luaState,index)) return null;
 			return retVal;
 		}
 
-		public object getAsObject(IntPtr luaState,int stackPos)
+		public object getAsObject(IntPtr luaState,int index)
 		{
-			Debug.Assert(luaState == translator.interpreter.luaState); // this is stupid
-			if(LuaDLL.lua_type(luaState,stackPos)==LuaType.Table)
+			Debug.Assert(luaState == translator.interpreter.luaState);
+			if(LuaDLL.lua_type(luaState,index)==LuaType.Table)
 			{
-				if(LuaDLL.luaL_getmetafield(luaState,stackPos,"__index"))
+				if(LuaDLL.luaL_getmetafield(luaState,index,"__index"))
 				{
-					if(LuaDLL.luaL_checkmetatable(luaState,-1))
+					if(LuaDLL.luanet_checkmetatable(luaState,-1))
 					{
-						LuaDLL.lua_insert(luaState,stackPos);
-						LuaDLL.lua_remove(luaState,stackPos+1);
+						LuaDLL.lua_insert(luaState,index);
+						LuaDLL.lua_remove(luaState,index+1);
 					}
 					else
 					{
-						LuaDLL.lua_settop(luaState,-2);
+						LuaDLL.lua_pop(luaState,1);
 					}
 				}
 			}
-			object obj=translator.getObject(luaState,stackPos);
+			object obj=translator.getObject(luaState,index);
 			return obj;
 		}
-		public object getAsNetObject(IntPtr luaState,int stackPos)
+		public object getAsNetObject(IntPtr luaState,int index)
 		{
-			Debug.Assert(luaState == translator.interpreter.luaState); // this is stupid
-			object obj=translator.getNetObject(luaState,stackPos);
-			if(obj==null && LuaDLL.lua_type(luaState,stackPos)==LuaType.Table)
+			Debug.Assert(luaState == translator.interpreter.luaState);
+			object obj=translator.getNetObject(luaState,index);
+			if(obj==null && LuaDLL.lua_type(luaState,index)==LuaType.Table)
 			{
-				if(LuaDLL.luaL_getmetafield(luaState,stackPos,"__index"))
+				if(LuaDLL.luaL_getmetafield(luaState,index,"__index"))
 				{
-					if(LuaDLL.luaL_checkmetatable(luaState,-1))
+					if(LuaDLL.luanet_checkmetatable(luaState,-1))
 					{
-						LuaDLL.lua_insert(luaState,stackPos);
-						LuaDLL.lua_remove(luaState,stackPos+1);
-						obj=translator.getNetObject(luaState,stackPos);
+						LuaDLL.lua_insert(luaState,index);
+						LuaDLL.lua_remove(luaState,index+1);
+						obj=translator.getNetObject(luaState,index);
 					}
 					else
 					{
-						LuaDLL.lua_settop(luaState,-2);
+						LuaDLL.lua_pop(luaState,1);
 					}
 				}
 			}

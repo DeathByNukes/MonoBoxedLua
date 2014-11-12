@@ -56,7 +56,7 @@ namespace LuaInterface
 		/// <summary>__call metafunction of CLR delegates, retrieves and calls the delegate.</summary>
 		private int runFunctionDelegate(IntPtr luaState)
 		{
-			Debug.Assert(luaState == translator.interpreter.luaState); // this is stupid
+			Debug.Assert(luaState == translator.interpreter.luaState);
 			var func = (LuaCSFunction)translator.getRawNetObject(luaState, 1);
 			LuaDLL.lua_remove(luaState, 1);
 			return func(luaState);
@@ -154,7 +154,7 @@ namespace LuaInterface
 				int intIndex = (int)((double)index);
 				Array aa = obj as Array;
 				if (intIndex >= aa.Length) {
-					return translator.pushError(luaState,"array index out of bounds: "+intIndex + " " + aa.Length);
+					return ObjectTranslator.pushError(luaState,"array index out of bounds: "+intIndex + " " + aa.Length);
 				}
 				object val = aa.GetValue(intIndex);
 				translator.push (luaState,val);
@@ -178,7 +178,7 @@ namespace LuaInterface
 							ParameterInfo[] actualParms = (getter != null) ? getter.GetParameters() : null;
 							if (actualParms == null || actualParms.Length != 1)
 							{
-								return translator.pushError(luaState, "method not found (or no indexer): " + index);
+								return ObjectTranslator.pushError(luaState, "method not found (or no indexer): " + index);
 							}
 							else
 							{
@@ -195,9 +195,9 @@ namespace LuaInterface
 								{
 									// Provide a more readable description for the common case of key not found
 									if (e.InnerException is KeyNotFoundException)
-									   return translator.pushError(luaState, "key '" + index + "' not found ");
+									   return ObjectTranslator.pushError(luaState, "key '" + index + "' not found ");
 									else
-									   return translator.pushError(luaState, "exception indexing '" + index + "' " + e.Message);
+									   return ObjectTranslator.pushError(luaState, "exception indexing '" + index + "' " + e.Message);
 
 
 								}
@@ -209,7 +209,7 @@ namespace LuaInterface
 
 			}
 			if (failed) {
-				return translator.pushError(luaState,"cannot find " + index);
+				return ObjectTranslator.pushError(luaState,"cannot find " + index);
 			}
 			LuaDLL.lua_pushboolean(luaState, false);
 			return 2;
@@ -239,10 +239,10 @@ namespace LuaInterface
 				return 2;
 			}
 			getMember(luaState, obj.GetType(), obj, "__luaInterface_base_" + methodName, BindingFlags.Instance | BindingFlags.IgnoreCase);
-			LuaDLL.lua_settop(luaState, -2);
+			LuaDLL.lua_pop(luaState,1);
 			if (LuaDLL.lua_type(luaState, -1) == LuaType.Nil)
 			{
-				LuaDLL.lua_settop(luaState, -2);
+				LuaDLL.lua_pop(luaState,1);
 				return getMember(luaState, obj.GetType(), obj, methodName, BindingFlags.Instance | BindingFlags.IgnoreCase);
 			}
 			LuaDLL.lua_pushboolean(luaState, false);
@@ -707,13 +707,14 @@ namespace LuaInterface
 		}
 
 
+		/// <summary>Note: this disposes <paramref name="luaParamValue"/> if it is a table.</summary>
 		internal Array TableToArray(object luaParamValue, Type paramArrayType)
 		{
 			Array paramArray;
 
 			var table = luaParamValue as LuaTable;
-			if (table != null)  {
-				Debug.Assert(table.Owner.luaState == translator.interpreter.luaState); // this is stupid
+			if (table != null) using (table)  {
+				Debug.Assert(table.Owner.luaState == translator.interpreter.luaState);
 				paramArray = Array.CreateInstance(paramArrayType, table.Length);
 
 				table.ForEachI((i, o) =>
@@ -772,10 +773,7 @@ namespace LuaInterface
 				{
 					int index = paramList.Add(extractValue(luaState, currentLuaParam));
 
-					MethodArgs methodArg = new MethodArgs();
-					methodArg.index = index;
-					methodArg.extractValue = extractValue;
-					argTypes.Add(methodArg);
+					argTypes.Add(new MethodArgs {index = index, extractValue = extractValue});
 
 					if (currentNetParam.ParameterType.IsByRef)
 						outList.Add(index);
@@ -789,12 +787,13 @@ namespace LuaInterface
 					Array paramArray = TableToArray(luaParamValue, paramArrayType);
 					int index = paramList.Add(paramArray);
 
-					MethodArgs methodArg = new MethodArgs();
-					methodArg.index = index;
-					methodArg.extractValue = extractValue;
-					methodArg.isParamsArray = true;
-					methodArg.paramsArrayType = paramArrayType;
-					argTypes.Add(methodArg);
+					argTypes.Add(new MethodArgs
+					{
+						index = index,
+						extractValue = extractValue,
+						isParamsArray = true,
+						paramsArrayType = paramArrayType,
+					});
 
 					currentLuaParam++;
 				}

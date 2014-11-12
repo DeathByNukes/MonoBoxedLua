@@ -35,10 +35,10 @@ namespace LuaInterface
 			this.translator=translator;
 			this.delegateType=delegateType;
 		}
-		public object extractGenerated(IntPtr luaState,int stackPos)
+		public object extractGenerated(IntPtr luaState,int index)
 		{
-			Debug.Assert(luaState == translator.interpreter.luaState); // this is stupid
-			return CodeGeneration.Instance.GetDelegate(delegateType,translator.getFunction(luaState,stackPos));
+			Debug.Assert(luaState == translator.interpreter.luaState);
+			return CodeGeneration.Instance.GetDelegate(delegateType,translator.getFunction(luaState,index));
 		}
 	}
 
@@ -57,10 +57,10 @@ namespace LuaInterface
 			this.translator=translator;
 			this.klass=klass;
 		}
-		public object extractGenerated(IntPtr luaState,int stackPos)
+		public object extractGenerated(IntPtr luaState,int index)
 		{
-			Debug.Assert(luaState == translator.interpreter.luaState); // this is stupid
-			return CodeGeneration.Instance.GetClassInstance(klass,translator.getTable(luaState,stackPos));
+			Debug.Assert(luaState == translator.interpreter.luaState);
+			return CodeGeneration.Instance.GetClassInstance(klass,translator.getTable(luaState,index));
 		}
 	}
 
@@ -355,16 +355,11 @@ namespace LuaInterface
 						i,luaTableField,returnTypesField,false,out returnTypes[i]);
 					i++;
 				}
-				else
+				else if(!method.IsPrivate && !method.IsFinal && method.IsVirtual && luaTable.ContainsKey(method.Name))
 				{
-					if(!method.IsPrivate && !method.IsFinal && method.IsVirtual)
-					{
-						if (luaTable[method.Name] != null) {
-							GenerateMethod(myType,method,(method.Attributes|MethodAttributes.NewSlot)^MethodAttributes.NewSlot,i,
-								luaTableField,returnTypesField,true,out returnTypes[i]);
-							i++;
-						}
-					}
+					GenerateMethod(myType,method,(method.Attributes|MethodAttributes.NewSlot)^MethodAttributes.NewSlot,i,
+						luaTableField,returnTypesField,true,out returnTypes[i]);
+					i++;
 				}
 			}
 			// Generates an implementation of the __luaInterface_getLuaTable method

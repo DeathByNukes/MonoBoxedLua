@@ -1,21 +1,32 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
 namespace LuaInterface
 {
 	using size_t = System.UIntPtr;
-	public static partial class LuaDLL
+	public static unsafe partial class LuaDLL
 	{
 		/// <summary>Casts a <see cref="size_t"/> to an <see cref="Int32"/>, throwing <see cref="OverflowException"/> if it is too large.</summary>
 		public static int ToInt32(this size_t value)
 		{
-			return checked((int)value.ToUInt32());
+			return checked((int)value.ToPointer());
 		}
+
+		/// <summary>Casts a <see cref="size_t"/> to an <see cref="Int32"/>, returning <see cref="Int32.MaxValue"/> if it is too large.</summary>
+		public static int ToMaxInt32(this size_t value)
+		{
+			return value.ToPointer() > (void*)int.MaxValue
+				? Int32.MaxValue
+				: unchecked((int)value.ToPointer());
+		}
+
 		/// <summary>Casts an <see cref="Int32"/> to a <see cref="size_t"/>, throwing <see cref="OverflowException"/> if it is negative.</summary>
 		public static size_t ToSizeType(this int value)
 		{
-			return new size_t(checked((uint)value));
+			return new size_t(checked((void*)value));
 		}
 	}
 
@@ -53,7 +64,7 @@ namespace LuaInterface
 	/// LuaInterface's custom Lua build uses a C++ compiler, which automatically switches on
 	/// C++ style Lua exceptions. The abridged documentation corrects those statements.
 	/// </remarks>
-	public static partial class LuaDLL
+	public static unsafe partial class LuaDLL
 	{
 		#region DllImport
 
@@ -66,6 +77,9 @@ namespace LuaInterface
 
 		const CallingConvention LUACC = CallingConvention.Cdecl;
 
+		/// <summary>.NET 4.5 AggressiveInlining. Should be auto discarded on older build targets or otherwise ignored.</summary>
+		const MethodImplOptions INLINE = (MethodImplOptions) 0x0100;
+
 		#endregion
 
 
@@ -75,7 +89,7 @@ namespace LuaInterface
 	/// <summary>Used to handle Lua panics</summary>
 	public delegate int LuaFunctionCallback(IntPtr luaState);
 
-	public static partial class LuaDLL
+	public static unsafe partial class LuaDLL
 	{
 		/// <summary>[-0, +0, -] Creates a new Lua state. It calls lua_newstate with an allocator based on the standard C realloc function and then sets a panic function (see lua_atpanic) that prints an error message to the standard error output in case of fatal errors.</summary><returns>Returns the new state, or NULL if there is a memory allocation error.</returns>
 		[DllImport(LIBDLL,CallingConvention=LUACC)] public static extern IntPtr luaL_newstate();
@@ -108,7 +122,7 @@ namespace LuaInterface
 		// omitted: lua_xmove (no threads)
 
 		/// <summary>[-n, +0, -] Pops n elements from the stack.</summary>
-		public static void lua_pop(IntPtr luaState, int n) { lua_settop(luaState, -n - 1); }
+		[MethodImpl(INLINE)] public static void lua_pop(IntPtr luaState, int n) { lua_settop(luaState, -n - 1); }
 
 		#endregion
 
@@ -131,7 +145,7 @@ namespace LuaInterface
 		Thread,
 	}
 
-	public static partial class LuaDLL
+	public static unsafe partial class LuaDLL
 	{
 		/// <summary>[-0, +0, -] Returns the type of the value in the given acceptable index, or LUA_TNONE for a non-valid index (that is, an index to an "empty" stack position).</summary>
 		[DllImport(LUADLL,CallingConvention=LUACC)] public static extern LuaType lua_type    (IntPtr luaState, int index);
@@ -178,18 +192,19 @@ namespace LuaInterface
 
 		/// <summary>[-0, +0, -] Converts the Lua value at the given acceptable index to the C type lua_Number. The Lua value must be a number or a string convertible to a number; otherwise, 0 is returned.</summary>
 		[DllImport(LUADLL,CallingConvention=LUACC)] public static extern double lua_tonumber   (IntPtr luaState, int index);
-		/// <summary>[-0, +0, -] Converts the Lua value at the given acceptable index to a C boolean value (0 or 1). Like all tests in Lua, lua_toboolean returns 1 for any Lua value different from false and nil; otherwise it returns 0. It also returns 0 when called with a non-valid index.</summary>
+		/// <summary>[-0, +0, -] Converts the Lua value at the given acceptable index to a boolean value. Like all tests in Lua, lua_toboolean returns true for any Lua value different from false and nil; otherwise it returns false. It also returns false when called with a non-valid index.</summary>
 		[DllImport(LUADLL,CallingConvention=LUACC)] public static extern bool   lua_toboolean  (IntPtr luaState, int index);
 		/// <summary>[-0, +0, m] Use lua_tostring instead.</summary>
-		[DllImport(LUADLL,CallingConvention=LUACC)] public static extern IntPtr lua_tolstring  (IntPtr luaState, int index, out size_t len);
+		[DllImport(LUADLL,CallingConvention=LUACC)] public static extern void*  lua_tolstring  (IntPtr luaState, int index, out size_t len);
 		/// <summary>[-0, +0, -] Converts a value at the given acceptable index to a C function. That value must be a C function; otherwise, returns NULL.</summary>
-		[DllImport(LUADLL,CallingConvention=LUACC)] public static extern IntPtr lua_tocfunction(IntPtr luaState, int index);
+		[DllImport(LUADLL,CallingConvention=LUACC)] public static extern void*  lua_tocfunction(IntPtr luaState, int index);
 		/// <summary>[-0, +0, -] If the value at the given acceptable index is a full userdata, returns its block address. If the value is a light userdata, returns its pointer. Otherwise, returns NULL.</summary>
-		[DllImport(LUADLL,CallingConvention=LUACC)] public static extern IntPtr lua_touserdata (IntPtr luaState, int index);
+		[DllImport(LUADLL,CallingConvention=LUACC)] public static extern void*  lua_touserdata (IntPtr luaState, int index);
+		/// <summary>[-0, +0, -] Converts the value at the given acceptable index to a generic C pointer (void*). The value can be a userdata, a table, a thread, or a function; otherwise, lua_topointer returns NULL. Typically this function is used only for debug information.</summary>
+		[DllImport(LUADLL,CallingConvention=LUACC)] public static extern void*  lua_topointer  (IntPtr luaState, int index);
 		// omitted:
 		//   lua_isthread  (no threads)
 		//   lua_tointeger (use System.Convert)
-		//   lua_topointer (no C functions/pointers)
 		//   lua_tothread  (no threads)
 
 		/// <summary>
@@ -201,9 +216,9 @@ namespace LuaInterface
 		public static string lua_tostring(IntPtr luaState, int index)
 		{
 			size_t strlen;
-			IntPtr str = lua_tolstring(luaState, index, out strlen);
-			if (str == IntPtr.Zero) return null;
-			return Marshal.PtrToStringAnsi(str, strlen.ToInt32());
+			var str = lua_tolstring(luaState, index, out strlen);
+			if (str == null) return null;
+			return Marshal.PtrToStringAnsi((IntPtr)str, strlen.ToInt32());
 		}
 
 		#endregion
@@ -256,20 +271,20 @@ namespace LuaInterface
 		[DllImport(LUADLL,CallingConvention=LUACC)] public static extern void   lua_createtable (IntPtr luaState, int narr, int nrec);
 		/// <summary>[-0, +1, m] This function allocates a new block of memory with the given size, pushes onto the stack a new full userdata with the block address, and returns this address.</summary>
 		[DllImport(LUADLL,CallingConvention=LUACC)] public static extern IntPtr lua_newuserdata (IntPtr luaState, size_t size);
-		/// <summary>[-0, +(0|1), -] Pushes onto the stack the metatable of the value at the given acceptable index. If the index is not valid, or if the value does not have a metatable, the function returns 0 and pushes nothing on the stack.</summary>
+		/// <summary>[-0, +(0|1), -] Pushes onto the stack the metatable of the value at the given acceptable index. If the index is not valid, or if the value does not have a metatable, the function returns false and pushes nothing on the stack.</summary>
 		[DllImport(LUADLL,CallingConvention=LUACC)] public static extern bool   lua_getmetatable(IntPtr luaState, int index);
 		/// <summary>[-0, +1, -] Pushes onto the stack the environment table of the value at the given index.</summary>
 		[DllImport(LUADLL,CallingConvention=LUACC)] public static extern void  lua_getfenv      (IntPtr luaState, int index);
 
 		/// <summary>[-0, +1, e] Pushes onto the stack the value of the global <paramref name="name"/>.</summary>
-		public static void lua_getglobal    (IntPtr luaState, string name)  { lua_getfield(luaState, LUA.GLOBALSINDEX, name); }
+		[MethodImpl(INLINE)] public static void lua_getglobal    (IntPtr luaState, string name)  { lua_getfield(luaState, LUA.GLOBALSINDEX, name); }
 		/// <summary>[-0, +1, m] Creates a new empty table and pushes it onto the stack.</summary>
-		public static void lua_newtable     (IntPtr luaState)               { lua_createtable(luaState, 0, 0); }
+		[MethodImpl(INLINE)] public static void lua_newtable     (IntPtr luaState)               { lua_createtable(luaState, 0, 0); }
 		/// <summary>[-0, +1, -] Pushes onto the stack the metatable associated with name tname in the registry (see <see cref="luaL_newmetatable"/>).</summary>
-		public static void luaL_getmetatable(IntPtr luaState, string tname) { lua_getfield(luaState, LUA.REGISTRYINDEX, tname); }
+		[MethodImpl(INLINE)] public static void luaL_getmetatable(IntPtr luaState, string tname) { lua_getfield(luaState, LUA.REGISTRYINDEX, tname); }
 		/// <summary>[-0, +1, m] If the registry already has the key tname, returns false. Otherwise, creates a new table to be used as a metatable for userdata, adds it to the registry with key tname, and returns true. In both cases pushes onto the stack the final value associated with tname in the registry.</summary>
 		[DllImport(LIBDLL,CallingConvention=LUACC)] public static extern bool luaL_newmetatable(IntPtr luaState, string tname);
-		/// <summary>[-0, +(0|1), m] Pushes onto the stack the field e from the metatable of the object at index obj. If the object does not have a metatable, or if the metatable does not have this field, returns 0 and pushes nothing.</summary>
+		/// <summary>[-0, +(0|1), m] Pushes onto the stack the field e from the metatable of the object at index obj. If the object does not have a metatable, or if the metatable does not have this field, returns false and pushes nothing.</summary>
 		[DllImport(LIBDLL,CallingConvention=LUACC)] public static extern bool luaL_getmetafield(IntPtr luaState, int index, string field);
 
 		#endregion
@@ -286,11 +301,11 @@ namespace LuaInterface
 		[DllImport(LUADLL,CallingConvention=LUACC)] public static extern void lua_rawseti     (IntPtr luaState, int index, int n);
 		/// <summary>[-1, +0, -] Pops a table from the stack and sets it as the new metatable for the value at the given acceptable index.</summary>
 		[DllImport(LUADLL,CallingConvention=LUACC)] public static extern void lua_setmetatable(IntPtr luaState, int index);
-		/// <summary>[-1, +0, -] Pops a table from the stack and sets it as the new environment for the value at the given index. If the value at the given index is neither a function nor a thread nor a userdata, lua_setfenv returns 0. Otherwise it returns 1.</summary>
+		/// <summary>[-1, +0, -] Pops a table from the stack and sets it as the new environment for the value at the given index. If the value at the given index is neither a function nor a thread nor a userdata, lua_setfenv returns false. Otherwise it returns true.</summary>
 		[DllImport(LUADLL,CallingConvention=LUACC)] public static extern bool lua_setfenv     (IntPtr luaState, int index);
 
 		/// <summary>[-1, +0, e] Pops a value from the stack and sets it as the new value of global <paramref name="name"/>.</summary>
-		public static void lua_setglobal(IntPtr luaState, string name) { lua_setfield(luaState, LUA.GLOBALSINDEX, name); }
+		[MethodImpl(INLINE)] public static void lua_setglobal(IntPtr luaState, string name) { lua_setfield(luaState, LUA.GLOBALSINDEX, name); }
 
 		#endregion
 
@@ -321,14 +336,14 @@ namespace LuaInterface
 	[StructLayout(LayoutKind.Sequential)]
 	public struct ReaderInfo
 	{
-		public String chunkData;
+		public string chunkData;
 		public bool finished;
 	}
 
 	/// <summary>Delegate for chunk readers used with lua_load</summary>
 	public delegate string LuaChunkReader(IntPtr luaState,ref ReaderInfo data,ref size_t size);
 
-	public static partial class LuaDLL
+	public static unsafe partial class LuaDLL
 	{
 
 		/// <summary>[-(nargs + 1), +nresults, e] Calls a function.</summary>
@@ -347,8 +362,8 @@ namespace LuaInterface
 		[DllImport(LIBDLL,CallingConvention=LUACC)] public static extern LuaStatus luaL_loadstring(IntPtr luaState, string s);
 		/// <summary>[-0, +1, m] Loads a file as a Lua chunk. This function uses lua_load to load the chunk in the file named filename. If filename is NULL, then it loads from the standard input. The first line in the file is ignored if it starts with a #.</summary>
 		[DllImport(LIBDLL,CallingConvention=LUACC)] public static extern LuaStatus luaL_loadfile  (IntPtr luaState, string filename);
-		/// <summary>[-0, +(0|1), e] Calls a metamethod. If the object at index <paramref name="obj"/> has a metatable and this metatable has a field e, this function calls this field and passes the object as its only argument. In this case this function returns 1 and pushes onto the stack the value returned by the call. If there is no metatable or no metamethod, this function returns 0 (without pushing any value on the stack).</summary>
-		[DllImport(LIBDLL,CallingConvention=LUACC)] public static extern int luaL_callmeta  (IntPtr luaState, int obj, string e);
+		/// <summary>[-0, +(0|1), e] Calls a metamethod. If the object at index <paramref name="obj"/> has a metatable and this metatable has a field e, this function calls this field and passes the object as its only argument. In this case this function returns true and pushes onto the stack the value returned by the call. If there is no metatable or no metamethod, this function returns false (without pushing any value on the stack).</summary>
+		[DllImport(LIBDLL,CallingConvention=LUACC)] public static extern bool      luaL_callmeta  (IntPtr luaState, int obj, string e);
 
 		/// <summary>[-0, +1, m] Loads a buffer as a Lua chunk. This function uses lua_load to load the chunk in the string s, which can contain embedded zeros. <paramref name="name"/> is the chunk name, used for debug information and error messages.</summary>
 		public static LuaStatus luaL_loadbuffer(IntPtr luaState, string s, string name)
@@ -359,13 +374,13 @@ namespace LuaInterface
 			finally { Marshal.FreeHGlobal(ptr); }
 		}
 		/// <summary>[-0, +?, m] Loads and runs the given string, which can contain embedded zeros.</summary>
-		public static LuaStatus luaL_dostring(IntPtr luaState, string str)
+		[MethodImpl(INLINE)] public static LuaStatus luaL_dostring(IntPtr luaState, string str)
 		{
 			var result = luaL_loadstring(luaState, str);
 			return result != LuaStatus.Ok ? result : lua_pcall(luaState, 0, LUA.MULTRET, 0);
 		}
 		/// <summary>[-0, +?, m] Loads and runs the given file.</summary>
-		public static LuaStatus luaL_dofile(IntPtr luaState, string filename)
+		[MethodImpl(INLINE)] public static LuaStatus luaL_dofile(IntPtr luaState, string filename)
 		{
 			var result = luaL_loadfile(luaState, filename);
 			return result != LuaStatus.Ok ? result : lua_pcall(luaState, 0, LUA.MULTRET, 0);
@@ -418,7 +433,7 @@ namespace LuaInterface
 		SetStepMul,
 	}
 
-	public static partial class LuaDLL
+	public static unsafe partial class LuaDLL
 	{
 		/// <summary>[-0, +0, e] Controls the garbage collector. This function performs several tasks, according to the value of the parameter <paramref name="what"/>.</summary>
 		[DllImport(LUADLL,CallingConvention=LUACC)] public static extern int lua_gc(IntPtr luaState, LuaGC what, int data);
@@ -429,7 +444,7 @@ namespace LuaInterface
 
 		/// <summary>[-1, +0, v] Generates a Lua error. The error message (which can actually be a Lua value of any type) must be on the stack top. This function throws an exception, and therefore never returns.</summary>
 		[DllImport(LUADLL,CallingConvention=LUACC)] public static extern int  lua_error (IntPtr luaState);
-		/// <summary>[-1, +(2|0), e] Pops a key from the stack, and pushes a key-value pair from the table at the given index (the "next" pair after the given key). If there are no more elements in the table, then lua_next returns 0 (and pushes nothing). While traversing a table, do not call lua_tolstring directly on a key, unless you know that the key is actually a string. Recall that lua_tolstring changes the value at the given index; this confuses the next call to lua_next.</summary>
+		/// <summary>[-1, +(2|0), e] Pops a key from the stack, and pushes a key-value pair from the table at the given index (the "next" pair after the given key). If there are no more elements in the table, then lua_next returns false (and pushes nothing). While traversing a table, do not call lua_tolstring directly on a key, unless you know that the key is actually a string. Recall that lua_tolstring changes the value at the given index; this confuses the next call to lua_next.</summary>
 		[DllImport(LUADLL,CallingConvention=LUACC)] public static extern bool lua_next  (IntPtr luaState, int index);
 		/// <summary>[-n, +1, e] Concatenates the n values at the top of the stack, pops them, and leaves the result at the top. If n is 1, the result is the single value on the stack (that is, the function does nothing); if n is 0, the result is the empty string. Concatenation is performed following the usual semantics of Lua.</summary>
 		[DllImport(LUADLL,CallingConvention=LUACC)] public static extern void lua_concat(IntPtr luaState, int n);
@@ -440,11 +455,11 @@ namespace LuaInterface
 		//   lua_setallocf (no C functions/pointers)
 
 		/// <summary>[-0, +0, v] Raises an error. The error message format is given by fmt plus any extra arguments, following the same rules of String.Format. It also adds at the beginning of the message the file name and the line number where the error occurred, if this information is available. This function never returns, but it is an idiom to use it in C functions as <c>return luaL_error(args)</c>.</summary>
-		public static int luaL_error(IntPtr luaState, string fmt, params object[] args) { return luaL_error(luaState, string.Format(fmt, args)); }
+		[MethodImpl(INLINE)] public static int luaL_error(IntPtr luaState, string fmt, params object[] args) { return luaL_error(luaState, string.Format(fmt, args)); }
 		/// <summary>[-0, +0, v] Raises an error. It adds at the beginning of the message the file name and the line number where the error occurred, if this information is available. This function never returns, but it is an idiom to use it in C functions as <c>return luaL_error(args)</c>.</summary>
 		public static int luaL_error(IntPtr luaState, string message)
 		{
-			// re-implemented to avoid headaches with native variable arguments
+			// re-implemented to avoid headaches with native variable arguments and Lua's format strings
 			luaL_where(luaState, 1);
 			lua_pushstring(luaState, message);
 			lua_concat(luaState, 2);
@@ -465,7 +480,7 @@ namespace LuaInterface
 		Nil  = -1; // LUA_REFNIL
 	}
 
-	public static partial class LuaDLL
+	public static unsafe partial class LuaDLL
 	{
 		/// <summary>[-1, +0, m] Creates and returns a reference, in the table at index t, for the object at the top of the stack (and pops the object).</summary>
 		[DllImport(LIBDLL,CallingConvention=LUACC)] public static extern int  luaL_ref  (IntPtr luaState, int t);
@@ -473,28 +488,67 @@ namespace LuaInterface
 		[DllImport(LIBDLL,CallingConvention=LUACC)] public static extern void luaL_unref(IntPtr luaState, int registryIndex, int reference);
 
 		/// <summary>[-1, +0, m] Creates and returns a reference for the object at the top of the stack (and pops the object).</summary>
-		public static int  lua_ref   (IntPtr luaState)                { return luaL_ref(luaState,LUA.REGISTRYINDEX); }
+		[MethodImpl(INLINE)] public static int  lua_ref   (IntPtr luaState)                { return luaL_ref(luaState,LUA.REGISTRYINDEX); }
 		/// <summary>[-0, +0, -] Releases reference ref. The entry is removed from the registry, so that the referred object can be collected. The reference ref is also freed to be used again.</summary>
-		public static void lua_unref (IntPtr luaState, int reference) {      luaL_unref(luaState,LUA.REGISTRYINDEX,reference); }
+		[MethodImpl(INLINE)] public static void lua_unref (IntPtr luaState, int reference) {      luaL_unref(luaState,LUA.REGISTRYINDEX,reference); }
 		/// <summary>[-0, +1, -] Pushes the referenced object onto the stack.</summary>
-		public static void lua_getref(IntPtr luaState, int reference) {     lua_rawgeti(luaState,LUA.REGISTRYINDEX,reference); }
+		[MethodImpl(INLINE)] public static void lua_getref(IntPtr luaState, int reference) {     lua_rawgeti(luaState,LUA.REGISTRYINDEX,reference); }
 
 		#endregion
 
 		#region luanet misc functions
 
 		/// <summary>[-0, +0, -] Checks if the object at <paramref name="index"/> has a metatable containing a field with a light userdata key matching <see cref="luanet_gettag"/>.</summary>
-		[DllImport(STUBDLL,CallingConvention=LUACC)] public static extern bool   luaL_checkmetatable(IntPtr luaState, int index);
-		/// <summary>[-0, +0, -] The address of a static variable in the luanet DLL. The variable's contents are never used. Rather, the address itself serves as a unique identifier for luanet metatables. (see <see cref="luaL_checkmetatable"/>)</summary>
+		[DllImport(STUBDLL,CallingConvention=LUACC,EntryPoint="luaL_checkmetatable")] public static extern bool luanet_checkmetatable(IntPtr luaState, int index);
+		/// <summary>[-0, +0, -] The address of a static variable in the luanet DLL. The variable's contents are never used. Rather, the address itself serves as a unique identifier for luanet metatables. (see <see cref="luanet_checkmetatable"/>)</summary>
 		[DllImport(STUBDLL,CallingConvention=LUACC)] public static extern IntPtr luanet_gettag();
 		/// <summary>[-0, +0, -] Pushes a new luanet userdata object, which stores a single integer, onto the stack. The object does not have a metatable by default.</summary>
 		[DllImport(STUBDLL,CallingConvention=LUACC)] public static extern int    luanet_newudata    (IntPtr luaState, int val);
-		/// <summary>[-0, +0, -] Retrieves the int stored in a luanet userdata object. Returns -1 if luaL_checkmetatable fails and the object's metatable isn't luaNet_class, luaNet_searchbase, or luaNet_function.</summary>
+		/// <summary>[-0, +0, -] Retrieves the int stored in a luanet userdata object. Returns -1 if luanet_checkmetatable fails and the object's metatable isn't luaNet_class, luaNet_searchbase, or luaNet_function.</summary>
 		[DllImport(STUBDLL,CallingConvention=LUACC)] public static extern int    luanet_tonetobject (IntPtr luaState, int index);
 		/// <summary>[-0, +0, -] Like <see cref="luanet_tonetobject"/>, but doesn't perform the safety checks. Only use this if you're completely sure the value is a luanet userdata.</summary>
 		[DllImport(STUBDLL,CallingConvention=LUACC)] public static extern int    luanet_rawnetobj   (IntPtr luaState, int index);
 		/// <summary>[-0, +0, -] Checks if the specified userdata object uses the specified metatable. If so, it does the same thing as <see cref="luanet_rawnetobj"/>. Otherwise, returns -1.</summary>
 		[DllImport(STUBDLL,CallingConvention=LUACC)] public static extern int    luanet_checkudata  (IntPtr luaState, int index, string meta);
+
+		/// <summary>[-1, +0, -] Converts the Lua value at the top of the stack to a boolean value and pops it. Like all tests in Lua, luaL_popboolean returns true for any Lua value different from false and nil; otherwise it returns false.</summary>
+		[MethodImpl(INLINE)] public static bool luanet_popboolean(IntPtr luaState)
+		{
+			bool b = lua_toboolean(luaState,-1);
+			lua_pop(luaState,1);
+			return b;
+		}
+		/// <summary>[-0, +1, e] Navigates fields nested in an object at the specified index, pushing the value of the specified sub-field. If <paramref name="fields"/> is empty it pushes a copy of the main object.</summary>
+		public static void luanet_getnestedfield(IntPtr luaState, int index, IEnumerable<string> fields)
+		{
+			Debug.Assert(fields != null);                StackAssert.Start(luaState);
+			lua_pushvalue(luaState,index);
+			foreach (string field in fields) {
+				lua_getfield(luaState, -1, field);
+				lua_remove(luaState,-2);
+			}                                            StackAssert.End(1);
+		}
+		/// <summary>[-0, +1, e] Navigates fields nested in an object at the top of the stack, pushing the value of the specified sub-field</summary>
+		/// <param name="index"></param><param name="luaState"></param>
+		/// <param name="path">A string with field names separated by period characters.</param>
+		[MethodImpl(INLINE)] public static void luanet_getnestedfield(IntPtr luaState, int index, string path)
+		{
+			Debug.Assert(path != null);
+			luanet_getnestedfield(luaState, index, path.Split('.'));
+		}
+
+		/// <summary>[-0, +0, -] Gets a <see cref="Lua"/> instance's internal lua_State pointer.</summary>
+		[MethodImpl(INLINE)] public static IntPtr luanet_getstate(Lua interpreter)
+		{
+			return interpreter.luaState;
+		}
+		/// <summary>[-0, +1, e] Pushes the referenced object onto the stack.</summary>
+		[MethodImpl(INLINE)] public static void luanet_pushobject<T>(IntPtr luaState, T o)
+		where T : LuaBase // generic method rather than just taking a LuaBase parameter probably makes it easier to do sealed class optimizations (todo: test this hypothesis)
+		{
+			Debug.Assert(o != null && luaState == o.Owner.luaState);
+			o.push(luaState);
+		}
 
 		#endregion
 
@@ -504,7 +558,7 @@ namespace LuaInterface
 	/// <summary>Delegate for functions passed to Lua as function pointers</summary>
 	public delegate int LuaCSFunction(IntPtr luaState);
 
-	public static partial class LuaDLL
+	public static unsafe partial class LuaDLL
 	{
 		/// <summary>[-0, +1, m] Pushes a delegate onto the stack as a C function. http://www.lua.org/manual/5.1/manual.html#lua_CFunction </summary>
 		[DllImport(STUBDLL,CallingConvention=LUACC)] public static extern void lua_pushstdcallcfunction(IntPtr luaState, [MarshalAs(UnmanagedType.FunctionPtr)]LuaCSFunction function);

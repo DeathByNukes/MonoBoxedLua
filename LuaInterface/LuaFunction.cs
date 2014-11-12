@@ -1,15 +1,22 @@
 ﻿using System;
+using System.Diagnostics;
 
 namespace LuaInterface
 {
-	public class LuaFunction : LuaBase
+	public sealed class LuaFunction : LuaBase
 	{
 		internal readonly LuaCSFunction function;
 
+		/// <summary>[-1, +0, e] Pops a function from the top of the stack and creates a new reference. The value is discarded if a type exception is thrown.</summary>
+		public LuaFunction(IntPtr luaState, Lua interpreter)
+		: base(TryRef(luaState, interpreter, LuaType.Function), interpreter)
+		{
+		}
 		public LuaFunction(int reference, Lua interpreter)
 		: base(reference, interpreter)
 		{
 			this.function = null;
+			CheckType(LuaType.Function);
 		}
 
 		public LuaFunction(LuaCSFunction function, Lua interpreter)
@@ -18,60 +25,50 @@ namespace LuaInterface
 			this.function = function;
 		}
 
-		/// <summary>Makes a new reference the same function.</summary>
-		public LuaFunction NewReference() {
-			return _Reference != LuaRefs.None
-				? new LuaFunction(Owner.newReference(_Reference), Owner)
-				: new LuaFunction(function, Owner);
+		/// <summary>Makes a new reference to the same function.</summary>
+		public LuaFunction NewReference()
+		{
+			if (Reference == LuaRefs.None) return new LuaFunction(function, Owner);
+			var L = Owner.luaState;
+			rawpush(L);
+			try { return new LuaFunction(L, Owner); } catch (InvalidCastException) { Dispose(); throw; }
 		}
 
 
-		/// <summary>Calls the function casting return values to the types in returnTypes</summary>
-		internal object[] call(object[] args, Type[] returnTypes)
+		protected internal override void push(IntPtr luaState)
 		{
-			return Owner.callFunction(this, args, returnTypes);
-		}
-		/// <summary>Calls the function and returns its return values inside an array</summary>
-		public object[] Call(params object[] args)
-		{
-			return Owner.callFunction(this, args);
-		}
-		/// <summary>Pushes the function into the Lua stack</summary>
-		#if EXPOSE_STATE
-		public
-		#else
-		internal
-		#endif
-		void push()
-		{
-			if (_Reference != LuaRefs.None)
-				LuaDLL.lua_getref(Owner.luaState, _Reference);
+			Debug.Assert(luaState == Owner.luaState);
+			if (Reference == LuaRefs.None)
+				Owner.translator.pushFunction(luaState, function);
 			else
-				Owner.pushCSFunction(function);
+			{
+				LuaDLL.lua_getref(luaState, Reference);
+				CheckType(luaState, LuaType.Function);
+			}
 		}
-		public override string ToString()
+
+		protected override void rawpush(IntPtr luaState)
 		{
-			return "function";
+			Debug.Assert(luaState == Owner.luaState);
+			if (Reference != LuaRefs.None)
+				LuaDLL.lua_getref(Owner.luaState, Reference);
+			else
+				Owner.translator.pushFunction(Owner.luaState, function);
 		}
 		public override bool Equals(object o)
 		{
 			var l = o as LuaFunction;
 			if (l == null) return false;
-			if (this._Reference != LuaRefs.None && l._Reference != LuaRefs.None)
-				return Owner.compareRef(l._Reference, this._Reference);
+			if (this.Reference != LuaRefs.None && l.Reference != LuaRefs.None)
+				return base.Equals(l);
 			else
 				return this.function == l.function;
 		}
 
-		public override int GetHashCode()
-		{
-			if (_Reference != LuaRefs.None)
-				// elisee: Used to return _Reference
-				// which doesn't make sense as you can have different refs
-				// to the same function
-				return 0;
-			else
-				return function.GetHashCode();
+		public override int GetHashCode() {
+			return Reference == LuaRefs.None
+				? function.GetHashCode()
+				: base.GetHashCode();
 		}
 	}
 

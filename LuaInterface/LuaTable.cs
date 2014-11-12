@@ -9,64 +9,57 @@ namespace LuaInterface
 	/// Wrapper class for a Lua table reference.
 	/// Its implementation of IEnumerable is an alias to its <see cref="LuaTable.Pairs"/> property.
 	/// </summary>
-	public class LuaTable : LuaBase, IEnumerable<KeyValuePair<object, object>>
+	public sealed class LuaTable : LuaBase, IEnumerable<KeyValuePair<object, object>>
 	{
+		#region Basics
+
 		/// <summary>Returning an orphaned reference from a function that was called by Lua will automatically dispose that reference at a safe time.</summary>
 		/// <remarks>Defaults to <see langword="false"/> except for references returned by <see cref="Lua.NewTable()"/>.</remarks>
 		/// <seealso cref="Lua.NewTable()"/>
 		public bool IsOrphaned;
 
-		public LuaTable(int reference, Lua interpreter)
-		: base(reference, interpreter)
-		{
-		}
-
 		/// <summary>Makes a new reference the same table.</summary>
-		public LuaTable NewReference() { return new LuaTable(Owner.newReference(_Reference), Owner); }
+		public LuaTable NewReference()
+		{
+			var L = Owner.luaState;
+			rawpush(L);
+			try { return new LuaTable(L, Owner); } catch (InvalidCastException) { Dispose(); throw; }
+		}
 
 		/// <summary>The result of the Lua length operator ('#'). Note that this is the array length (string etc. keys aren't counted) and it doesn't work reliably on sparse arrays.</summary>
 		/// <seealso href="http://www.lua.org/manual/5.1/manual.html#2.5.5"/>
-		public int Length
+		public int Length { get { return this.LongLength.ToInt32(); } }
+
+		/// <summary>The result of the Lua length operator ('#'). Note that this is the array length (string etc. keys aren't counted) and it doesn't work reliably on sparse arrays.</summary>
+		/// <seealso href="http://www.lua.org/manual/5.1/manual.html#2.5.5"/>
+		public UIntPtr LongLength
 		{
-			get { return Owner.getLength(_Reference); }
+			get
+			{
+				var L = Owner.luaState;
+				push(L);
+				var len = LuaDLL.lua_objlen(L, -1);
+				LuaDLL.lua_pop(L,1);
+				return len;
+			}
 		}
 
 		/// <summary>Counts the number of entries in the table.</summary>
-		public int Count()
+		public int Count() { return checked((int)this.LongCount()); }
+		/// <summary>Counts the number of entries in the table.</summary>
+		public ulong LongCount()
 		{
-			var L = Owner.luaState;
-			int count = 0;
-			int oldTop = LuaDLL.lua_gettop(L);
-			LuaDLL.lua_getref(L, _Reference);
+			var L = Owner.luaState;                   StackAssert.Start(L);
+			ulong count = 0;
+			push(L);
 			LuaDLL.lua_pushnil(L);
 			while (LuaDLL.lua_next(L, -2))
 			{
 				++count;
-				LuaDLL.lua_settop(L, -2);
+				LuaDLL.lua_pop(L,1);
 			}
-			LuaDLL.lua_settop(L, oldTop);
+			LuaDLL.lua_pop(L,1);                      StackAssert.End();
 			return count;
-		}
-
-		#region Indexers
-
-		/// <summary>Indexer for nested string fields of the table</summary>
-		public object this[params string[] path]
-		{
-			get { return Owner.getObject(_Reference, path); }
-			set { Owner.setObject(_Reference, path, value); }
-		}
-		/// <summary>Indexer for string fields of the table</summary>
-		public object this[string field]
-		{
-			get { return Owner.getObject(_Reference, field); }
-			set { Owner.setObject(_Reference, field, value); }
-		}
-		/// <summary>Indexer for numeric fields of the table</summary>
-		public object this[object field]
-		{
-			get { return Owner.getObject(_Reference, field); }
-			set { Owner.setObject(_Reference, field, value); }
 		}
 
 		#endregion
@@ -76,75 +69,86 @@ namespace LuaInterface
 		/// <summary>Gets a numeric field of a table ignoring its metatable, if it exists</summary>
 		public object RawGet(int field)
 		{
-			var L = Owner.luaState;
-			int oldTop = LuaDLL.lua_gettop(L);
-			LuaDLL.lua_getref(L, _Reference);
+			var L = Owner.luaState;                   StackAssert.Start(L);
+			push(L);
 			LuaDLL.lua_rawgeti(L, -1, field);
-			object obj = Owner.translator.getObject(L, -1);
-			LuaDLL.lua_settop(L, oldTop);
+			var obj = Owner.translator.getObject(L, -1);
+			LuaDLL.lua_pop(L,2);                      StackAssert.End();
 			return obj;
 		}
 
 		/// <summary>Gets a string field of a table ignoring its metatable, if it exists</summary>
 		public object RawGet(string field)
 		{
-			var L = Owner.luaState;
-			int oldTop = LuaDLL.lua_gettop(L);
-			LuaDLL.lua_getref(L, _Reference);
+			var L = Owner.luaState;                   StackAssert.Start(L);
+			push(L);
 			LuaDLL.lua_pushstring(L, field);
 			LuaDLL.lua_rawget(L, -2);
-			object obj = Owner.translator.getObject(L, -1);
-			LuaDLL.lua_settop(L, oldTop);
+			var obj = Owner.translator.getObject(L, -1);
+			LuaDLL.lua_pop(L,2);                      StackAssert.End();
 			return obj;
 		}
 
 		/// <summary>Gets a field of a table ignoring its metatable, if it exists</summary>
 		public object RawGet(object field)
 		{
-			var L = Owner.luaState;
-			int oldTop = LuaDLL.lua_gettop(L);
-			LuaDLL.lua_getref(L, _Reference);
+			var L = Owner.luaState;                   StackAssert.Start(L);
+			push(L);
 			Owner.translator.push(L, field);
 			LuaDLL.lua_rawget(L, -2);
-			object obj = Owner.translator.getObject(L, -1);
-			LuaDLL.lua_settop(L, oldTop);
+			var obj = Owner.translator.getObject(L, -1);
+			LuaDLL.lua_pop(L,2);                      StackAssert.End();
 			return obj;
 		}
 
 
 		/// <summary>Sets a numeric field of a table ignoring its metatable, if it exists</summary>
-		public void RawSet(int    field, object value)
+		public void RawSet(int field, object value)
 		{
-			var L = Owner.luaState;
-			int oldTop = LuaDLL.lua_gettop(L);
-			LuaDLL.lua_getref(L, _Reference);
+			var L = Owner.luaState;                   StackAssert.Start(L);
+			push(L);
 			Owner.translator.push(L, value);
 			LuaDLL.lua_rawseti(L, -2, field);
-			LuaDLL.lua_settop(L, oldTop);
+			LuaDLL.lua_pop(L,1);                      StackAssert.End();
 		}
 
 		/// <summary>Sets a string field of a table ignoring its metatable, if it exists</summary>
 		public void RawSet(string field, object value)
 		{
-			var L = Owner.luaState;
-			int oldTop = LuaDLL.lua_gettop(L);
-			LuaDLL.lua_getref(L, _Reference);
+			var L = Owner.luaState;                   StackAssert.Start(L);
+			push(L);
 			LuaDLL.lua_pushstring(L, field);
 			Owner.translator.push(L, value);
 			LuaDLL.lua_rawset(L, -3);
-			LuaDLL.lua_settop(L, oldTop);
+			LuaDLL.lua_pop(L,1);                      StackAssert.End();
 		}
 
 		/// <summary>Sets a field of a table ignoring its metatable, if it exists</summary>
 		public void RawSet(object field, object value)
 		{
-			var L = Owner.luaState;
-			int oldTop = LuaDLL.lua_gettop(L);
-			LuaDLL.lua_getref(L, _Reference);
+			var L = Owner.luaState;                   StackAssert.Start(L);
+			push(L);
 			Owner.translator.push(L, field);
 			Owner.translator.push(L, value);
 			LuaDLL.lua_rawset(L, -3);
-			LuaDLL.lua_settop(L, oldTop);
+			LuaDLL.lua_pop(L,1);                      StackAssert.End();
+		}
+
+		/// <summary>Looks up the field, ignoring metatables, and checks for a nil result.</summary>
+		public bool RawContainsKey(object field) {
+			return this.RawFieldType(field) != LuaType.Nil;
+		}
+
+		/// <summary>Looks up the field, ignoring metatables, and gets its Lua type.</summary>
+		public LuaType RawFieldType(object field)
+		{
+			var L = Owner.luaState;                   StackAssert.Start(L);
+			push(L);
+			Owner.translator.push(L, field);
+			LuaDLL.lua_rawget(L,-2);
+			var type = LuaDLL.lua_type(L, -1);
+			LuaDLL.lua_pop(L,2);                      StackAssert.End();
+			return type;
 		}
 
 		#endregion
@@ -163,14 +167,14 @@ namespace LuaInterface
 		{
 			var L = Owner.luaState; var translator = Owner.translator;
 			int oldTop = LuaDLL.lua_gettop(L);
+			push(L);
 			try
 			{
-				LuaDLL.lua_getref(L, _Reference);
 				LuaDLL.lua_pushnil(L);
 				while (LuaDLL.lua_next(L, -2))
 				{
 					body(translator.getObject(L, -2), translator.getObject(L, -1));
-					LuaDLL.lua_settop(L, -2);
+					LuaDLL.lua_pop(L, 1);
 				}
 			}
 			finally { LuaDLL.lua_settop(L, oldTop); }
@@ -185,16 +189,16 @@ namespace LuaInterface
 		{
 			var L = Owner.luaState; var translator = Owner.translator;
 			int oldTop = LuaDLL.lua_gettop(L);
+			push(L);
 			try
 			{
-				LuaDLL.lua_getref(L, _Reference);
 				for (int i = 1; ; ++i)
 				{
 					LuaDLL.lua_rawgeti(L, -1, i);
 					object obj = translator.getObject(L, -1);
 					if (obj == null) break;
 					body(i, obj);
-					LuaDLL.lua_settop(L, -2);
+					LuaDLL.lua_pop(L, 1);
 				}
 			}
 			finally { LuaDLL.lua_settop(L, oldTop); }
@@ -206,15 +210,15 @@ namespace LuaInterface
 		{
 			var L = Owner.luaState; var translator = Owner.translator;
 			int oldTop = LuaDLL.lua_gettop(L);
+			push(L);
 			try
 			{
-				LuaDLL.lua_getref(L, _Reference);
 				LuaDLL.lua_pushnil(L);
 				while (LuaDLL.lua_next(L, -2))
 				{
 					if (LuaDLL.lua_type(L, -2) == LuaType.String)
 						body(LuaDLL.lua_tostring(L, -2), translator.getObject(L, -1));
-					LuaDLL.lua_settop(L, -2);
+					LuaDLL.lua_pop(L, 1);
 				}
 			}
 			finally { LuaDLL.lua_settop(L, oldTop); }
@@ -412,7 +416,19 @@ namespace LuaInterface
 		#endregion
 
 
-		#region Internals
+		#region Implementation
+
+		/// <summary>[-1, +0, e] Pops a table from the top of the stack and creates a new reference. The value is discarded if a type exception is thrown.</summary>
+		public LuaTable(IntPtr luaState, Lua interpreter)
+		: base(TryRef(luaState, interpreter, LuaType.Table), interpreter)
+		{
+		}
+
+		public LuaTable(int reference, Lua interpreter)
+		: base(reference, interpreter)
+		{
+			CheckType(LuaType.Table);
+		}
 
 		internal object rawgetFunction(string field)
 		{
@@ -425,19 +441,11 @@ namespace LuaInterface
 				return obj;
 		}
 
-		/// <summary>[-0, +1, -] Pushes this table into the Lua stack</summary>
-		#if EXPOSE_STATE
-		public
-		#else
-		internal
-		#endif
-		void push()
+		protected internal override void push(IntPtr luaState)
 		{
-			LuaDLL.lua_getref(Owner.luaState, _Reference);
-		}
-		public override string ToString()
-		{
-			return "table";
+			Debug.Assert(luaState == Owner.luaState);
+			LuaDLL.lua_getref(Owner.luaState, Reference);
+			CheckType(Owner.luaState, LuaType.Table);
 		}
 
 		#endregion

@@ -6,25 +6,27 @@ namespace LuaInterface
 	/// <summary>Base class for all Lua object references.</summary>
 	public abstract class LuaBase : IDisposable
 	{
+		#region Constructor / State
+
 		protected LuaBase(int reference, Lua interpreter)
 		{
 			Debug.Assert(interpreter != null);
-			_Reference = reference;
+			Reference = reference;
 			Owner = interpreter;
 		}
-		protected readonly int _Reference;
 
-		#if EXPOSE_STATE
-		/// <summary>The internal Lua reference number of this object.</summary>
-		public int Reference { get { return _Reference; } }
-		#endif
+		protected readonly int Reference;
 
 		/// <summary>The Lua instance that contains the referenced object.</summary>
 		public Lua Owner
 		{
 			get
 			{
-				Debug.Assert(_interpreter != null, string.Format("{0} used after disposal.", this.GetType().Name));
+				if (_interpreter == null)
+				{
+					//Debug.Assert(false, "LuaBase used after disposal!");
+					throw new ObjectDisposedException(this.GetType().Name);
+				}
 				return _interpreter;
 			}
 			private set { _interpreter = value; }
@@ -35,7 +37,7 @@ namespace LuaInterface
 		~LuaBase()
 		{
 			Dispose(false);
-			Lua.leaked();
+			Lua.leaked(Reference);
 		}
 
 		public void Dispose()
@@ -47,23 +49,319 @@ namespace LuaInterface
 		protected virtual void Dispose(bool disposing)
 		{
 			if (this.IsDisposed) return;
-			if (_Reference >= LuaRefs.Min)
-				Owner.dispose(_Reference);
+			if (Reference >= LuaRefs.Min && Owner.luaState != IntPtr.Zero)
+				LuaDLL.lua_unref(Owner.luaState, Reference);
 			Owner = null;
 			//if (disposing)
 			//	/* dispose managed objects here */;
 		}
 
-		public override bool Equals(object o)
+		#endregion
+
+		#region Type Safety
+
+		/// <summary>[-0, +1, m] Push the referenced object onto the stack.</summary>
+		/// <remarks>
+		/// No default implementation is provided because all implementers should be validating the type (see <see cref="CheckType(System.IntPtr,LuaInterface.LuaType)"/>)
+		/// If you throw an exception you should leave the stack how it was.
+		/// DO NOT call <see cref="rawpush"/> from within your implementation; <see cref="rawpush"/> redirects to <see cref="push"/> in debug builds.
+		/// </remarks>
+		/// <exception cref="InvalidCastException">Might be thrown if the registry was tampered with or <paramref name="luaState"/> isn't this reference's owner. Don't bother catching this exception. It should never happen unless you're doing it wrong or there was a security breach.</exception>
+		protected internal abstract void push(IntPtr luaState);
+
+		/// <summary>[-0, +1, -] Push the referenced object onto the stack without verifying its type matches the class. For internal use only. Should only be used when calling lua functions that can safely accept any type.</summary>
+		/// <remarks>DO NOT call this from within your <see cref="push"/> implementation; it redirects to <see cref="push"/> in debug builds.</remarks>
+		protected virtual void rawpush(IntPtr luaState)
 		{
-			var l = o as LuaBase;
-			if (l == null) return false;
-			return Owner.compareRef(l._Reference, _Reference);
+			#if DEBUG
+			push(luaState);
+			#else
+			LuaDLL.lua_getref(luaState, Reference);
+			#endif
 		}
 
-		public override int GetHashCode()
+		/// <summary>
+		/// [-1, +0, v] Pops a value from the top of the stack and returns a reference or throws if it doesn't match the provided type.
+		/// Validating the type is critically important because some Lua functions don't check the type at all, potentially corrupting memory when given unexpected input.
+		/// </summary>
+		protected static int TryRef(IntPtr luaState, Lua interpreter, LuaType t)
 		{
-			return 0; // getting a safe hash code is impossible. lua_equal allows the script to implement custom equality via metatables
+			Debug.Assert(luaState == interpreter.luaState);
+			var actual = LuaDLL.lua_type(luaState,-1);
+			if (actual == t)
+				return LuaDLL.lua_ref(luaState);
+			else
+			{
+				LuaDLL.lua_pop(luaState, 1);
+				throw NewBadTypeError(typeof(LuaBase).Name, t, actual);
+			}
 		}
+		/// <summary>
+		/// [-0, +0, v] Checks that the instance references the given type. If it doesn't, the instance is disposed and an exception is thrown.
+		/// Validating the type is critically important because some Lua functions don't check the type at all, potentially corrupting memory when given unexpected input.
+		/// </summary>
+		protected void CheckType(LuaType t)
+		{
+			var L = Owner.luaState;
+			LuaDLL.lua_getref(L, Reference);
+			var actual = LuaDLL.lua_type(L,-1);
+			LuaDLL.lua_pop(L,1);
+			if (actual != t)
+			{
+				Dispose();
+				throw NewBadTypeError(t, actual);
+			}
+		}
+		/// <summary>
+		/// [-(0|1), +0, v] Checks that the value on top of the stack is the given type. If it isn't then the value is popped, the instance is disposed, and an exception is thrown.
+		/// Validating the type is critically important because some Lua functions don't check the type at all, potentially corrupting memory when given unexpected input.
+		/// </summary>
+		protected void CheckType(IntPtr luaState, LuaType t)
+		{
+			Debug.Assert(luaState == Owner.luaState);
+			var actual = LuaDLL.lua_type(luaState,-1);
+			if (actual == t) return;
+			LuaDLL.lua_pop(luaState, 1);
+			Dispose();
+			throw NewBadTypeError(t, actual);
+		}
+		/// <summary>Exception factory for use when a <see cref="LuaBase"/> object references a Lua value of an incorrect type.</summary>
+		protected static InvalidCastException NewBadTypeError(string type, object expected, object actual) {
+			return new InvalidCastException(string.Format("{0} created with a {2} reference. ({1} expected)", type, expected, actual));
+		}
+		/// <summary>Exception factory for use when a <see cref="LuaBase"/> object references a Lua value of an incorrect type.</summary>
+		protected InvalidCastException NewBadTypeError(object expected, object actual) {
+			return NewBadTypeError(this.GetType().Name, expected, actual);
+		}
+
+		#endregion
+
+		#region .NET object implementation
+
+		/// <summary>Raw equality. (For table field lookups, Lua uses raw comparisons internally.)</summary>
+		public override bool Equals(object o)
+		{
+			return Equals(o as LuaBase);
+		}
+
+		/// <summary>Raw equality. (For table field lookups, Lua uses raw comparisons internally.)</summary>
+		public bool Equals(LuaBase o)
+		{
+			if (o == null || o.Owner != Owner) return false;
+			var L = Owner.luaState;
+			rawpush(L);
+			o.rawpush(L);
+			bool ret = LuaDLL.lua_rawequal(L, -1, -2);
+			LuaDLL.lua_pop(L,2);
+			return ret;
+		}
+
+		public unsafe override int GetHashCode()
+		{
+			var L = Owner.luaState;
+			rawpush(L);
+			void* ptr = LuaDLL.lua_topointer(L, -1);
+			LuaDLL.lua_pop(L,1);
+
+			if (sizeof(IntPtr) == sizeof(int))
+				return (int)ptr;
+			else
+				return ((ulong)ptr).GetHashCode();
+		}
+
+		/// <summary>Full Lua equality which can be controlled with metatables.</summary>
+		public bool LuaEquals(LuaBase o)
+		{
+			if (o == null || o.Owner != Owner) return false;
+			var L = Owner.luaState;
+			rawpush(L);
+			o.rawpush(L);
+			try { return LuaDLL.lua_equal(L, -1, -2); }
+			finally { LuaDLL.lua_pop(L,2); }
+		}
+
+		/// <summary>Full Lua equality which can be controlled with metatables.</summary>
+		public static bool operator ==(LuaBase left, LuaBase right)
+		{
+			return object.ReferenceEquals(left, null)
+				? object.ReferenceEquals(null, right)
+				: left.LuaEquals(right);
+		}
+
+		/// <summary>Full Lua equality which can be controlled with metatables.</summary>
+		public static bool operator !=(LuaBase left, LuaBase right)
+		{
+			return object.ReferenceEquals(left, null)
+				? !object.ReferenceEquals(null, right)
+				: !left.LuaEquals(right);
+		}
+
+		public override string ToString()
+		{
+			var L = Owner.luaState;
+			LuaDLL.lua_getref(L, Owner.tostring_ref);
+			LuaDLL.lua_getref(L, Reference);
+			if (LuaDLL.lua_pcall(L, 1, 1, 0) != LuaStatus.Ok)
+				throw Owner.ExceptionFromError(-2); // -2, pop the error from the stack
+			var str = LuaDLL.lua_tostring(L, -1);
+			LuaDLL.lua_pop(L,1);
+			return str ?? "";
+		}
+
+		#endregion
+
+		#region Indexers
+
+		/// <summary>Indexer for nested string fields of the Lua object.</summary>
+		public object this[params string[] path]
+		{
+			get
+			{
+				var L = Owner.luaState;                   StackAssert.Start(L);
+				rawpush(L);
+				var ret = Owner.getNestedObject(-1, path);
+				LuaDLL.lua_pop(L,1);                      StackAssert.End();
+				return ret;
+			}
+			set
+			{
+				var L = Owner.luaState;                   StackAssert.Start(L);
+				rawpush(L);
+				Owner.setNestedObject(-1, path, value);
+				LuaDLL.lua_pop(L,1);                      StackAssert.End();
+			}
+		}
+
+		/// <summary>Indexer for string fields of the Lua object.</summary>
+		public object this[string field]
+		{
+			get
+			{
+				var L = Owner.luaState;                   StackAssert.Start(L);
+				rawpush(L);
+				LuaDLL.lua_getfield(L, -1, field);
+				var obj = Owner.translator.getObject(L,-1);
+				LuaDLL.lua_pop(L,2);                      StackAssert.End();
+				return obj;
+			}
+			set
+			{
+				var L = Owner.luaState;                   StackAssert.Start(L);
+				rawpush(L);
+				Owner.translator.push(L,value);
+				LuaDLL.lua_setfield(L, -2, field);
+				LuaDLL.lua_pop(L,1);                      StackAssert.End();
+			}
+		}
+
+		/// <summary>Indexer for numeric fields of the Lua object.</summary>
+		public object this[object field]
+		{
+			get
+			{
+				var L = Owner.luaState;                   StackAssert.Start(L);
+				rawpush(L);
+				Owner.translator.push(L,field);
+				LuaDLL.lua_gettable(L,-2);
+				var obj = Owner.translator.getObject(L,-1);
+				LuaDLL.lua_pop(L,2);                      StackAssert.End();
+				return obj;
+			}
+			set
+			{
+				var L = Owner.luaState;                   StackAssert.Start(L);
+				rawpush(L);
+				Owner.translator.push(L,field);
+				Owner.translator.push(L,value);
+				LuaDLL.lua_settable(L,-3);
+				LuaDLL.lua_pop(L,1);                      StackAssert.End();
+			}
+		}
+
+		/// <summary>Looks up the field and checks for a nil result. The field's value is discarded without performing any Lua to CLR translation.</summary>
+		public bool ContainsKey(object field) {
+			return this.FieldType(field) != LuaType.Nil;
+		}
+
+		/// <summary>Looks up the field and gets its Lua type. The field's value is discarded without performing any Lua to CLR translation.</summary>
+		public LuaType FieldType(object field)
+		{
+			var L = Owner.luaState;                   StackAssert.Start(L);
+			push(L);
+			Owner.translator.push(L, field);
+			LuaDLL.lua_gettable(L,-2);
+			var type = LuaDLL.lua_type(L, -1);
+			LuaDLL.lua_pop(L,2);                      StackAssert.End();
+			return type;
+		}
+
+		#endregion
+
+		#region Call
+
+		/// <summary>Calls the object and returns its return values inside an array.</summary>
+		public object[] Call(params object[] args)
+		{
+			return this.call(args, null);
+		}
+
+		/// <summary>Calls the function casting return values to the types in returnTypes</summary>
+		internal object[] call(object[] args, Type[] returnTypes)
+		{
+			var L = Owner.luaState; var translator = Owner.translator;
+			int nArgs = args==null ? 0 : args.Length;
+			int oldTop=LuaDLL.lua_gettop(L);
+			if(!LuaDLL.lua_checkstack(L,nArgs+6)) // todo: why 6?
+				throw new LuaException("Lua stack overflow");
+
+			translator.push(L,this);
+
+			for(int i = 0; i < nArgs; ++i)
+				translator.push(L,args[i]);
+
+			++Owner._executing;
+			var status = LuaDLL.lua_pcall(L, nArgs, returnTypes == null ? LUA.MULTRET : returnTypes.Length, 0);
+			checked { --Owner._executing; }
+			if (status != LuaStatus.Ok)
+				throw Owner.ExceptionFromError(oldTop);
+
+			return translator.popValues(L, oldTop, returnTypes);
+		}
+
+		#endregion
+
+		#region Metatable
+
+		/// <summary>Gets/sets the object's metatable. Note that only tables and userdata have individual metatables; setting a function's metatable will alter every function.</summary>
+		public LuaTable Metatable
+		{
+			get
+			{
+				var L = Owner.luaState;                   StackAssert.Start(L);
+				push(L);
+				if (LuaDLL.lua_getmetatable(L,-1))
+				{
+					LuaDLL.lua_remove(L, -2);                 StackAssert.End(1);
+					return new LuaTable(L, Owner);
+				}
+				LuaDLL.lua_pop(L,1);                      StackAssert.End();
+				return null;
+			}
+			set
+			{
+				var L = Owner.luaState;
+				var oldTop = LuaDLL.lua_gettop(L);
+				push(L);
+				try
+				{
+					if (value == null) LuaDLL.lua_pushnil(L);
+					else value.push(L);
+					LuaDLL.lua_setmetatable(L, -2);
+				}
+				finally { LuaDLL.lua_settop(L, oldTop); }
+			}
+		}
+
+		#endregion
 	}
 }

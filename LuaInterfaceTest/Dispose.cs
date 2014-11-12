@@ -73,7 +73,9 @@ namespace LuaInterfaceTest
 		{
 			var gc = new GcUtil.GCTest(new Lua());
 			gc.Kill();
+			#if DEBUG
 			Assert.AreEqual(1u, Lua.PopLeakCount());
+			#endif
 		}
 
 		[TestMethod] public void DisposeLuaTable()
