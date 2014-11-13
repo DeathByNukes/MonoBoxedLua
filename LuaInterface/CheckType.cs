@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Reflection;
+using LuaInterface.LuaAPI;
 
 namespace LuaInterface
 {
@@ -62,7 +63,7 @@ namespace LuaInterface
 		internal ExtractValue checkType(IntPtr luaState,int index,Type paramType)
 		{
 			Debug.Assert(luaState == translator.interpreter.luaState);
-			LuaType luatype = LuaDLL.lua_type(luaState, index);
+			LuaType luatype = lua.type(luaState, index);
 
 			if(paramType.IsByRef) paramType=paramType.GetElementType();
 
@@ -98,7 +99,7 @@ namespace LuaInterface
 			}
 			*/
 
-			if (LuaDLL.lua_isnumber(luaState, index))
+			if (lua.isnumber(luaState, index))
 				return extractValues[paramTypeHandle];
 
 			if (paramType == typeof(bool))
@@ -108,7 +109,7 @@ namespace LuaInterface
 			}
 			else if (paramType == typeof(string))
 			{
-				if (LuaDLL.lua_isstring(luaState, index))
+				if (lua.isstring(luaState, index))
 					return extractValues[paramTypeHandle];
 				else if (luatype == LuaType.Nil)
 					return extractNetObject; // kevinh - silently convert nil to a null string pointer
@@ -155,10 +156,10 @@ namespace LuaInterface
 			}
 			else if (luatype == LuaType.Table)
 			{
-				if (LuaDLL.luaL_getmetafield(luaState, index, "__index"))
+				if (luaL.getmetafield(luaState, index, "__index"))
 				{
 					object obj = translator.getNetObject(luaState, -1);
-					LuaDLL.lua_pop(luaState,1);
+					lua.pop(luaState,1);
 					if (obj != null && paramType.IsAssignableFrom(obj.GetType()))
 						return extractNetObject;
 				}
@@ -178,102 +179,102 @@ namespace LuaInterface
 		// The following functions return the value in the specified Lua stack index as the desired type if it can, or null otherwise.
 		private static object getAsSbyte(IntPtr luaState,int index)
 		{
-			sbyte retVal=(sbyte)LuaDLL.lua_tonumber(luaState,index);
-			if(retVal==0 && !LuaDLL.lua_isnumber(luaState,index)) return null;
+			sbyte retVal=(sbyte)lua.tonumber(luaState,index);
+			if(retVal==0 && !lua.isnumber(luaState,index)) return null;
 			return retVal;
 		}
 		private static object getAsByte(IntPtr luaState,int index)
 		{
-			byte retVal=(byte)LuaDLL.lua_tonumber(luaState,index);
-			if(retVal==0 && !LuaDLL.lua_isnumber(luaState,index)) return null;
+			byte retVal=(byte)lua.tonumber(luaState,index);
+			if(retVal==0 && !lua.isnumber(luaState,index)) return null;
 			return retVal;
 		}
 		private static object getAsShort(IntPtr luaState,int index)
 		{
-			short retVal=(short)LuaDLL.lua_tonumber(luaState,index);
-			if(retVal==0 && !LuaDLL.lua_isnumber(luaState,index)) return null;
+			short retVal=(short)lua.tonumber(luaState,index);
+			if(retVal==0 && !lua.isnumber(luaState,index)) return null;
 			return retVal;
 		}
 		private static object getAsUshort(IntPtr luaState,int index)
 		{
-			ushort retVal=(ushort)LuaDLL.lua_tonumber(luaState,index);
-			if(retVal==0 && !LuaDLL.lua_isnumber(luaState,index)) return null;
+			ushort retVal=(ushort)lua.tonumber(luaState,index);
+			if(retVal==0 && !lua.isnumber(luaState,index)) return null;
 			return retVal;
 		}
 		private static object getAsInt(IntPtr luaState,int index)
 		{
-			int retVal=(int)LuaDLL.lua_tonumber(luaState,index);
-			if(retVal==0 && !LuaDLL.lua_isnumber(luaState,index)) return null;
+			int retVal=(int)lua.tonumber(luaState,index);
+			if(retVal==0 && !lua.isnumber(luaState,index)) return null;
 			return retVal;
 		}
 		private static object getAsUint(IntPtr luaState,int index)
 		{
-			uint retVal=(uint)LuaDLL.lua_tonumber(luaState,index);
-			if(retVal==0 && !LuaDLL.lua_isnumber(luaState,index)) return null;
+			uint retVal=(uint)lua.tonumber(luaState,index);
+			if(retVal==0 && !lua.isnumber(luaState,index)) return null;
 			return retVal;
 		}
 		private static object getAsLong(IntPtr luaState,int index)
 		{
-			long retVal=(long)LuaDLL.lua_tonumber(luaState,index);
-			if(retVal==0 && !LuaDLL.lua_isnumber(luaState,index)) return null;
+			long retVal=(long)lua.tonumber(luaState,index);
+			if(retVal==0 && !lua.isnumber(luaState,index)) return null;
 			return retVal;
 		}
 		private static object getAsUlong(IntPtr luaState,int index)
 		{
-			ulong retVal=(ulong)LuaDLL.lua_tonumber(luaState,index);
-			if(retVal==0 && !LuaDLL.lua_isnumber(luaState,index)) return null;
+			ulong retVal=(ulong)lua.tonumber(luaState,index);
+			if(retVal==0 && !lua.isnumber(luaState,index)) return null;
 			return retVal;
 		}
 		private static object getAsDouble(IntPtr luaState,int index)
 		{
-			double retVal=LuaDLL.lua_tonumber(luaState,index);
-			if(retVal==0 && !LuaDLL.lua_isnumber(luaState,index)) return null;
+			double retVal=lua.tonumber(luaState,index);
+			if(retVal==0 && !lua.isnumber(luaState,index)) return null;
 			return retVal;
 		}
 		private static object getAsChar(IntPtr luaState,int index)
 		{
-			char retVal=(char)LuaDLL.lua_tonumber(luaState,index);
-			if(retVal==0 && !LuaDLL.lua_isnumber(luaState,index)) return null;
+			char retVal=(char)lua.tonumber(luaState,index);
+			if(retVal==0 && !lua.isnumber(luaState,index)) return null;
 			return retVal;
 		}
 		private static object getAsFloat(IntPtr luaState,int index)
 		{
-			float retVal=(float)LuaDLL.lua_tonumber(luaState,index);
-			if(retVal==0 && !LuaDLL.lua_isnumber(luaState,index)) return null;
+			float retVal=(float)lua.tonumber(luaState,index);
+			if(retVal==0 && !lua.isnumber(luaState,index)) return null;
 			return retVal;
 		}
 		private static object getAsDecimal(IntPtr luaState,int index)
 		{
-			decimal retVal=(decimal)LuaDLL.lua_tonumber(luaState,index);
-			if(retVal==0 && !LuaDLL.lua_isnumber(luaState,index)) return null;
+			decimal retVal=(decimal)lua.tonumber(luaState,index);
+			if(retVal==0 && !lua.isnumber(luaState,index)) return null;
 			return retVal;
 		}
 		private static object getAsBoolean(IntPtr luaState,int index)
 		{
-			return LuaDLL.lua_toboolean(luaState,index);
+			return lua.toboolean(luaState,index);
 		}
 		private static object getAsString(IntPtr luaState,int index)
 		{
-			string retVal=LuaDLL.lua_tostring(luaState,index);
-			if(retVal=="" && !LuaDLL.lua_isstring(luaState,index)) return null;
+			string retVal=lua.tostring(luaState,index);
+			if(retVal=="" && !lua.isstring(luaState,index)) return null;
 			return retVal;
 		}
 
 		public object getAsObject(IntPtr luaState,int index)
 		{
 			Debug.Assert(luaState == translator.interpreter.luaState);
-			if(LuaDLL.lua_type(luaState,index)==LuaType.Table)
+			if(lua.type(luaState,index)==LuaType.Table)
 			{
-				if(LuaDLL.luaL_getmetafield(luaState,index,"__index"))
+				if(luaL.getmetafield(luaState,index,"__index"))
 				{
-					if(LuaDLL.luanet_checkmetatable(luaState,-1))
+					if(luanet.checkmetatable(luaState,-1))
 					{
-						LuaDLL.lua_insert(luaState,index);
-						LuaDLL.lua_remove(luaState,index+1);
+						lua.insert(luaState,index);
+						lua.remove(luaState,index+1);
 					}
 					else
 					{
-						LuaDLL.lua_pop(luaState,1);
+						lua.pop(luaState,1);
 					}
 				}
 			}
@@ -284,19 +285,19 @@ namespace LuaInterface
 		{
 			Debug.Assert(luaState == translator.interpreter.luaState);
 			object obj=translator.getNetObject(luaState,index);
-			if(obj==null && LuaDLL.lua_type(luaState,index)==LuaType.Table)
+			if(obj==null && lua.type(luaState,index)==LuaType.Table)
 			{
-				if(LuaDLL.luaL_getmetafield(luaState,index,"__index"))
+				if(luaL.getmetafield(luaState,index,"__index"))
 				{
-					if(LuaDLL.luanet_checkmetatable(luaState,-1))
+					if(luanet.checkmetatable(luaState,-1))
 					{
-						LuaDLL.lua_insert(luaState,index);
-						LuaDLL.lua_remove(luaState,index+1);
+						lua.insert(luaState,index);
+						lua.remove(luaState,index+1);
 						obj=translator.getNetObject(luaState,index);
 					}
 					else
 					{
-						LuaDLL.lua_pop(luaState,1);
+						lua.pop(luaState,1);
 					}
 				}
 			}

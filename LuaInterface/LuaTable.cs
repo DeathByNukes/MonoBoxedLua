@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using LuaInterface.Helpers;
+using LuaInterface.LuaAPI;
 
 namespace LuaInterface
 {
@@ -38,8 +39,8 @@ namespace LuaInterface
 			{
 				var L = Owner.luaState;
 				push(L);
-				var len = LuaDLL.lua_objlen(L, -1);
-				LuaDLL.lua_pop(L,1);
+				var len = lua.objlen(L, -1);
+				lua.pop(L,1);
 				return len;
 			}
 		}
@@ -52,13 +53,13 @@ namespace LuaInterface
 			var L = Owner.luaState;                   StackAssert.Start(L);
 			ulong count = 0;
 			push(L);
-			LuaDLL.lua_pushnil(L);
-			while (LuaDLL.lua_next(L, -2))
+			lua.pushnil(L);
+			while (lua.next(L, -2))
 			{
 				++count;
-				LuaDLL.lua_pop(L,1);
+				lua.pop(L,1);
 			}
-			LuaDLL.lua_pop(L,1);                      StackAssert.End();
+			lua.pop(L,1);                             StackAssert.End();
 			return count;
 		}
 
@@ -71,9 +72,9 @@ namespace LuaInterface
 		{
 			var L = Owner.luaState;                   StackAssert.Start(L);
 			push(L);
-			LuaDLL.lua_rawgeti(L, -1, field);
+			lua.rawgeti(L, -1, field);
 			var obj = Owner.translator.getObject(L, -1);
-			LuaDLL.lua_pop(L,2);                      StackAssert.End();
+			lua.pop(L,2);                             StackAssert.End();
 			return obj;
 		}
 
@@ -82,10 +83,10 @@ namespace LuaInterface
 		{
 			var L = Owner.luaState;                   StackAssert.Start(L);
 			push(L);
-			LuaDLL.lua_pushstring(L, field);
-			LuaDLL.lua_rawget(L, -2);
+			lua.pushstring(L, field);
+			lua.rawget(L, -2);
 			var obj = Owner.translator.getObject(L, -1);
-			LuaDLL.lua_pop(L,2);                      StackAssert.End();
+			lua.pop(L,2);                             StackAssert.End();
 			return obj;
 		}
 
@@ -95,9 +96,9 @@ namespace LuaInterface
 			var L = Owner.luaState;                   StackAssert.Start(L);
 			push(L);
 			Owner.translator.push(L, field);
-			LuaDLL.lua_rawget(L, -2);
+			lua.rawget(L, -2);
 			var obj = Owner.translator.getObject(L, -1);
-			LuaDLL.lua_pop(L,2);                      StackAssert.End();
+			lua.pop(L,2);                             StackAssert.End();
 			return obj;
 		}
 
@@ -108,8 +109,8 @@ namespace LuaInterface
 			var L = Owner.luaState;                   StackAssert.Start(L);
 			push(L);
 			Owner.translator.push(L, value);
-			LuaDLL.lua_rawseti(L, -2, field);
-			LuaDLL.lua_pop(L,1);                      StackAssert.End();
+			lua.rawseti(L, -2, field);
+			lua.pop(L,1);                            StackAssert.End();
 		}
 
 		/// <summary>Sets a string field of a table ignoring its metatable, if it exists</summary>
@@ -117,10 +118,10 @@ namespace LuaInterface
 		{
 			var L = Owner.luaState;                   StackAssert.Start(L);
 			push(L);
-			LuaDLL.lua_pushstring(L, field);
+			lua.pushstring(L, field);
 			Owner.translator.push(L, value);
-			LuaDLL.lua_rawset(L, -3);
-			LuaDLL.lua_pop(L,1);                      StackAssert.End();
+			lua.rawset(L, -3);
+			lua.pop(L,1);                             StackAssert.End();
 		}
 
 		/// <summary>Sets a field of a table ignoring its metatable, if it exists</summary>
@@ -130,8 +131,8 @@ namespace LuaInterface
 			push(L);
 			Owner.translator.push(L, field);
 			Owner.translator.push(L, value);
-			LuaDLL.lua_rawset(L, -3);
-			LuaDLL.lua_pop(L,1);                      StackAssert.End();
+			lua.rawset(L, -3);
+			lua.pop(L,1);                             StackAssert.End();
 		}
 
 		/// <summary>Looks up the field, ignoring metatables, and checks for a nil result.</summary>
@@ -145,9 +146,9 @@ namespace LuaInterface
 			var L = Owner.luaState;                   StackAssert.Start(L);
 			push(L);
 			Owner.translator.push(L, field);
-			LuaDLL.lua_rawget(L,-2);
-			var type = LuaDLL.lua_type(L, -1);
-			LuaDLL.lua_pop(L,2);                      StackAssert.End();
+			lua.rawget(L,-2);
+			var type = lua.type(L, -1);
+			lua.pop(L,2);                             StackAssert.End();
 			return type;
 		}
 
@@ -166,18 +167,18 @@ namespace LuaInterface
 		public void ForEach(Action<object, object> body)
 		{
 			var L = Owner.luaState; var translator = Owner.translator;
-			int oldTop = LuaDLL.lua_gettop(L);
+			int oldTop = lua.gettop(L);
 			push(L);
 			try
 			{
-				LuaDLL.lua_pushnil(L);
-				while (LuaDLL.lua_next(L, -2))
+				lua.pushnil(L);
+				while (lua.next(L, -2))
 				{
 					body(translator.getObject(L, -2), translator.getObject(L, -1));
-					LuaDLL.lua_pop(L, 1);
+					lua.pop(L, 1);
 				}
 			}
-			finally { LuaDLL.lua_settop(L, oldTop); }
+			finally { lua.settop(L, oldTop); }
 		}
 
 		/// <summary>
@@ -188,20 +189,20 @@ namespace LuaInterface
 		public void ForEachI(Action<int, object> body)
 		{
 			var L = Owner.luaState; var translator = Owner.translator;
-			int oldTop = LuaDLL.lua_gettop(L);
+			int oldTop = lua.gettop(L);
 			push(L);
 			try
 			{
 				for (int i = 1; ; ++i)
 				{
-					LuaDLL.lua_rawgeti(L, -1, i);
+					lua.rawgeti(L, -1, i);
 					object obj = translator.getObject(L, -1);
 					if (obj == null) break;
 					body(i, obj);
-					LuaDLL.lua_pop(L, 1);
+					lua.pop(L, 1);
 				}
 			}
-			finally { LuaDLL.lua_settop(L, oldTop); }
+			finally { lua.settop(L, oldTop); }
 		}
 
 		/// <summary>Iterates over the table's string keys without making a copy. Like "pairs()" in Lua, the iteration is unordered.</summary>
@@ -209,19 +210,19 @@ namespace LuaInterface
 		public void ForEachS(Action<string, object> body)
 		{
 			var L = Owner.luaState; var translator = Owner.translator;
-			int oldTop = LuaDLL.lua_gettop(L);
+			int oldTop = lua.gettop(L);
 			push(L);
 			try
 			{
-				LuaDLL.lua_pushnil(L);
-				while (LuaDLL.lua_next(L, -2))
+				lua.pushnil(L);
+				while (lua.next(L, -2))
 				{
-					if (LuaDLL.lua_type(L, -2) == LuaType.String)
-						body(LuaDLL.lua_tostring(L, -2), translator.getObject(L, -1));
-					LuaDLL.lua_pop(L, 1);
+					if (lua.type(L, -2) == LuaType.String)
+						body(lua.tostring(L, -2), translator.getObject(L, -1));
+					lua.pop(L, 1);
 				}
 			}
-			finally { LuaDLL.lua_settop(L, oldTop); }
+			finally { lua.settop(L, oldTop); }
 		}
 
 		#endregion
@@ -444,7 +445,7 @@ namespace LuaInterface
 		protected internal override void push(IntPtr luaState)
 		{
 			Debug.Assert(luaState == Owner.luaState);
-			LuaDLL.lua_getref(Owner.luaState, Reference);
+			luaL.getref(Owner.luaState, Reference);
 			CheckType(Owner.luaState, LuaType.Table);
 		}
 

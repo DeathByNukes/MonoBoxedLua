@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Diagnostics;
+using LuaInterface.LuaAPI;
 
 namespace LuaInterface
 {
@@ -50,7 +51,7 @@ namespace LuaInterface
 		{
 			if (this.IsDisposed) return;
 			if (Reference >= LuaRefs.Min && Owner.luaState != IntPtr.Zero)
-				LuaDLL.lua_unref(Owner.luaState, Reference);
+				luaL.unref(Owner.luaState, Reference);
 			Owner = null;
 			//if (disposing)
 			//	/* dispose managed objects here */;
@@ -62,7 +63,7 @@ namespace LuaInterface
 
 		/// <summary>[-0, +1, m] Push the referenced object onto the stack.</summary>
 		/// <remarks>
-		/// No default implementation is provided because all implementers should be validating the type (see <see cref="CheckType(System.IntPtr,LuaInterface.LuaType)"/>)
+		/// No default implementation is provided because all implementers should be validating the type (see <see cref="CheckType(IntPtr,LuaType)"/>)
 		/// If you throw an exception you should leave the stack how it was.
 		/// DO NOT call <see cref="rawpush"/> from within your implementation; <see cref="rawpush"/> redirects to <see cref="push"/> in debug builds.
 		/// </remarks>
@@ -76,7 +77,7 @@ namespace LuaInterface
 			#if DEBUG
 			push(luaState);
 			#else
-			LuaDLL.lua_getref(luaState, Reference);
+			luaL.getref(luaState, Reference);
 			#endif
 		}
 
@@ -87,12 +88,12 @@ namespace LuaInterface
 		protected static int TryRef(IntPtr luaState, Lua interpreter, LuaType t)
 		{
 			Debug.Assert(luaState == interpreter.luaState);
-			var actual = LuaDLL.lua_type(luaState,-1);
+			var actual = lua.type(luaState,-1);
 			if (actual == t)
-				return LuaDLL.lua_ref(luaState);
+				return luaL.@ref(luaState);
 			else
 			{
-				LuaDLL.lua_pop(luaState, 1);
+				lua.pop(luaState, 1);
 				throw NewBadTypeError(typeof(LuaBase).Name, t, actual);
 			}
 		}
@@ -103,9 +104,9 @@ namespace LuaInterface
 		protected void CheckType(LuaType t)
 		{
 			var L = Owner.luaState;
-			LuaDLL.lua_getref(L, Reference);
-			var actual = LuaDLL.lua_type(L,-1);
-			LuaDLL.lua_pop(L,1);
+			luaL.getref(L, Reference);
+			var actual = lua.type(L,-1);
+			lua.pop(L,1);
 			if (actual != t)
 			{
 				Dispose();
@@ -119,9 +120,9 @@ namespace LuaInterface
 		protected void CheckType(IntPtr luaState, LuaType t)
 		{
 			Debug.Assert(luaState == Owner.luaState);
-			var actual = LuaDLL.lua_type(luaState,-1);
+			var actual = lua.type(luaState,-1);
 			if (actual == t) return;
-			LuaDLL.lua_pop(luaState, 1);
+			lua.pop(luaState, 1);
 			Dispose();
 			throw NewBadTypeError(t, actual);
 		}
@@ -151,8 +152,8 @@ namespace LuaInterface
 			var L = Owner.luaState;
 			rawpush(L);
 			o.rawpush(L);
-			bool ret = LuaDLL.lua_rawequal(L, -1, -2);
-			LuaDLL.lua_pop(L,2);
+			bool ret = lua.rawequal(L, -1, -2);
+			lua.pop(L,2);
 			return ret;
 		}
 
@@ -160,8 +161,8 @@ namespace LuaInterface
 		{
 			var L = Owner.luaState;
 			rawpush(L);
-			void* ptr = LuaDLL.lua_topointer(L, -1);
-			LuaDLL.lua_pop(L,1);
+			void* ptr = lua.topointer(L, -1);
+			lua.pop(L,1);
 
 			if (sizeof(IntPtr) == sizeof(int))
 				return (int)ptr;
@@ -176,8 +177,8 @@ namespace LuaInterface
 			var L = Owner.luaState;
 			rawpush(L);
 			o.rawpush(L);
-			try { return LuaDLL.lua_equal(L, -1, -2); }
-			finally { LuaDLL.lua_pop(L,2); }
+			try { return lua.equal(L, -1, -2); }
+			finally { lua.pop(L,2); }
 		}
 
 		/// <summary>Full Lua equality which can be controlled with metatables.</summary>
@@ -199,12 +200,12 @@ namespace LuaInterface
 		public override string ToString()
 		{
 			var L = Owner.luaState;
-			LuaDLL.lua_getref(L, Owner.tostring_ref);
-			LuaDLL.lua_getref(L, Reference);
-			if (LuaDLL.lua_pcall(L, 1, 1, 0) != LuaStatus.Ok)
+			luaL.getref(L, Owner.tostring_ref);
+			luaL.getref(L, Reference);
+			if (lua.pcall(L, 1, 1, 0) != LuaStatus.Ok)
 				throw Owner.ExceptionFromError(-2); // -2, pop the error from the stack
-			var str = LuaDLL.lua_tostring(L, -1);
-			LuaDLL.lua_pop(L,1);
+			var str = lua.tostring(L, -1);
+			lua.pop(L,1);
 			return str ?? "";
 		}
 
@@ -220,7 +221,7 @@ namespace LuaInterface
 				var L = Owner.luaState;                   StackAssert.Start(L);
 				rawpush(L);
 				var ret = Owner.getNestedObject(-1, path);
-				LuaDLL.lua_pop(L,1);                      StackAssert.End();
+				lua.pop(L,1);                             StackAssert.End();
 				return ret;
 			}
 			set
@@ -228,7 +229,7 @@ namespace LuaInterface
 				var L = Owner.luaState;                   StackAssert.Start(L);
 				rawpush(L);
 				Owner.setNestedObject(-1, path, value);
-				LuaDLL.lua_pop(L,1);                      StackAssert.End();
+				lua.pop(L,1);                             StackAssert.End();
 			}
 		}
 
@@ -239,9 +240,9 @@ namespace LuaInterface
 			{
 				var L = Owner.luaState;                   StackAssert.Start(L);
 				rawpush(L);
-				LuaDLL.lua_getfield(L, -1, field);
+				lua.getfield(L, -1, field);
 				var obj = Owner.translator.getObject(L,-1);
-				LuaDLL.lua_pop(L,2);                      StackAssert.End();
+				lua.pop(L,2);                             StackAssert.End();
 				return obj;
 			}
 			set
@@ -249,8 +250,8 @@ namespace LuaInterface
 				var L = Owner.luaState;                   StackAssert.Start(L);
 				rawpush(L);
 				Owner.translator.push(L,value);
-				LuaDLL.lua_setfield(L, -2, field);
-				LuaDLL.lua_pop(L,1);                      StackAssert.End();
+				lua.setfield(L, -2, field);
+				lua.pop(L,1);                             StackAssert.End();
 			}
 		}
 
@@ -262,9 +263,9 @@ namespace LuaInterface
 				var L = Owner.luaState;                   StackAssert.Start(L);
 				rawpush(L);
 				Owner.translator.push(L,field);
-				LuaDLL.lua_gettable(L,-2);
+				lua.gettable(L,-2);
 				var obj = Owner.translator.getObject(L,-1);
-				LuaDLL.lua_pop(L,2);                      StackAssert.End();
+				lua.pop(L,2);                             StackAssert.End();
 				return obj;
 			}
 			set
@@ -273,8 +274,8 @@ namespace LuaInterface
 				rawpush(L);
 				Owner.translator.push(L,field);
 				Owner.translator.push(L,value);
-				LuaDLL.lua_settable(L,-3);
-				LuaDLL.lua_pop(L,1);                      StackAssert.End();
+				lua.settable(L,-3);
+				lua.pop(L,1);                             StackAssert.End();
 			}
 		}
 
@@ -289,9 +290,9 @@ namespace LuaInterface
 			var L = Owner.luaState;                   StackAssert.Start(L);
 			push(L);
 			Owner.translator.push(L, field);
-			LuaDLL.lua_gettable(L,-2);
-			var type = LuaDLL.lua_type(L, -1);
-			LuaDLL.lua_pop(L,2);                      StackAssert.End();
+			lua.gettable(L,-2);
+			var type = lua.type(L, -1);
+			lua.pop(L,2);                             StackAssert.End();
 			return type;
 		}
 
@@ -310,8 +311,8 @@ namespace LuaInterface
 		{
 			var L = Owner.luaState; var translator = Owner.translator;
 			int nArgs = args==null ? 0 : args.Length;
-			int oldTop=LuaDLL.lua_gettop(L);
-			if(!LuaDLL.lua_checkstack(L,nArgs+6)) // todo: why 6?
+			int oldTop=lua.gettop(L);
+			if(!lua.checkstack(L,nArgs+6)) // todo: why 6?
 				throw new LuaException("Lua stack overflow");
 
 			translator.push(L,this);
@@ -320,7 +321,7 @@ namespace LuaInterface
 				translator.push(L,args[i]);
 
 			++Owner._executing;
-			var status = LuaDLL.lua_pcall(L, nArgs, returnTypes == null ? LUA.MULTRET : returnTypes.Length, 0);
+			var status = lua.pcall(L, nArgs, returnTypes == null ? LUA.MULTRET : returnTypes.Length, 0);
 			checked { --Owner._executing; }
 			if (status != LuaStatus.Ok)
 				throw Owner.ExceptionFromError(oldTop);
@@ -339,26 +340,26 @@ namespace LuaInterface
 			{
 				var L = Owner.luaState;                   StackAssert.Start(L);
 				push(L);
-				if (LuaDLL.lua_getmetatable(L,-1))
+				if (lua.getmetatable(L,-1))
 				{
-					LuaDLL.lua_remove(L, -2);                 StackAssert.End(1);
+					lua.remove(L, -2);                        StackAssert.End(1);
 					return new LuaTable(L, Owner);
 				}
-				LuaDLL.lua_pop(L,1);                      StackAssert.End();
+				lua.pop(L,1);                             StackAssert.End();
 				return null;
 			}
 			set
 			{
 				var L = Owner.luaState;
-				var oldTop = LuaDLL.lua_gettop(L);
+				var oldTop = lua.gettop(L);
 				push(L);
 				try
 				{
-					if (value == null) LuaDLL.lua_pushnil(L);
+					if (value == null) lua.pushnil(L);
 					else value.push(L);
-					LuaDLL.lua_setmetatable(L, -2);
+					lua.setmetatable(L, -2);
 				}
-				finally { LuaDLL.lua_settop(L, oldTop); }
+				finally { lua.settop(L, oldTop); }
 			}
 		}
 

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using LuaInterface.LuaAPI;
 
 namespace LuaInterface
 {
@@ -20,10 +21,10 @@ namespace LuaInterface
 				var L = Owner.luaState;
 				push(L);
 				var ret = new LPtr {
-					Address = LuaDLL.lua_touserdata(L,-1),
-					Length  = LuaDLL.lua_objlen(L,-1),
+					Address = lua.touserdata(L,-1),
+					Length  = lua.objlen(L,-1),
 				};
-				LuaDLL.lua_pop(L,1);
+				lua.pop(L,1);
 				return ret;
 			}
 		}
@@ -71,7 +72,7 @@ namespace LuaInterface
 		protected internal override void push(IntPtr luaState)
 		{
 			Debug.Assert(luaState == Owner.luaState);
-			LuaDLL.lua_getref(luaState, Reference);
+			luaL.getref(luaState, Reference);
 			CheckType(luaState, LuaType.Userdata);
 		}
 

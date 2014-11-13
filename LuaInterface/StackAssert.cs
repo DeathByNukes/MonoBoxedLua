@@ -4,7 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 
-namespace LuaInterface
+namespace LuaInterface.LuaAPI
 {
 	using Top = KeyValuePair<IntPtr,int>;
 
@@ -14,7 +14,7 @@ namespace LuaInterface
 		[Conditional("DEBUG")]
 		public static void Start(IntPtr luaState)
 		{
-			t_tops.Push(new Top(luaState, LuaDLL.lua_gettop(luaState)));
+			t_tops.Push(new Top(luaState, lua.gettop(luaState)));
 		}
 		[Conditional("DEBUG")] public static void Check()           { check(0,      t_tops.Peek()); }
 		[Conditional("DEBUG")] public static void Check(int offset) { check(offset, t_tops.Peek()); }
@@ -25,7 +25,7 @@ namespace LuaInterface
 
 		static void check(int offset, Top top)
 		{
-			Debug.Assert(LuaDLL.lua_gettop(top.Key) == top.Value + offset, "Stack is unbalanced!");
+			Debug.Assert(lua.gettop(top.Key) == top.Value + offset, "Stack is unbalanced!");
 		}
 
 		static Stack<Top> t_tops { get { return t__tops ?? (t__tops = new Stack<Top>()); } }

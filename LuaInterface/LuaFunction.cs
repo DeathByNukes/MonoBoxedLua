@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Diagnostics;
+using LuaInterface.LuaAPI;
 
 namespace LuaInterface
 {
@@ -42,7 +43,7 @@ namespace LuaInterface
 				Owner.translator.pushFunction(luaState, function);
 			else
 			{
-				LuaDLL.lua_getref(luaState, Reference);
+				luaL.getref(luaState, Reference);
 				CheckType(luaState, LuaType.Function);
 			}
 		}
@@ -51,7 +52,7 @@ namespace LuaInterface
 		{
 			Debug.Assert(luaState == Owner.luaState);
 			if (Reference != LuaRefs.None)
-				LuaDLL.lua_getref(Owner.luaState, Reference);
+				luaL.getref(Owner.luaState, Reference);
 			else
 				Owner.translator.pushFunction(Owner.luaState, function);
 		}
