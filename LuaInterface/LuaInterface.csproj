@@ -92,8 +92,11 @@
     <Compile Include="CheckType.cs" />
     <Compile Include="GenerateEventAssembly.cs" />
     <Compile Include="Lua.cs" />
+    <Compile Include="LuaAPI\lua.cs" />
+    <Compile Include="LuaAPI\luaL.cs" />
+    <Compile Include="LuaAPI\luanet.cs" />
+    <Compile Include="LuaAPI\size_t.cs" />
     <Compile Include="LuaBase.cs" />
-    <Compile Include="LuaDLL.cs" />
     <Compile Include="LuaException.cs" />
     <Compile Include="LuaFunction.cs" />
     <Compile Include="LuaGlobalAttribute.cs" />
@@ -107,7 +110,7 @@
     <Compile Include="ObjectTranslator.cs" />
     <Compile Include="ProxyType.cs" />
     <Compile Include="Metatables.cs" />
-    <Compile Include="StackAssert.cs" />
+    <Compile Include="LuaAPI\StackAssert.cs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="System" />
