@@ -18,7 +18,7 @@ namespace LuaInterface
 		{
 			get
 			{
-				var L = Owner.luaState;
+				var L = Owner._L;
 				push(L);
 				var ret = new LPtr {
 					Address = lua.touserdata(L,-1),
@@ -53,14 +53,14 @@ namespace LuaInterface
 		/// <summary>Makes a new reference the same userdata.</summary>
 		public LuaUserData NewReference()
 		{
-			var L = Owner.luaState;
+			var L = Owner._L;
 			rawpush(L);
 			try { return new LuaUserData(L, Owner); } catch (InvalidCastException) { Dispose(); throw; }
 		}
 
 		/// <summary>[-1, +0, e] Pops a userdata from the top of the stack and creates a new reference. The value is discarded if a type exception is thrown.</summary>
-		public LuaUserData(IntPtr luaState, Lua interpreter)
-		: base(TryRef(luaState, interpreter, LuaType.Userdata), interpreter)
+		public LuaUserData(lua.State L, Lua interpreter)
+		: base(TryRef(L, interpreter, LuaType.Userdata), interpreter)
 		{
 		}
 		public LuaUserData(int reference, Lua interpreter)
@@ -69,11 +69,11 @@ namespace LuaInterface
 			CheckType(LuaType.Userdata);
 		}
 
-		protected internal override void push(IntPtr luaState)
+		protected internal override void push(lua.State L)
 		{
-			Debug.Assert(luaState == Owner.luaState);
-			luaL.getref(luaState, Reference);
-			CheckType(luaState, LuaType.Userdata);
+			Debug.Assert(L == Owner._L);
+			luaL.getref(L, Reference);
+			CheckType(L, LuaType.Userdata);
 		}
 
 		#endregion

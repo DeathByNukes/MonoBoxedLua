@@ -9,8 +9,8 @@ namespace LuaInterface
 		internal readonly LuaCSFunction function;
 
 		/// <summary>[-1, +0, e] Pops a function from the top of the stack and creates a new reference. The value is discarded if a type exception is thrown.</summary>
-		public LuaFunction(IntPtr luaState, Lua interpreter)
-		: base(TryRef(luaState, interpreter, LuaType.Function), interpreter)
+		public LuaFunction(lua.State L, Lua interpreter)
+		: base(TryRef(L, interpreter, LuaType.Function), interpreter)
 		{
 		}
 		public LuaFunction(int reference, Lua interpreter)
@@ -30,31 +30,31 @@ namespace LuaInterface
 		public LuaFunction NewReference()
 		{
 			if (Reference == LuaRefs.None) return new LuaFunction(function, Owner);
-			var L = Owner.luaState;
+			var L = Owner._L;
 			rawpush(L);
 			try { return new LuaFunction(L, Owner); } catch (InvalidCastException) { Dispose(); throw; }
 		}
 
 
-		protected internal override void push(IntPtr luaState)
+		protected internal override void push(lua.State L)
 		{
-			Debug.Assert(luaState == Owner.luaState);
+			Debug.Assert(L == Owner._L);
 			if (Reference == LuaRefs.None)
-				Owner.translator.pushFunction(luaState, function);
+				Owner.translator.pushFunction(L, function);
 			else
 			{
-				luaL.getref(luaState, Reference);
-				CheckType(luaState, LuaType.Function);
+				luaL.getref(L, Reference);
+				CheckType(L, LuaType.Function);
 			}
 		}
 
-		protected override void rawpush(IntPtr luaState)
+		protected override void rawpush(lua.State L)
 		{
-			Debug.Assert(luaState == Owner.luaState);
+			Debug.Assert(L == Owner._L);
 			if (Reference != LuaRefs.None)
-				luaL.getref(Owner.luaState, Reference);
+				luaL.getref(Owner._L, Reference);
 			else
-				Owner.translator.pushFunction(Owner.luaState, function);
+				Owner.translator.pushFunction(Owner._L, function);
 		}
 		public override bool Equals(object o)
 		{

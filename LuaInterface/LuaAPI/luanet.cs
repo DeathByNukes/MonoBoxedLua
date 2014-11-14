@@ -17,61 +17,61 @@ namespace LuaInterface.LuaAPI
 		const MethodImplOptions INLINE = (MethodImplOptions) 0x0100;
 
 		/// <summary>[-0, +0, -] Checks if the object at <paramref name="index"/> has a metatable containing a field with a light userdata key matching <see cref="luanet.gettag"/>.</summary>
-		[DllImport(DLL,CallingConvention=CC,EntryPoint="luaL_checkmetatable")] public static extern bool   checkmetatable(IntPtr luaState, int index);
+		[DllImport(DLL,CallingConvention=CC,EntryPoint="luaL_checkmetatable")] public static extern bool   checkmetatable(lua.State L, int index);
 		/// <summary>[-0, +0, -] The address of a static variable in the luanet DLL. The variable's contents are never used. Rather, the address itself serves as a unique identifier for luanet metatables. (see <see cref="luanet.checkmetatable"/>)</summary>
 		[DllImport(DLL,CallingConvention=CC,EntryPoint="luanet_gettag"      )] public static extern IntPtr gettag();
 		/// <summary>[-0, +0, -] Pushes a new luanet userdata object, which stores a single integer, onto the stack. The object does not have a metatable by default.</summary>
-		[DllImport(DLL,CallingConvention=CC,EntryPoint="luanet_newudata"    )] public static extern int    newudata      (IntPtr luaState, int val);
+		[DllImport(DLL,CallingConvention=CC,EntryPoint="luanet_newudata"    )] public static extern int    newudata      (lua.State L, int val);
 		/// <summary>[-0, +0, -] Retrieves the int stored in a luanet userdata object. Returns -1 if <see cref="luanet.checkmetatable"/> fails and the object's metatable isn't luaNet_class, luaNet_searchbase, or luaNet_function.</summary>
-		[DllImport(DLL,CallingConvention=CC,EntryPoint="luanet_tonetobject" )] public static extern int    tonetobject   (IntPtr luaState, int index);
+		[DllImport(DLL,CallingConvention=CC,EntryPoint="luanet_tonetobject" )] public static extern int    tonetobject   (lua.State L, int index);
 		/// <summary>[-0, +0, -] Like <see cref="luanet.tonetobject"/>, but doesn't perform the safety checks. Only use this if you're completely sure the value is a luanet userdata.</summary>
-		[DllImport(DLL,CallingConvention=CC,EntryPoint="luanet_rawnetobj"   )] public static extern int    rawnetobj     (IntPtr luaState, int index);
+		[DllImport(DLL,CallingConvention=CC,EntryPoint="luanet_rawnetobj"   )] public static extern int    rawnetobj     (lua.State L, int index);
 		/// <summary>[-0, +0, -] Checks if the specified userdata object uses the specified metatable. If so, it does the same thing as <see cref="luanet.rawnetobj"/>. Otherwise, returns -1.</summary>
-		[DllImport(DLL,CallingConvention=CC,EntryPoint="luanet_checkudata"  )] public static extern int    checkudata    (IntPtr luaState, int index, string meta);
+		[DllImport(DLL,CallingConvention=CC,EntryPoint="luanet_checkudata"  )] public static extern int    checkudata    (lua.State L, int index, string meta);
 
 		/// <summary>[-1, +0, -] Converts the Lua value at the top of the stack to a boolean value and pops it. Like all tests in Lua, <see cref="luanet.popboolean"/> returns true for any Lua value different from false and nil; otherwise it returns false.</summary>
-		[MethodImpl(INLINE)] public static bool popboolean(IntPtr luaState)
+		[MethodImpl(INLINE)] public static bool popboolean(lua.State L)
 		{
-			bool b = lua.toboolean(luaState,-1);
-			lua.pop(luaState,1);
+			bool b = lua.toboolean(L,-1);
+			lua.pop(L,1);
 			return b;
 		}
 		/// <summary>[-0, +1, e] Navigates fields nested in an object at the specified index, pushing the value of the specified sub-field. If <paramref name="fields"/> is empty it pushes a copy of the main object.</summary>
-		public static void getnestedfield(IntPtr luaState, int index, IEnumerable<string> fields)
+		public static void getnestedfield(lua.State L, int index, IEnumerable<string> fields)
 		{
-			Debug.Assert(fields != null);                StackAssert.Start(luaState);
-			lua.pushvalue(luaState,index);
+			Debug.Assert(fields != null);                StackAssert.Start(L);
+			lua.pushvalue(L,index);
 			foreach (string field in fields) {
-				lua.getfield(luaState, -1, field);
-				lua.remove(luaState,-2);
+				lua.getfield(L, -1, field);
+				lua.remove(L,-2);
 			}                                            StackAssert.End(1);
 		}
 		/// <summary>[-0, +1, e] Navigates fields nested in an object at the top of the stack, pushing the value of the specified sub-field</summary>
-		/// <param name="index"></param><param name="luaState"></param>
+		/// <param name="index"></param><param name="L"></param>
 		/// <param name="path">A string with field names separated by period characters.</param>
-		[MethodImpl(INLINE)] public static void getnestedfield(IntPtr luaState, int index, string path)
+		[MethodImpl(INLINE)] public static void getnestedfield(lua.State L, int index, string path)
 		{
 			Debug.Assert(path != null);
-			luanet.getnestedfield(luaState, index, path.Split('.'));
+			luanet.getnestedfield(L, index, path.Split('.'));
 		}
 
 		/// <summary>[-0, +0, -] Gets a <see cref="Lua"/> instance's internal lua_State pointer.</summary>
-		[MethodImpl(INLINE)] public static IntPtr getstate(Lua interpreter)
+		[MethodImpl(INLINE)] public static lua.State getstate(Lua interpreter)
 		{
-			return interpreter.luaState;
+			return interpreter._L;
 		}
 		/// <summary>[-0, +1, e] Pushes the referenced object onto the stack.</summary>
-		[MethodImpl(INLINE)] public static void pushobject<T>(IntPtr luaState, T o)
+		[MethodImpl(INLINE)] public static void pushobject<T>(lua.State L, T o)
 		where T : LuaBase // generic method rather than just taking a LuaBase parameter probably makes it easier to do sealed class optimizations (todo: test this hypothesis)
 		{
-			Debug.Assert(o != null && luaState == o.Owner.luaState);
-			o.push(luaState);
+			Debug.Assert(o != null && L == o.Owner._L);
+			o.push(L);
 		}
 
 		/// <summary>[-0, +1, m] Pushes a delegate onto the stack as a C function. http://www.lua.org/manual/5.1/manual.html#lua_CFunction </summary>
-		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_pushstdcallcfunction")] public static extern void pushstdcallcfunction(IntPtr luaState, [MarshalAs(UnmanagedType.FunctionPtr)]LuaCSFunction function);
+		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_pushstdcallcfunction")] public static extern void pushstdcallcfunction(lua.State L, [MarshalAs(UnmanagedType.FunctionPtr)]LuaCSFunction function);
 	}
 
 	/// <summary>Delegate for functions passed to Lua as function pointers</summary>
-	public delegate int LuaCSFunction(IntPtr luaState);
+	public delegate int LuaCSFunction(lua.State L);
 }

@@ -6,15 +6,15 @@ using System.Diagnostics;
 
 namespace LuaInterface.LuaAPI
 {
-	using Top = KeyValuePair<IntPtr,int>;
+	using Top = KeyValuePair<lua.State,int>;
 
 	/// <summary>Helps catch stack balance mistakes at their source rather than potentially much later.</summary>
 	public static class StackAssert
 	{
 		[Conditional("DEBUG")]
-		public static void Start(IntPtr luaState)
+		public static void Start(lua.State L)
 		{
-			t_tops.Push(new Top(luaState, lua.gettop(luaState)));
+			t_tops.Push(new Top(L, lua.gettop(L)));
 		}
 		[Conditional("DEBUG")] public static void Check()           { check(0,      t_tops.Peek()); }
 		[Conditional("DEBUG")] public static void Check(int offset) { check(offset, t_tops.Peek()); }

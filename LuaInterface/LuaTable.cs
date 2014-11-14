@@ -22,7 +22,7 @@ namespace LuaInterface
 		/// <summary>Makes a new reference the same table.</summary>
 		public LuaTable NewReference()
 		{
-			var L = Owner.luaState;
+			var L = Owner._L;
 			rawpush(L);
 			try { return new LuaTable(L, Owner); } catch (InvalidCastException) { Dispose(); throw; }
 		}
@@ -37,7 +37,7 @@ namespace LuaInterface
 		{
 			get
 			{
-				var L = Owner.luaState;
+				var L = Owner._L;
 				push(L);
 				var len = lua.objlen(L, -1);
 				lua.pop(L,1);
@@ -50,7 +50,7 @@ namespace LuaInterface
 		/// <summary>Counts the number of entries in the table.</summary>
 		public ulong LongCount()
 		{
-			var L = Owner.luaState;                   StackAssert.Start(L);
+			var L = Owner._L;                         StackAssert.Start(L);
 			ulong count = 0;
 			push(L);
 			lua.pushnil(L);
@@ -70,7 +70,7 @@ namespace LuaInterface
 		/// <summary>Gets a numeric field of a table ignoring its metatable, if it exists</summary>
 		public object RawGet(int field)
 		{
-			var L = Owner.luaState;                   StackAssert.Start(L);
+			var L = Owner._L;                         StackAssert.Start(L);
 			push(L);
 			lua.rawgeti(L, -1, field);
 			var obj = Owner.translator.getObject(L, -1);
@@ -81,7 +81,7 @@ namespace LuaInterface
 		/// <summary>Gets a string field of a table ignoring its metatable, if it exists</summary>
 		public object RawGet(string field)
 		{
-			var L = Owner.luaState;                   StackAssert.Start(L);
+			var L = Owner._L;                         StackAssert.Start(L);
 			push(L);
 			lua.pushstring(L, field);
 			lua.rawget(L, -2);
@@ -93,7 +93,7 @@ namespace LuaInterface
 		/// <summary>Gets a field of a table ignoring its metatable, if it exists</summary>
 		public object RawGet(object field)
 		{
-			var L = Owner.luaState;                   StackAssert.Start(L);
+			var L = Owner._L;                         StackAssert.Start(L);
 			push(L);
 			Owner.translator.push(L, field);
 			lua.rawget(L, -2);
@@ -106,7 +106,7 @@ namespace LuaInterface
 		/// <summary>Sets a numeric field of a table ignoring its metatable, if it exists</summary>
 		public void RawSet(int field, object value)
 		{
-			var L = Owner.luaState;                   StackAssert.Start(L);
+			var L = Owner._L;                         StackAssert.Start(L);
 			push(L);
 			Owner.translator.push(L, value);
 			lua.rawseti(L, -2, field);
@@ -116,7 +116,7 @@ namespace LuaInterface
 		/// <summary>Sets a string field of a table ignoring its metatable, if it exists</summary>
 		public void RawSet(string field, object value)
 		{
-			var L = Owner.luaState;                   StackAssert.Start(L);
+			var L = Owner._L;                         StackAssert.Start(L);
 			push(L);
 			lua.pushstring(L, field);
 			Owner.translator.push(L, value);
@@ -127,7 +127,7 @@ namespace LuaInterface
 		/// <summary>Sets a field of a table ignoring its metatable, if it exists</summary>
 		public void RawSet(object field, object value)
 		{
-			var L = Owner.luaState;                   StackAssert.Start(L);
+			var L = Owner._L;                         StackAssert.Start(L);
 			push(L);
 			Owner.translator.push(L, field);
 			Owner.translator.push(L, value);
@@ -143,7 +143,7 @@ namespace LuaInterface
 		/// <summary>Looks up the field, ignoring metatables, and gets its Lua type.</summary>
 		public LuaType RawFieldType(object field)
 		{
-			var L = Owner.luaState;                   StackAssert.Start(L);
+			var L = Owner._L;                         StackAssert.Start(L);
 			push(L);
 			Owner.translator.push(L, field);
 			lua.rawget(L,-2);
@@ -166,7 +166,7 @@ namespace LuaInterface
 		/// </remarks>
 		public void ForEach(Action<object, object> body)
 		{
-			var L = Owner.luaState; var translator = Owner.translator;
+			var L = Owner._L; var translator = Owner.translator;
 			int oldTop = lua.gettop(L);
 			push(L);
 			try
@@ -188,7 +188,7 @@ namespace LuaInterface
 		/// <param name="body">The first parameter is a key and the second is a value.</param>
 		public void ForEachI(Action<int, object> body)
 		{
-			var L = Owner.luaState; var translator = Owner.translator;
+			var L = Owner._L; var translator = Owner.translator;
 			int oldTop = lua.gettop(L);
 			push(L);
 			try
@@ -209,7 +209,7 @@ namespace LuaInterface
 		/// <param name="body">The first parameter is a key and the second is a value.</param>
 		public void ForEachS(Action<string, object> body)
 		{
-			var L = Owner.luaState; var translator = Owner.translator;
+			var L = Owner._L; var translator = Owner.translator;
 			int oldTop = lua.gettop(L);
 			push(L);
 			try
@@ -420,8 +420,8 @@ namespace LuaInterface
 		#region Implementation
 
 		/// <summary>[-1, +0, e] Pops a table from the top of the stack and creates a new reference. The value is discarded if a type exception is thrown.</summary>
-		public LuaTable(IntPtr luaState, Lua interpreter)
-		: base(TryRef(luaState, interpreter, LuaType.Table), interpreter)
+		public LuaTable(lua.State L, Lua interpreter)
+		: base(TryRef(L, interpreter, LuaType.Table), interpreter)
 		{
 		}
 
@@ -442,11 +442,11 @@ namespace LuaInterface
 				return obj;
 		}
 
-		protected internal override void push(IntPtr luaState)
+		protected internal override void push(lua.State L)
 		{
-			Debug.Assert(luaState == Owner.luaState);
-			luaL.getref(Owner.luaState, Reference);
-			CheckType(Owner.luaState, LuaType.Table);
+			Debug.Assert(L == Owner._L);
+			luaL.getref(Owner._L, Reference);
+			CheckType(Owner._L, LuaType.Table);
 		}
 
 		#endregion

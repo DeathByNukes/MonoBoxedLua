@@ -16,7 +16,7 @@ namespace LuaInterface
 	/// </remarks>
 	public class Lua : IDisposable
 	{
-		internal IntPtr luaState;
+		internal lua.State _L;
 		internal ObjectTranslator translator;
 
 		// lockCallback, unlockCallback; used by debug code commented out for now
@@ -26,8 +26,8 @@ namespace LuaInterface
 		/// <param name="allowDebug">Specify true to keep LuaInterface from removing debug functions.</param>
 		public Lua(bool allowDebug)
 		{
-			IntPtr L = luaL.newstate();
-			if (L == IntPtr.Zero)
+			var L = luaL.newstate();
+			if (L.IsNull)
 				throw new OutOfMemoryException("Failed to allocate a new Lua state.");
 
 			// Load libraries
@@ -50,45 +50,43 @@ namespace LuaInterface
 		private readonly bool _StatePassed;
 
 		/// <summary>Wrap around an existing lua_State. CAUTION: Multiple LuaInterface.Lua instances can't share the same lua state.</summary>
-		public Lua( Int64 luaState ) : this(new IntPtr(luaState)) { }
-		/// <summary>Wrap around an existing lua_State. CAUTION: Multiple LuaInterface.Lua instances can't share the same lua state.</summary>
-		public Lua( IntPtr luaState )
+		public Lua(lua.State L)
 		{
-			if (luaState == IntPtr.Zero) throw new ArgumentNullException("luaState");
+			if (L.IsNull) throw new ArgumentNullException("L");
 
 			 // Check for existing LuaInterface marker
-			lua.pushstring(luaState, _LuaInterfaceMarker);
-			lua.rawget(luaState, LUA.REGISTRYINDEX);
-			if(luanet.popboolean(luaState))
+			lua.pushstring(L, _LuaInterfaceMarker);
+			lua.rawget(L, LUA.REGISTRYINDEX);
+			if(luanet.popboolean(L))
 				throw new LuaException("There is already a LuaInterface.Lua instance associated with this Lua state");
 
-			lua.pushvalue(luaState, LUA.GLOBALSINDEX); // todo: why is this here?
+			lua.pushvalue(L, LUA.GLOBALSINDEX); // todo: why is this here?
 
 			_StatePassed = true;
-			Init(luaState);
+			Init(L);
 		}
 
-		void Init(IntPtr luaState)
+		void Init(lua.State L)
 		{
-			this.luaState = luaState;
+			_L = L;
 
 			// Add LuaInterface marker
-			lua.pushstring(luaState, _LuaInterfaceMarker);
-			lua.pushboolean(luaState, true);
-			lua.rawset(luaState, LUA.REGISTRYINDEX);
+			lua.pushstring(L, _LuaInterfaceMarker);
+			lua.pushboolean(L, true);
+			lua.rawset(L, LUA.REGISTRYINDEX);
 
 			translator = new ObjectTranslator(this);
 
-			lua.getglobal(luaState, "tostring");
-			tostring_ref = luaL.@ref(luaState);
+			lua.getglobal(L, "tostring");
+			tostring_ref = luaL.@ref(L);
 		}
 		internal int tostring_ref { get; private set; }
 
 		// We need to keep this in a managed reference so the delegate doesn't get garbage collected
-		static readonly LuaFunctionCallback panicCallback = luaState =>
+		static readonly LuaFunctionCallback panicCallback = L =>
 		{
-			// string desc = lua.tostring(luaState, 1);
-			string reason = String.Format("unprotected error in call to Lua API ({0})", lua.tostring(luaState, -1));
+			// string desc = lua.tostring(L, 1);
+			string reason = String.Format("unprotected error in call to Lua API ({0})", lua.tostring(L, -1));
 
 		   //        lua_tostring(L, -1);
 
@@ -103,8 +101,8 @@ namespace LuaInterface
 		/// <exception cref="LuaScriptException">Thrown if the script caused an exception</exception>
 		internal LuaScriptException ExceptionFromError(int oldTop)
 		{
-			object err = translator.getObject(luaState, -1);
-			lua.settop(luaState, oldTop);
+			object err = translator.getObject(_L, -1);
+			lua.settop(_L, oldTop);
 
 			// A pre-wrapped exception - just rethrow it (stack trace of InnerException will be preserved)
 			var luaEx = err as LuaScriptException;
@@ -128,8 +126,8 @@ namespace LuaInterface
 
 			if (caughtExcept != null)
 			{
-				translator.throwError(luaState, caughtExcept);
-				lua.pushnil(luaState);
+				translator.throwError(_L, caughtExcept);
+				lua.pushnil(_L);
 
 				return 1;
 			}
@@ -150,18 +148,18 @@ namespace LuaInterface
 		/// <summary>Loads a Lua chunk from a string.</summary>
 		public LuaFunction LoadString(string chunk, string name)
 		{
-			int oldTop = lua.gettop(luaState);
+			int oldTop = lua.gettop(_L);
 
 			++_executing;
 			try
 			{
-				if (luaL.loadbuffer(luaState, chunk, name) != LuaStatus.Ok)
+				if (luaL.loadbuffer(_L, chunk, name) != LuaStatus.Ok)
 					throw ExceptionFromError(oldTop);
 			}
 			finally { checked { --_executing; } }
 
-			LuaFunction result = translator.getFunction(luaState, -1);
-			translator.popValues(luaState, oldTop);
+			LuaFunction result = translator.getFunction(_L, -1);
+			translator.popValues(_L, oldTop);
 
 			return result;
 		}
@@ -169,12 +167,12 @@ namespace LuaInterface
 		/// <summary>Loads a Lua chunk from a file. If <paramref name="fileName"/> is null, the chunk will be loaded from standard input.</summary>
 		public LuaFunction LoadFile(string fileName)
 		{
-			int oldTop = lua.gettop(luaState);
-			if (luaL.loadfile(luaState, fileName) != LuaStatus.Ok)
+			int oldTop = lua.gettop(_L);
+			if (luaL.loadfile(_L, fileName) != LuaStatus.Ok)
 				throw ExceptionFromError(oldTop);
 
-			LuaFunction result = translator.getFunction(luaState, -1);
-			lua.settop(luaState, oldTop);
+			LuaFunction result = translator.getFunction(_L, -1);
+			lua.settop(_L, oldTop);
 
 			return result;
 		}
@@ -192,16 +190,16 @@ namespace LuaInterface
 		/// <returns>all the chunk's return values in an array.</returns>
 		public object[] DoString(string chunk, string chunkName)
 		{
-			int oldTop = lua.gettop(luaState);
+			int oldTop = lua.gettop(_L);
 			++_executing;
 			try
 			{
-				var status = luaL.loadbuffer(luaState, chunk, chunkName);
+				var status = luaL.loadbuffer(_L, chunk, chunkName);
 				if (status == LuaStatus.Ok)
 				{
-					status = lua.pcall(luaState, 0, LUA.MULTRET, 0);
+					status = lua.pcall(_L, 0, LUA.MULTRET, 0);
 					if (status == LuaStatus.Ok)
-						return translator.popValues(luaState, oldTop);
+						return translator.popValues(_L, oldTop);
 				}
 				throw ExceptionFromError(oldTop);
 			}
@@ -226,38 +224,38 @@ namespace LuaInterface
 			return LoadString(chunk, "@"+fileName);
 		}
 
-		static readonly LuaCSFunction tracebackFunction = luaState =>
+		static readonly LuaCSFunction tracebackFunction = L =>
 		{
 			// hahaha why
-			lua.getglobal(luaState,"debug");
-			lua.getfield(luaState,-1,"traceback");
-			lua.pushvalue(luaState,1);
-			lua.pushnumber(luaState,2);
-			lua.call (luaState,2,1);
+			lua.getglobal(L,"debug");
+			lua.getfield(L,-1,"traceback");
+			lua.pushvalue(L,1);
+			lua.pushnumber(L,2);
+			lua.call (L,2,1);
 			return 1;
 		};
 
 		/// <summary>Excutes a Lua file and returns all the chunk's return values in an array</summary>
 		public object[] DoFile(string fileName)
 		{
-			luanet.pushstdcallcfunction(luaState,tracebackFunction);
-			int oldTop=lua.gettop(luaState);
+			luanet.pushstdcallcfunction(_L,tracebackFunction);
+			int oldTop=lua.gettop(_L);
 			++_executing;
 			try
 			{
-				var status = luaL.loadfile(luaState,fileName);
+				var status = luaL.loadfile(_L,fileName);
 				if (status == LuaStatus.Ok)
 				{
-					status = lua.pcall(luaState, 0, LUA.MULTRET, -2);
+					status = lua.pcall(_L, 0, LUA.MULTRET, -2);
 					if (status == LuaStatus.Ok)
-						return translator.popValues(luaState, oldTop);
+						return translator.popValues(_L, oldTop);
 				}
 				throw ExceptionFromError(oldTop);
 			}
 			finally
 			{
 				checked { --_executing; }
-				lua.settop(luaState, oldTop - 1);
+				lua.settop(_L, oldTop - 1);
 			}
 		}
 
@@ -266,7 +264,7 @@ namespace LuaInterface
 
 		public void CollectGarbage()
 		{
-			lua.gc(luaState, LuaGC.Collect, 0);
+			lua.gc(_L, LuaGC.Collect, 0);
 		}
 
 		#region Global Variables
@@ -404,15 +402,15 @@ namespace LuaInterface
 		#endregion
 
 		/// <summary>Gets a reference to the global table.</summary>
-		public LuaTable GetGlobals()  { return translator.getTable(luaState, LUA.GLOBALSINDEX); }
+		public LuaTable GetGlobals()  { return translator.getTable(_L, LUA.GLOBALSINDEX); }
 
 		/// <summary>Gets a reference to the registry table. (LUA_REGISTRYINDEX)</summary>
-		public LuaTable GetRegistry() { return translator.getTable(luaState, LUA.REGISTRYINDEX); }
+		public LuaTable GetRegistry() { return translator.getTable(_L, LUA.REGISTRYINDEX); }
 
 		/// <summary>Gets a numeric global variable</summary>
 		public double GetNumber(string fullPath)
 		{
-			var L = luaState;                   StackAssert.Start(L);
+			var L = _L;                         StackAssert.Start(L);
 			luanet.getnestedfield(L, LUA.GLOBALSINDEX, fullPath);
 			CheckType(L, fullPath, LuaType.Number);
 			var ret = lua.tonumber(L,-1);
@@ -422,7 +420,7 @@ namespace LuaInterface
 		/// <summary>Gets a string global variable</summary>
 		public string GetString(string fullPath)
 		{
-			var L = luaState;                   StackAssert.Start(L);
+			var L = _L;                         StackAssert.Start(L);
 			luanet.getnestedfield(L, LUA.GLOBALSINDEX, fullPath);
 			CheckType(L, fullPath, LuaType.String);
 			var ret = lua.tostring(L,-1);
@@ -432,7 +430,7 @@ namespace LuaInterface
 		/// <summary>Gets a table global variable</summary>
 		public LuaTable GetTable(string fullPath)
 		{
-			var L = luaState;
+			var L = _L;
 			luanet.getnestedfield(L, LUA.GLOBALSINDEX, fullPath);
 			var type = lua.type(L,-1);
 			if (type == LuaType.Nil)
@@ -453,7 +451,7 @@ namespace LuaInterface
 		/// <summary>Gets a function global variable</summary>
 		public LuaFunction GetFunction(string fullPath)
 		{
-			var L = luaState;                   StackAssert.Start(L);
+			var L = _L;                         StackAssert.Start(L);
 			luanet.getnestedfield(L, LUA.GLOBALSINDEX, fullPath);
 			switch (lua.type(L,-1))
 			{
@@ -477,7 +475,7 @@ namespace LuaInterface
 		public Delegate GetFunction(Type delegateType,string fullPath)
 		{
 #if __NOGEN__
-			translator.throwError(luaState,"function delegates not implemented");
+			translator.throwError(L,"function delegates not implemented");
 			return null;
 #else
 			return CodeGeneration.Instance.GetDelegate(delegateType, this.GetFunction(fullPath));
@@ -486,12 +484,12 @@ namespace LuaInterface
 
 
 		/// <summary>[-(0|1), +0, v]</summary>
-		static void CheckType(IntPtr L, string fullPath, LuaType type)
+		static void CheckType(lua.State L, string fullPath, LuaType type)
 		{
 			CheckType(L, fullPath, lua.type(L,-1), type);
 		}
 		/// <summary>[-(0|1), +0, v]</summary>
-		static void CheckType(IntPtr L, string fullPath, LuaType actual_type, LuaType type)
+		static void CheckType(lua.State L, string fullPath, LuaType actual_type, LuaType type)
 		{
 			// the old behavior didn't support conversions and threw InvalidCastException
 			if (actual_type == type) return;
@@ -514,7 +512,7 @@ namespace LuaInterface
 		/// <summary>[-0, +0, e] Navigates a table in the top of the stack, returning the value of the specified field</summary>
 		internal object getNestedObject(int index, IEnumerable<string> fields)
 		{
-			var L = luaState;                   StackAssert.Start(L);
+			var L = _L;                         StackAssert.Start(L);
 			luanet.getnestedfield(L, index, fields);
 			var ret = translator.getObject(L,-1);
 			lua.pop(L,1);                       StackAssert.End();
@@ -529,7 +527,7 @@ namespace LuaInterface
 		/// <summary>[-0, +0, e] Navigates a table to set the value of one of its fields</summary>
 		internal void setNestedObject(int index, IEnumerable<string> pathWithoutField, string field, object val)
 		{
-			var L = luaState;                   StackAssert.Start(L);
+			var L = _L;                         StackAssert.Start(L);
 			luanet.getnestedfield(L, index, pathWithoutField);
 			translator.push(L,val);
 			lua.setfield(L, -2, field);
@@ -547,7 +545,7 @@ namespace LuaInterface
 		/// </summary>
 		public void NewTable(string fullPath, int narr, int nrec)
 		{
-			var L = luaState;                   StackAssert.Start(L);
+			var L = _L;                         StackAssert.Start(L);
 			string[] path = fullPath.Split('.');
 			luanet.getnestedfield(L, LUA.GLOBALSINDEX, path.Take(path.Length-1));
 			lua.createtable(L, narr, nrec);
@@ -567,7 +565,7 @@ namespace LuaInterface
 		/// </summary>
 		public LuaTable NewTable(int narr, int nrec)
 		{
-			var L = luaState;
+			var L = _L;
 			lua.createtable(L, narr, nrec);
 			return new LuaTable(L, this) {IsOrphaned = true};
 		}
@@ -581,7 +579,7 @@ namespace LuaInterface
 		/// <param name="metatable">A metatable to assign to the userdata, or null.</param>
 		public LuaUserData NewUserData(UIntPtr size, LuaTable metatable)
 		{
-			var L = luaState;
+			var L = _L;
 			var oldTop = lua.gettop(L);
 			try
 			{
@@ -621,7 +619,7 @@ namespace LuaInterface
 		{
 			LuaCSFunction func = L =>
 			{
-				Debug.Assert(L == this.luaState);
+				Debug.Assert(L == _L);
 
 				// direct copy-paste of Lua's luaB_print function
 
@@ -673,10 +671,10 @@ namespace LuaInterface
 				translator = null;
 			}
 
-			if (!this._StatePassed && this.luaState != IntPtr.Zero)
-				lua.close(this.luaState);
+			if (!this._StatePassed && !_L.IsNull)
+				lua.close(_L);
 
-			this.luaState = IntPtr.Zero;
+			_L = lua.State.Null;
 			// setting this to zero is important. LuaBase checks for this before disposing a reference.
 			// this way, it's possible to safely dispose/finalize Lua before disposing/finalizing LuaBase objects.
 			// also, it makes use after disposal slightly less dangerous (BUT NOT COMPLETELY)

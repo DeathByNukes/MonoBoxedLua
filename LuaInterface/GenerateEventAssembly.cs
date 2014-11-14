@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Reflection;
 using System.Reflection.Emit;
 using System.Threading;
+using LuaInterface.LuaAPI;
 
 namespace LuaInterface
 {
@@ -35,10 +36,10 @@ namespace LuaInterface
 			this.translator=translator;
 			this.delegateType=delegateType;
 		}
-		public object extractGenerated(IntPtr luaState,int index)
+		public object extractGenerated(lua.State L,int index)
 		{
-			Debug.Assert(luaState == translator.interpreter.luaState);
-			return CodeGeneration.Instance.GetDelegate(delegateType,translator.getFunction(luaState,index));
+			Debug.Assert(L == translator.interpreter._L);
+			return CodeGeneration.Instance.GetDelegate(delegateType,translator.getFunction(L,index));
 		}
 	}
 
@@ -57,10 +58,10 @@ namespace LuaInterface
 			this.translator=translator;
 			this.klass=klass;
 		}
-		public object extractGenerated(IntPtr luaState,int index)
+		public object extractGenerated(lua.State L,int index)
 		{
-			Debug.Assert(luaState == translator.interpreter.luaState);
-			return CodeGeneration.Instance.GetClassInstance(klass,translator.getTable(luaState,index));
+			Debug.Assert(L == translator.interpreter._L);
+			return CodeGeneration.Instance.GetClassInstance(klass,translator.getTable(L,index));
 		}
 	}
 

@@ -54,7 +54,7 @@ namespace LuaInterface
 	}
 
 	/// <summary>Argument extraction with type-conversion function</summary>
-	delegate object ExtractValue(IntPtr luaState, int index);
+	delegate object ExtractValue(lua.State L, int index);
 
 	/// <summary>Wrapper class for methods/constructors accessed from Lua.</summary>
 	/// <remarks>
@@ -116,15 +116,15 @@ namespace LuaInterface
 
 
 		/// <summary>Calls the method. Receives the arguments from the Lua stack and returns values in it.</summary>
-		public int call(IntPtr luaState)
+		public int call(lua.State L)
 		{
-			Debug.Assert(luaState == _Translator.interpreter.luaState);
+			Debug.Assert(L == _Translator.interpreter._L);
 			MethodBase methodToCall = _Method;
 			object targetObject = _Target;
 			bool failedCall = true;
 			int nReturnValues = 0;
 
-			if (!lua.checkstack(luaState, 5))
+			if (!lua.checkstack(L, 5))
 				throw new LuaException("Lua stack overflow");
 
 			bool isStatic = (_BindingType & BindingFlags.Static) == BindingFlags.Static;
@@ -136,18 +136,18 @@ namespace LuaInterface
 				if (isStatic)
 					targetObject = null;
 				else
-					targetObject = _ExtractTarget(luaState, 1);
+					targetObject = _ExtractTarget(L, 1);
 
-				//lua.remove(luaState,1); // Pops the receiver
+				//lua.remove(L,1); // Pops the receiver
 				if (_LastCalledMethod.cachedMethod != null) // Cached?
 				{
 					int numStackToSkip = isStatic ? 0 : 1; // If this is an instance invoe we will have an extra arg on the stack for the targetObject
-					int numArgsPassed = lua.gettop(luaState) - numStackToSkip;
+					int numArgsPassed = lua.gettop(L) - numStackToSkip;
 					MethodBase method = _LastCalledMethod.cachedMethod;
 
 					if (numArgsPassed == _LastCalledMethod.argTypes.Length) // No. of args match?
 					{
-						if (!lua.checkstack(luaState, _LastCalledMethod.outList.Length + 6))
+						if (!lua.checkstack(L, _LastCalledMethod.outList.Length + 6))
 							throw new LuaException("Lua stack overflow");
 
 						object[] args = _LastCalledMethod.args;
@@ -157,7 +157,7 @@ namespace LuaInterface
 							for (int i = 0; i < _LastCalledMethod.argTypes.Length; i++)
 							{
 								MethodArgs type = _LastCalledMethod.argTypes[i];
-								object luaParamValue = type.extractValue(luaState, i + 1 + numStackToSkip);
+								object luaParamValue = type.extractValue(L, i + 1 + numStackToSkip);
 								if (_LastCalledMethod.argTypes[i].isParamsArray)
 								{
 									args[type.index] = _Translator.tableToArray(luaParamValue,type.paramsArrayType);
@@ -168,21 +168,21 @@ namespace LuaInterface
 								}
 
 								if (args[type.index] == null &&
-									!lua.isnil(luaState, i + 1 + numStackToSkip))
+									!lua.isnil(L, i + 1 + numStackToSkip))
 								{
 									throw new LuaException("argument number " + (i + 1) + " is invalid");
 								}
 							}
 							if ((_BindingType & BindingFlags.Static) == BindingFlags.Static)
 							{
-								_Translator.push(luaState, method.Invoke(null, args));
+								_Translator.push(L, method.Invoke(null, args));
 							}
 							else
 							{
 								if (_LastCalledMethod.cachedMethod.IsConstructor)
-									_Translator.push(luaState, ((ConstructorInfo)method).Invoke(args));
+									_Translator.push(L, ((ConstructorInfo)method).Invoke(args));
 								else
-									_Translator.push(luaState, method.Invoke(targetObject,args));
+									_Translator.push(L, method.Invoke(targetObject,args));
 							}
 							failedCall = false;
 						}
@@ -210,12 +210,12 @@ namespace LuaInterface
 					{
 						if (targetObject == null)
 						{
-							_Translator.throwError(luaState, String.Format("instance method '{0}' requires a non null target object", _MethodName));
-							lua.pushnil(luaState);
+							_Translator.throwError(L, String.Format("instance method '{0}' requires a non null target object", _MethodName));
+							lua.pushnil(L);
 							return 1;
 						}
 
-						lua.remove(luaState, 1); // Pops the receiver
+						lua.remove(L, 1); // Pops the receiver
 					}
 
 					bool hasMatch = false;
@@ -227,7 +227,7 @@ namespace LuaInterface
 
 						MethodBase m = (MethodInfo)member;
 
-						bool isMethod = _Translator.matchParameters(luaState, m, ref _LastCalledMethod);
+						bool isMethod = _Translator.matchParameters(L, m, ref _LastCalledMethod);
 						if (isMethod)
 						{
 							hasMatch = true;
@@ -240,8 +240,8 @@ namespace LuaInterface
 							? "invalid arguments to method call"
 							: ("invalid arguments to method: " + candidateName);
 
-						_Translator.throwError(luaState, msg);
-						lua.pushnil(luaState);
+						_Translator.throwError(L, msg);
+						lua.pushnil(L);
 						return 1;
 					}
 				}
@@ -251,7 +251,7 @@ namespace LuaInterface
 				if (methodToCall.ContainsGenericParameters)
 				{
 					// bool isMethod = //* not used
-					_Translator.matchParameters(luaState, methodToCall, ref _LastCalledMethod);
+					_Translator.matchParameters(L, methodToCall, ref _LastCalledMethod);
 
 					if (methodToCall.IsGenericMethodDefinition)
 					{
@@ -263,13 +263,13 @@ namespace LuaInterface
 
 						MethodInfo concreteMethod = (methodToCall as MethodInfo).MakeGenericMethod(typeArgs.ToArray());
 
-						_Translator.push(luaState, concreteMethod.Invoke(targetObject, _LastCalledMethod.args));
+						_Translator.push(L, concreteMethod.Invoke(targetObject, _LastCalledMethod.args));
 						failedCall = false;
 					}
 					else if (methodToCall.ContainsGenericParameters)
 					{
-						_Translator.throwError(luaState, "unable to invoke method on generic class as the current method is an open generic method");
-						lua.pushnil(luaState);
+						_Translator.throwError(L, "unable to invoke method on generic class as the current method is an open generic method");
+						lua.pushnil(L);
 						return 1;
 					}
 				}
@@ -277,14 +277,14 @@ namespace LuaInterface
 				{
 					if (!methodToCall.IsStatic && !methodToCall.IsConstructor && targetObject == null)
 					{
-						targetObject = _ExtractTarget(luaState, 1);
-						lua.remove(luaState, 1); // Pops the receiver
+						targetObject = _ExtractTarget(L, 1);
+						lua.remove(L, 1); // Pops the receiver
 					}
 
-					if (!_Translator.matchParameters(luaState, methodToCall, ref _LastCalledMethod))
+					if (!_Translator.matchParameters(L, methodToCall, ref _LastCalledMethod))
 					{
-						_Translator.throwError(luaState, "invalid arguments to method call");
-						lua.pushnil(luaState);
+						_Translator.throwError(L, "invalid arguments to method call");
+						lua.pushnil(L);
 						return 1;
 					}
 				}
@@ -292,22 +292,22 @@ namespace LuaInterface
 
 			if (failedCall)
 			{
-				if (!lua.checkstack(luaState, _LastCalledMethod.outList.Length + 6))
+				if (!lua.checkstack(L, _LastCalledMethod.outList.Length + 6))
 					throw new LuaException("Lua stack overflow");
 				try
 				{
 					if (isStatic)
 					{
-						_Translator.push(luaState, _LastCalledMethod.cachedMethod.Invoke(null, _LastCalledMethod.args));
+						_Translator.push(L, _LastCalledMethod.cachedMethod.Invoke(null, _LastCalledMethod.args));
 					}
 					else
 					{
 						if (_LastCalledMethod.cachedMethod.IsConstructor)
-							_Translator.push(luaState, ((ConstructorInfo)_LastCalledMethod.cachedMethod).Invoke(_LastCalledMethod.args));
+							_Translator.push(L, ((ConstructorInfo)_LastCalledMethod.cachedMethod).Invoke(_LastCalledMethod.args));
 						else
 						{
 							object returnValue = _LastCalledMethod.cachedMethod.Invoke( targetObject, _LastCalledMethod.args );
-							_Translator.push(luaState, returnValue);
+							_Translator.push(L, returnValue);
 
 							var returnTable = returnValue as LuaTable;
 							if (returnTable != null && returnTable.IsOrphaned) returnTable.Dispose();
@@ -330,7 +330,7 @@ namespace LuaInterface
 				nReturnValues++;
 
 				object outArg = _LastCalledMethod.args[_LastCalledMethod.outList[index]];
-				_Translator.push(luaState, outArg);
+				_Translator.push(L, outArg);
 
 				var outTable = outArg as LuaTable;
 				if (outTable != null && outTable.IsOrphaned) outTable.Dispose();
@@ -409,7 +409,7 @@ namespace LuaInterface
 		public Delegate Add(LuaFunction function)
 		{
 #if __NOGEN__
-			//translator.throwError(luaState,"Delegates not implemented");
+			//translator.throwError(L,"Delegates not implemented");
 			return null;
 #else
 			//CP: Fix by Ben Bryant for event handling with one parameter
