@@ -196,9 +196,9 @@ namespace LuaInterfaceTest
 			{
 				lua["callback"] = new Action(delegate
 				{
-					var L = LuaDLL.luanet_getstate(lua);
-					LuaDLL.lua_pushstring(L, "success");
-					LuaDLL.lua_error(L);
+					var L = LuaInterface.LuaAPI.luanet.getstate(lua);
+					LuaInterface.LuaAPI.lua.pushstring(L, "success");
+					LuaInterface.LuaAPI.lua.error(L);
 				});
 				CheckPCall("success", pcall.Call());
 			}
