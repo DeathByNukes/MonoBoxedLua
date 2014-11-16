@@ -83,7 +83,7 @@ namespace LuaInterface
 		internal int tostring_ref { get; private set; }
 
 		// We need to keep this in a managed reference so the delegate doesn't get garbage collected
-		static readonly LuaFunctionCallback panicCallback = L =>
+		static readonly lua.CFunction panicCallback = L =>
 		{
 			// string desc = lua.tostring(L, 1);
 			string reason = String.Format("unprotected error in call to Lua API ({0})", lua.tostring(L, -1));
@@ -224,7 +224,7 @@ namespace LuaInterface
 			return LoadString(chunk, "@"+fileName);
 		}
 
-		static readonly LuaCSFunction tracebackFunction = L =>
+		static readonly lua.CFunction tracebackFunction = L =>
 		{
 			// hahaha why
 			lua.getglobal(L,"debug");
@@ -238,7 +238,7 @@ namespace LuaInterface
 		/// <summary>Excutes a Lua file and returns all the chunk's return values in an array</summary>
 		public object[] DoFile(string fileName)
 		{
-			luanet.pushstdcallcfunction(_L,tracebackFunction);
+			lua.pushcfunction(_L,tracebackFunction);
 			int oldTop=lua.gettop(_L);
 			++_executing;
 			try
@@ -330,7 +330,7 @@ namespace LuaInterface
 		private void registerGlobal(string path, Type type, int recursionCounter)
 		{
 			// If the type is a global method, list it directly
-			if (type == typeof(LuaCSFunction))
+			if (type == typeof(lua.CFunction))
 			{
 				// Format for easy method invocation
 				globals.Add(path + "(");
@@ -459,7 +459,7 @@ namespace LuaInterface
 				return new LuaFunction(L, this);
 
 			case LuaType.Userdata:
-				var o = translator.getNetObject(L, -1) as LuaCSFunction;
+				var o = translator.getNetObject(L, -1) as lua.CFunction;
 				if (o == null) break;
 				lua.pop(L,1);                       StackAssert.End();
 				return new LuaFunction(o, this);
@@ -605,7 +605,7 @@ namespace LuaInterface
 		/// <summary>Registers an object's method as a Lua function (global or table field) The method may have any signature</summary>
 		public LuaFunction RegisterFunction(string path, object target, MethodBase function)
 		{
-			var wrapper = new LuaCSFunction(new LuaMethodWrapper(translator,target,function.DeclaringType,function).call);
+			var wrapper = new lua.CFunction(new LuaMethodWrapper(translator,target,function.DeclaringType,function).call);
 			if (path != null) this[path] = wrapper;
 			return new LuaFunction(wrapper, this);
 		}
@@ -617,7 +617,7 @@ namespace LuaInterface
 		/// <param name="callback">The function to call when the print function is called. It is passed the Lua instance that called it and an array of strings corresponding to the print function's arguments.</param>
 		public LuaFunction NewPrintFunction(Action<Lua, string[]> callback)
 		{
-			LuaCSFunction func = L =>
+			lua.CFunction func = L =>
 			{
 				Debug.Assert(L == _L);
 

@@ -65,18 +65,16 @@ namespace LuaInterface.LuaAPI
 		const MethodImplOptions INLINE = (MethodImplOptions) 0x0100;
 
 
+		/// <summary>Delegate for methods passed to Lua as function pointers.</summary>
+		[UnmanagedFunctionPointer(CC)] public delegate int CFunction(lua.State L);
+
+
 		#region state manipulation
-	} // lua
 
-	/// <summary>Used to handle Lua panics</summary>
-	public delegate int LuaFunctionCallback(lua.State L);
-
-	public static unsafe partial class lua
-	{
 		/// <summary>[-∞, +0, -] Destroys all objects in the given Lua state (calling the corresponding garbage-collection metamethods, if any) and frees all dynamic memory used by this state.</summary>
 		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_close"  )] public static extern void close  (lua.State L);
 		/// <summary>[-0, +0, -] Sets a new panic function and returns the old one. If an error happens outside any protected environment, Lua calls a panic function and then calls exit(EXIT_FAILURE), thus exiting the host application. Your panic function can avoid this exit by never returning (e.g., throwing an exception). The panic function can access the error message at the top of the stack.</summary>
-		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_atpanic")] public static extern void atpanic(lua.State L, LuaFunctionCallback panicf);
+		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_atpanic")] public static extern void atpanic(lua.State L, lua.CFunction panicf);
 		// omitted:
 		//   lua_newstate  (use luaL.newstate)
 		//   lua_newthread (no threads)
@@ -190,16 +188,19 @@ namespace LuaInterface.LuaAPI
 		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_pushnumber"       )] public static extern void pushnumber       (lua.State L, double n);
 		/// <summary>[-0, +1, m] Pushes the string pointed to by s with size len onto the stack. Lua makes (or reuses) an internal copy of the given string, so the memory at s can be freed or reused immediately after the function returns. The string can contain embedded zeros.</summary>
 		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_pushlstring"      )] public static extern void pushlstring      (lua.State L, IntPtr s, size_t len);
+		/// <summary>[-n, +1, m] Pushes a new C closure onto the stack.</summary>
+		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_pushcclosure"     )] public static extern void pushcclosure     (lua.State L, lua.CFunction fn, int n);
 		/// <summary>[-0, +1, -] Pushes a boolean value with value b onto the stack.</summary>
 		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_pushboolean"      )] public static extern void pushboolean      (lua.State L, bool b);
 		/// <summary>[-0, +1, -] Pushes a light userdata (IntPtr) onto the stack.</summary>
 		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_pushlightuserdata")] public static extern void pushlightuserdata(lua.State L, IntPtr p);
+		/// <summary>[-0, +1, m] Pushes a C function onto the stack. This function receives a pointer to a C function and pushes onto the stack a Lua value of type function that, when called, invokes the corresponding C function.</summary>
+		[MethodImpl(INLINE)] public static void pushcfunction(lua.State L, lua.CFunction f) { lua.pushcclosure(L, f, 0); }
+		/// <summary>[-0, +0, e] Sets the C function f as the new value of global name.</summary>
+		[MethodImpl(INLINE)] public static void register(lua.State L, string name, lua.CFunction f) { lua.pushcclosure(L, f, 0); lua.setfield(L, LUA.GLOBALSINDEX, name); }
 		// omitted:
 		//   lua_pushvfstring  (use lua.pushstring)
 		//   lua_pushfstring   (use lua.pushstring)
-		//   lua_pushcclosure  (no C functions/pointers)
-		//   lua_pushcfunction (no C functions/pointers)
-		//   lua_register      (no C functions/pointers)
 		//   lua_pushthread    (no threads)
 
 		// /// <summary>[-0, +1, m] Pushes the zero-terminated string s onto the stack.</summary>
@@ -288,16 +289,19 @@ namespace LuaInterface.LuaAPI
 	public static unsafe partial class lua
 	{
 		/// <summary>The reader function used by <see cref="lua.load"/>. Every time it needs another piece of the chunk, <see cref="lua.load"/> calls the reader, passing along its data parameter. The reader must return a pointer to a block of memory with a new piece of the chunk and set size to the block size. The block must exist until the reader function is called again. To signal the end of the chunk, the reader must return NULL or set size to zero. The reader function may return pieces of any size greater than zero.</summary>
-		public delegate byte* Reader(lua.State L, void* data, out size_t size);
+		[UnmanagedFunctionPointer(CC)] public delegate byte* Reader(lua.State L, void* data, out size_t size);
 
 		/// <summary>[-(nargs + 1), +nresults, e] Calls a function.</summary>
-		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_call" )] public static extern void      call (lua.State L, int nargs, int nresults);
+		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_call"  )] public static extern void      call  (lua.State L, int nargs, int nresults);
 		/// <summary>[-(nargs + 1), +(nresults|1), -] Calls a function in protected mode. If there is any error, <see cref="lua.pcall"/> catches it, pushes a single value on the stack (the error message), and returns an error code.</summary>
-		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_pcall")] public static extern LuaStatus pcall(lua.State L, int nargs, int nresults, int errfunc);
+		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_pcall" )] public static extern LuaStatus pcall (lua.State L, int nargs, int nresults, int errfunc);
+		/// <summary>[-0, +(0|1), -] Calls the C function <paramref name="func"/> in protected mode. <paramref name="func"/> starts with only one element in its stack, a light userdata containing ud. In case of errors, <see cref="lua.cpcall(lua.State,lua.CFunction,IntPtr)"/> returns the same error codes as <see cref="lua.pcall"/>, plus the error object on the top of the stack; otherwise, it returns <see cref="LuaStatus.Ok"/>, and does not change the stack. All values returned by <paramref name="func"/> are discarded.</summary>
+		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_cpcall")] public static extern LuaStatus cpcall(lua.State L, lua.CFunction func, IntPtr ud);
+		/// <summary>[-0, +(0|1), -] Calls the C function <paramref name="func"/> in protected mode. <paramref name="func"/> starts with only one element in its stack, a light userdata containing ud. In case of errors, <see cref="M:lua.cpcall(lua.State,void*,void*)"/> returns the same error codes as <see cref="lua.pcall"/>, plus the error object on the top of the stack; otherwise, it returns <see cref="LuaStatus.Ok"/>, and does not change the stack. All values returned by <paramref name="func"/> are discarded.</summary>
+		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_cpcall")] public static extern LuaStatus cpcall(lua.State L, void* func, void* ud);
 		/// <summary>[-0, +1, -] Loads a Lua chunk. If there are no errors, <see cref="lua.load"/> pushes the compiled chunk as a Lua function on top of the stack. Otherwise, it pushes an error message.</summary>
-		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_load" )] public static extern LuaStatus load (lua.State L, lua.Reader reader, IntPtr data, string chunkname);
+		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_load"  )] public static extern LuaStatus load  (lua.State L, lua.Reader reader, IntPtr data, string chunkname);
 		// omitted:
-		//   lua_cpcall (no point in calling C functions)
 		//   lua_dump   (would write to unmanaged memory via lua_Writer)
 
 		#endregion

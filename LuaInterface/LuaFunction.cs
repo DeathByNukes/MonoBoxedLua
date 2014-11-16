@@ -6,7 +6,7 @@ namespace LuaInterface
 {
 	public sealed class LuaFunction : LuaBase
 	{
-		internal readonly LuaCSFunction function;
+		internal readonly lua.CFunction function;
 
 		/// <summary>[-1, +0, e] Pops a function from the top of the stack and creates a new reference. The value is discarded if a type exception is thrown.</summary>
 		public LuaFunction(lua.State L, Lua interpreter)
@@ -20,7 +20,7 @@ namespace LuaInterface
 			CheckType(LuaType.Function);
 		}
 
-		public LuaFunction(LuaCSFunction function, Lua interpreter)
+		public LuaFunction(lua.CFunction function, Lua interpreter)
 		: base(LuaRefs.None, interpreter)
 		{
 			this.function = function;

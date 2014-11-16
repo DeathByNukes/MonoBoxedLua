@@ -9,7 +9,7 @@ namespace LuaInterface.LuaAPI
 	using size_t = System.UIntPtr;
 
 	/// <summary>LuaInterface library functions for working with the Lua API.</summary>
-	public static unsafe partial class luanet
+	public static class luanet
 	{
 		const string DLL = "lua51.dll";
 		const CallingConvention CC = CallingConvention.Cdecl;
@@ -69,9 +69,9 @@ namespace LuaInterface.LuaAPI
 		}
 
 		/// <summary>[-0, +1, m] Pushes a delegate onto the stack as a C function. http://www.lua.org/manual/5.1/manual.html#lua_CFunction </summary>
-		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_pushstdcallcfunction")] public static extern void pushstdcallcfunction(lua.State L, [MarshalAs(UnmanagedType.FunctionPtr)]LuaCSFunction function);
-	}
+		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_pushstdcallcfunction")] public static extern void pushstdcallcfunction(lua.State L, luanet.CSFunction function);
 
-	/// <summary>Delegate for functions passed to Lua as function pointers</summary>
-	public delegate int LuaCSFunction(lua.State L);
+		/// <summary>Delegate for functions passed to Lua as function pointers</summary>
+		[UnmanagedFunctionPointer(CallingConvention.StdCall)] public delegate int CSFunction(lua.State L);
+	}
 }

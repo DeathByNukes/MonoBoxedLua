@@ -22,7 +22,7 @@ namespace LuaInterface
 		internal Lua interpreter;
 		private MetaFunctions metaFunctions;
 		private List<Assembly> assemblies;
-		private LuaCSFunction registerTableFunction,unregisterTableFunction,getMethodSigFunction,
+		private lua.CFunction registerTableFunction,unregisterTableFunction,getMethodSigFunction,
 			getConstructorSigFunction,importTypeFunction,loadAssemblyFunction, ctypeFunction, enumFromIntFunction;
 
 		internal EventHandlerContainer pendingEvents = new EventHandlerContainer();
@@ -35,15 +35,15 @@ namespace LuaInterface
 			metaFunctions=new MetaFunctions(this);
 			assemblies=new List<Assembly>();
 
-			importTypeFunction=new LuaCSFunction(this.importType);
-			loadAssemblyFunction=new LuaCSFunction(this.loadAssembly);
-			registerTableFunction=new LuaCSFunction(this.registerTable);
-			unregisterTableFunction=new LuaCSFunction(this.unregisterTable);
-			getMethodSigFunction=new LuaCSFunction(this.getMethodSignature);
-			getConstructorSigFunction=new LuaCSFunction(this.getConstructorSignature);
+			importTypeFunction = this.importType;
+			loadAssemblyFunction = this.loadAssembly;
+			registerTableFunction = this.registerTable;
+			unregisterTableFunction = this.unregisterTable;
+			getMethodSigFunction = this.getMethodSignature;
+			getConstructorSigFunction = this.getConstructorSignature;
 
-			ctypeFunction = new LuaCSFunction(this.ctype);
-			enumFromIntFunction = new LuaCSFunction(this.enumFromInt);
+			ctypeFunction = this.ctype;
+			enumFromIntFunction = this.enumFromInt;
 
 			createLuaObjectList(L);
 			createIndexingMetaFunction(L);
@@ -73,7 +73,7 @@ namespace LuaInterface
 			StackAssert.Start(L);
 			lua.pushstring(L,"luaNet_indexfunction");
 			luaL.dostring(L,MetaFunctions.luaIndexFunction);
-			//luanet.pushstdcallcfunction(L,indexFunction);
+			//lua.pushcfunction(L,indexFunction);
 			lua.rawset(L, LUA.REGISTRYINDEX);
 			StackAssert.End();
 		}
@@ -83,16 +83,16 @@ namespace LuaInterface
 			Debug.Assert(L == interpreter._L); StackAssert.Start(L);
 			luaL.newmetatable(L,"luaNet_searchbase");
 			lua.pushstring(L,"__gc");
-			luanet.pushstdcallcfunction(L,metaFunctions.gcFunction);
+			lua.pushcfunction(L,metaFunctions.gcFunction);
 			lua.settable(L,-3);
 			lua.pushstring(L,"__tostring");
-			luanet.pushstdcallcfunction(L,metaFunctions.toStringFunction);
+			lua.pushcfunction(L,metaFunctions.toStringFunction);
 			lua.settable(L,-3);
 			lua.pushstring(L,"__index");
-			luanet.pushstdcallcfunction(L,metaFunctions.baseIndexFunction);
+			lua.pushcfunction(L,metaFunctions.baseIndexFunction);
 			lua.settable(L,-3);
 			lua.pushstring(L,"__newindex");
-			luanet.pushstdcallcfunction(L,metaFunctions.newindexFunction);
+			lua.pushcfunction(L,metaFunctions.newindexFunction);
 			lua.settable(L,-3);
 			lua.pop(L,1);                      StackAssert.End();
 		}
@@ -102,19 +102,19 @@ namespace LuaInterface
 			Debug.Assert(L == interpreter._L); StackAssert.Start(L);
 			luaL.newmetatable(L,"luaNet_class");
 			lua.pushstring(L,"__gc");
-			luanet.pushstdcallcfunction(L,metaFunctions.gcFunction);
+			lua.pushcfunction(L,metaFunctions.gcFunction);
 			lua.settable(L,-3);
 			lua.pushstring(L,"__tostring");
-			luanet.pushstdcallcfunction(L,metaFunctions.toStringFunction);
+			lua.pushcfunction(L,metaFunctions.toStringFunction);
 			lua.settable(L,-3);
 			lua.pushstring(L,"__index");
-			luanet.pushstdcallcfunction(L,metaFunctions.classIndexFunction);
+			lua.pushcfunction(L,metaFunctions.classIndexFunction);
 			lua.settable(L,-3);
 			lua.pushstring(L,"__newindex");
-			luanet.pushstdcallcfunction(L,metaFunctions.classNewindexFunction);
+			lua.pushcfunction(L,metaFunctions.classNewindexFunction);
 			lua.settable(L,-3);
 			lua.pushstring(L,"__call");
-			luanet.pushstdcallcfunction(L,metaFunctions.callConstructorFunction);
+			lua.pushcfunction(L,metaFunctions.callConstructorFunction);
 			lua.settable(L,-3);
 			lua.pop(L,1);                      StackAssert.End();
 		}
@@ -122,23 +122,23 @@ namespace LuaInterface
 		private void setGlobalFunctions(lua.State L)
 		{
 			Debug.Assert(L == interpreter._L); StackAssert.Start(L);
-			luanet.pushstdcallcfunction(L,metaFunctions.indexFunction);
+			lua.pushcfunction(L,metaFunctions.indexFunction);
 			lua.setglobal(L,"get_object_member");
-			/*luanet.pushstdcallcfunction(L,importTypeFunction);
+			/*lua.pushcfunction(L,importTypeFunction);
 			lua.setglobal(L,"import_type");
-			luanet.pushstdcallcfunction(L,loadAssemblyFunction);
+			lua.pushcfunction(L,loadAssemblyFunction);
 			lua.setglobal(L,"load_assembly");
-			luanet.pushstdcallcfunction(L,registerTableFunction);
+			lua.pushcfunction(L,registerTableFunction);
 			lua.setglobal(L,"make_object");
-			luanet.pushstdcallcfunction(L,unregisterTableFunction);
+			lua.pushcfunction(L,unregisterTableFunction);
 			lua.setglobal(L,"free_object");*/
-			luanet.pushstdcallcfunction(L,getMethodSigFunction);
+			lua.pushcfunction(L,getMethodSigFunction);
 			lua.setglobal(L,"get_method_bysig");
-			luanet.pushstdcallcfunction(L,getConstructorSigFunction);
+			lua.pushcfunction(L,getConstructorSigFunction);
 			lua.setglobal(L,"get_constructor_bysig");
-			luanet.pushstdcallcfunction(L,ctypeFunction);
+			lua.pushcfunction(L,ctypeFunction);
 			lua.setglobal(L,"ctype");
-			luanet.pushstdcallcfunction(L,enumFromIntFunction);
+			lua.pushcfunction(L,enumFromIntFunction);
 			lua.setglobal(L,"enum");           StackAssert.End();
 		}
 
@@ -148,10 +148,10 @@ namespace LuaInterface
 			Debug.Assert(L == interpreter._L); StackAssert.Start(L);
 			luaL.newmetatable(L,"luaNet_function");
 			lua.pushstring(L,"__gc");
-			luanet.pushstdcallcfunction(L,metaFunctions.gcFunction);
+			lua.pushcfunction(L,metaFunctions.gcFunction);
 			lua.settable(L,-3);
 			lua.pushstring(L,"__call");
-			luanet.pushstdcallcfunction(L,metaFunctions.execDelegateFunction);
+			lua.pushcfunction(L,metaFunctions.execDelegateFunction);
 			lua.settable(L,-3);
 			lua.pop(L,1);                      StackAssert.End();
 		}
@@ -366,7 +366,7 @@ namespace LuaInterface
 				//CP: Added ignore case
 				MethodInfo method=klass.GetMethod(methodName,BindingFlags.Public | BindingFlags.Static |
 					BindingFlags.Instance | BindingFlags.FlattenHierarchy | BindingFlags.IgnoreCase, null, signature, null);
-				pushFunction(L,new LuaCSFunction((new LuaMethodWrapper(this,target,klass,method)).call));
+				pushFunction(L,new lua.CFunction((new LuaMethodWrapper(this,target,klass,method)).call));
 			}
 			catch(Exception e)
 			{
@@ -395,7 +395,7 @@ namespace LuaInterface
 			try
 			{
 				ConstructorInfo constructor=klass.UnderlyingSystemType.GetConstructor(signature);
-				pushFunction(L,new LuaCSFunction((new LuaMethodWrapper(this,null,klass,constructor)).call));
+				pushFunction(L,new lua.CFunction((new LuaMethodWrapper(this,null,klass,constructor)).call));
 			}
 			catch(Exception e)
 			{
@@ -473,7 +473,7 @@ namespace LuaInterface
 			pushObject(L,new ProxyType(t),"luaNet_class");
 		}
 		/// <summary>[-0, +1, m] Pushes a delegate into the stack</summary>
-		internal void pushFunction(lua.State L, LuaCSFunction func)
+		internal void pushFunction(lua.State L, lua.CFunction func)
 		{
 			Debug.Assert(L == interpreter._L);
 			pushObject(L,func,"luaNet_function");
@@ -546,15 +546,15 @@ namespace LuaInterface
 				lua.rawset(L,-3);
 
 				lua.pushstring(L,"__gc");
-				luanet.pushstdcallcfunction(L,metaFunctions.gcFunction);
+				lua.pushcfunction(L,metaFunctions.gcFunction);
 				lua.rawset(L,-3);
 
 				lua.pushstring(L,"__tostring");
-				luanet.pushstdcallcfunction(L,metaFunctions.toStringFunction);
+				lua.pushcfunction(L,metaFunctions.toStringFunction);
 				lua.rawset(L,-3);
 
 				lua.pushstring(L,"__newindex");
-				luanet.pushstdcallcfunction(L,metaFunctions.newindexFunction);
+				lua.pushcfunction(L,metaFunctions.newindexFunction);
 				lua.rawset(L,-3);
 			}
 
@@ -791,7 +791,7 @@ namespace LuaInterface
 				if(x!=null) { if (x.Owner != interpreter) throw Lua.NewCrossInterpreterError(x);
 				              x.push(L); return; }  }
 
-			{	var x = o as LuaCSFunction;
+			{	var x = o as lua.CFunction;
 				if(x!=null) { pushFunction(L,x); return; }  }
 
 			pushObject(L,o,"luaNet_metatable");

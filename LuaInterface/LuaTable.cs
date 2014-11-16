@@ -435,7 +435,7 @@ namespace LuaInterface
 		{
 			object obj = this.RawGet(field);
 
-			var f = obj as LuaCSFunction;
+			var f = obj as lua.CFunction;
 			if (f != null)
 				return new LuaFunction(f, Owner);
 			else

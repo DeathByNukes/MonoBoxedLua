@@ -36,29 +36,29 @@ namespace LuaInterface
 
 		private readonly ObjectTranslator translator;
 		private readonly Hashtable memberCache = new Hashtable();
-		internal readonly LuaCSFunction gcFunction, indexFunction, newindexFunction,
+		internal readonly lua.CFunction gcFunction, indexFunction, newindexFunction,
 			baseIndexFunction, classIndexFunction, classNewindexFunction,
 			execDelegateFunction, callConstructorFunction, toStringFunction;
 
 		public MetaFunctions(ObjectTranslator translator)
 		{
 			this.translator = translator;
-			gcFunction = new LuaCSFunction(this.collectObject);
-			toStringFunction = new LuaCSFunction(this.toString);
-			indexFunction = new LuaCSFunction(this.getMethod);
-			newindexFunction = new LuaCSFunction(this.setFieldOrProperty);
-			baseIndexFunction = new LuaCSFunction(this.getBaseMethod);
-			callConstructorFunction = new LuaCSFunction(this.callConstructor);
-			classIndexFunction = new LuaCSFunction(this.getClassMethod);
-			classNewindexFunction = new LuaCSFunction(this.setClassFieldOrProperty);
-			execDelegateFunction = new LuaCSFunction(this.runFunctionDelegate);
+			gcFunction = this.collectObject;
+			toStringFunction = this.toString;
+			indexFunction = this.getMethod;
+			newindexFunction = this.setFieldOrProperty;
+			baseIndexFunction = this.getBaseMethod;
+			callConstructorFunction = this.callConstructor;
+			classIndexFunction = this.getClassMethod;
+			classNewindexFunction = this.setClassFieldOrProperty;
+			execDelegateFunction = this.runFunctionDelegate;
 		}
 
 		/// <summary>__call metafunction of CLR delegates, retrieves and calls the delegate.</summary>
 		private int runFunctionDelegate(lua.State L)
 		{
 			Debug.Assert(L == translator.interpreter._L);
-			var func = (LuaCSFunction)translator.getRawNetObject(L, 1);
+			var func = (lua.CFunction)translator.getRawNetObject(L, 1);
 			lua.remove(L, 1);
 			return func(L);
 		}
@@ -276,9 +276,9 @@ namespace LuaInterface
 			MemberInfo member = null;
 			object cachedMember = checkMemberCache(memberCache, objType, methodName);
 			//object cachedMember=null;
-			if (cachedMember is LuaCSFunction)
+			if (cachedMember is lua.CFunction)
 			{
-				translator.pushFunction(L, (LuaCSFunction)cachedMember);
+				translator.pushFunction(L, (lua.CFunction)cachedMember);
 				translator.push(L, true);
 				return 2;
 			}
@@ -375,7 +375,7 @@ namespace LuaInterface
 					else
 					{
 						// Member type must be 'method'
-						LuaCSFunction wrapper = new LuaCSFunction((new LuaMethodWrapper(translator, objType, methodName, bindingType)).call);
+						var wrapper = new lua.CFunction((new LuaMethodWrapper(translator, objType, methodName, bindingType)).call);
 
 						if (cachedMember == null) setMemberCache(memberCache, objType, methodName, wrapper);
 						translator.pushFunction(L, wrapper);
