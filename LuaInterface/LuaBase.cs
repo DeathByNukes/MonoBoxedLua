@@ -364,5 +364,41 @@ namespace LuaInterface
 		}
 
 		#endregion
+
+		#region Environment
+
+		/// <summary>Gets/sets the object's environment. Only functions, userdata, and threads can have an environment.</summary>
+		public LuaTable Environment
+		{
+			get
+			{
+				var L = Owner._L;                         StackAssert.Start(L);
+				push(L);
+				lua.getfenv(L, -1);
+				if (!lua.isnil(L, -1))
+				{
+					lua.remove(L, -2);                        StackAssert.End(1);
+					return new LuaTable(L, Owner);
+				}
+				lua.pop(L,2);                             StackAssert.End();
+				return null;
+			}
+			set
+			{
+				var L = Owner._L;
+				var oldTop = lua.gettop(L);
+				push(L);
+				try
+				{
+					if (value == null) lua.pushnil(L);
+					else value.push(L);
+					if (!lua.setfenv(L, -2))
+						throw new NotSupportedException("This Lua object cannot have an environment.");
+				}
+				finally { lua.settop(L, oldTop); }
+			}
+		}
+
+		#endregion
 	}
 }
