@@ -1,6 +1,8 @@
 ﻿using System;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
+using LuaInterface.LuaAPI;
 
 namespace LuaInterface
 {
@@ -14,20 +16,14 @@ namespace LuaInterface
 		/// <param name="o">The object to get the methods from</param>
 		public static void TaggedInstanceMethods(Lua lua, object o)
 		{
-			#region Sanity checks
 			if (lua == null) throw new ArgumentNullException("lua");
 			if (o == null) throw new ArgumentNullException("o");
-			#endregion
 
 			foreach (MethodInfo method in o.GetType().GetMethods(BindingFlags.Instance | BindingFlags.Public))
+			foreach (LuaGlobalAttribute attribute in method.GetCustomAttributes(typeof(LuaGlobalAttribute), true))
 			{
-				foreach (LuaGlobalAttribute attribute in method.GetCustomAttributes(typeof(LuaGlobalAttribute), true))
-				{
-					if (string.IsNullOrEmpty(attribute.Name))
-						lua.RegisterFunction(method.Name, o, method); // CLR name
-					else
-						lua.RegisterFunction(attribute.Name, o, method); // Custom name
-				}
+				Debug.Assert(attribute.Name != "");
+				lua.RegisterFunction(attribute.Name ?? method.Name, o, method);
 			}
 		}
 		#endregion
@@ -40,50 +36,69 @@ namespace LuaInterface
 		/// <param name="type">The class type to get the methods from</param>
 		public static void TaggedStaticMethods(Lua lua, Type type)
 		{
-			#region Sanity checks
 			if (lua == null) throw new ArgumentNullException("lua");
 			if (type == null) throw new ArgumentNullException("type");
 			if (!type.IsClass) throw new ArgumentException("The type must be a class!", "type");
-			#endregion
 
 			foreach (MethodInfo method in type.GetMethods(BindingFlags.Static | BindingFlags.Public))
+			foreach (LuaGlobalAttribute attribute in method.GetCustomAttributes(typeof(LuaGlobalAttribute), false))
 			{
-				foreach (LuaGlobalAttribute attribute in method.GetCustomAttributes(typeof(LuaGlobalAttribute), false))
-				{
-					if (string.IsNullOrEmpty(attribute.Name))
-						lua.RegisterFunction(method.Name, null, method); // CLR name
-					else
-						lua.RegisterFunction(attribute.Name, null, method); // Custom name
-				}
+				Debug.Assert(attribute.Name != "");
+				lua.RegisterFunction(attribute.Name ?? method.Name, null, method);
 			}
 		}
 		#endregion
 
 		#region Enumeration
-		/// <summary>
-		/// Registers an enumeration's values for usage as a Lua variable table
-		/// </summary>
+		/// <summary>Creates a Lua table with keys and values mirroring the specified enumeration.</summary>
+		/// <typeparam name="T">The enum type to register</typeparam>
+		/// <param name="interpreter">The Lua VM to add the enum to</param>
+		[SuppressMessage("Microsoft.Design", "CA1004:GenericMethodsShouldProvideTypeParameter", Justification = "The type parameter is used to select an enum type")]
+		public static void Enumeration<T>(Lua interpreter) where T : struct, IConvertible
+		{
+			if (interpreter == null) throw new ArgumentNullException("lua");
+			Type type = typeof(T);
+			var L = interpreter._L;
+			_PushEnumeration<T>(L, type);
+			lua.setfield(L, LUA.GLOBALSINDEX, type.Name);
+		}
+
+		/// <summary>Creates a Lua table with keys and values mirroring the specified enumeration.</summary>
 		/// <typeparam name="T">The enum type to register</typeparam>
 		/// <param name="lua">The Lua VM to add the enum to</param>
 		[SuppressMessage("Microsoft.Design", "CA1004:GenericMethodsShouldProvideTypeParameter", Justification = "The type parameter is used to select an enum type")]
-		public static void Enumeration<T>(Lua lua)
+		public static LuaTable NewEnumeration<T>(Lua lua) where T : struct, IConvertible
 		{
-			#region Sanity checks
 			if (lua == null) throw new ArgumentNullException("lua");
-			#endregion
+			var L = lua._L;
+			_PushEnumeration<T>(L, typeof(T));
+			return new LuaTable(L, lua);
+		}
 
-			Type type = typeof(T);
-			if (!type.IsEnum) throw new ArgumentException("The type must be an enumeration!");
+		/// <summary>[-0, +1, m]</summary>
+		static void _PushEnumeration<T>(lua.State L, Type type) where T : struct, IConvertible
+		{
+			Debug.Assert(typeof(T) == type);
+			if (!type.IsEnum) throw new ArgumentException("The type must be an enumeration.");
 
 			string[] names = Enum.GetNames(type);
-			T[] values = (T[])Enum.GetValues(type);
+			var values = (T[])Enum.GetValues(type);
 
-			lua.NewTable(type.Name);
-			for (int i = 0; i < names.Length; i++)
+			Debug.Assert(EzDelegate.Func(() => {
+				if (values.Length == 0) return true;
+				try { var x = values[0].ToDouble(null); return true; }
+				catch { return false; }
+			})(), "enum conversion to double isn't expected to throw exceptions");
+
+			StackAssert.Start(L);
+			lua.createtable(L, 0, names.Length);
+			for (int i = 0; i < names.Length; ++i)
 			{
-				string path = type.Name + "." + names[i];
-				lua[path] = values[i];
+				lua.pushstring(L, names[i]);
+				lua.pushnumber(L, values[i].ToDouble(null));
+				lua.rawset(L, -3);
 			}
+			StackAssert.End(1);
 		}
 		#endregion
 	}

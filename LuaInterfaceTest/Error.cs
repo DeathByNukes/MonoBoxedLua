@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using LuaInterface;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -144,10 +145,10 @@ namespace LuaInterfaceTest
 							GC.KeepAlive(t["foo"]);
 					}
 					// one does not simply catch a lua error
-					catch (SEHException)      { Assert.Fail("lua protected error caught as SEH exception"); }
-					catch (ExternalException) { Assert.Fail("lua protected error caught as external exception"); }
-					catch (Exception)         { Assert.Fail("lua protected error caught as exception"); }
-					catch                     { Assert.Fail("lua protected error caught in general catch"); }
+					catch (SEHException)            { Assert.Fail("lua protected error caught as SEH exception"); }
+					catch (ExternalException)       { Assert.Fail("lua protected error caught as external exception"); }
+					catch (RuntimeWrappedException) { Assert.Fail("lua protected error caught as object"); }
+					catch                           { Assert.Fail("lua protected error caught in general catch"); }
 					// yet, through some magic, 'finally' still works
 					finally { ++hit_finally; lua["hit_finally"] = true; }
 					Assert.Fail("didn't throw (inner)");

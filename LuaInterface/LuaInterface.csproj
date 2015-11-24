@@ -112,6 +112,7 @@
     <Compile Include="ProxyType.cs" />
     <Compile Include="Metatables.cs" />
     <Compile Include="LuaAPI\StackAssert.cs" />
+    <Compile Include="EzDelegate.cs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="System" />

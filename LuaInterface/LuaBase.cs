@@ -184,16 +184,16 @@ namespace LuaInterface
 		/// <summary>Full Lua equality which can be controlled with metatables.</summary>
 		public static bool operator ==(LuaBase left, LuaBase right)
 		{
-			return object.ReferenceEquals(left, null)
-				? object.ReferenceEquals(null, right)
+			return (object)left == null
+				? (object)right == null
 				: left.LuaEquals(right);
 		}
 
 		/// <summary>Full Lua equality which can be controlled with metatables.</summary>
 		public static bool operator !=(LuaBase left, LuaBase right)
 		{
-			return object.ReferenceEquals(left, null)
-				? !object.ReferenceEquals(null, right)
+			return (object)left == null
+				? (object)right != null
 				: !left.LuaEquals(right);
 		}
 
@@ -201,7 +201,7 @@ namespace LuaInterface
 		{
 			var L = Owner._L;
 			luaL.getref(L, Owner.tostring_ref);
-			luaL.getref(L, Reference);
+			rawpush(L);
 			if (lua.pcall(L, 1, 1, 0) != LuaStatus.Ok)
 				throw Owner.ExceptionFromError(-2); // -2, pop the error from the stack
 			var str = lua.tostring(L, -1);

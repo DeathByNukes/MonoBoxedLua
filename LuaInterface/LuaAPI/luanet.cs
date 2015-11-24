@@ -36,7 +36,10 @@ namespace LuaInterface.LuaAPI
 			lua.pop(L,1);
 			return b;
 		}
-		/// <summary>[-0, +1, e] Navigates fields nested in an object at the specified index, pushing the value of the specified sub-field. If <paramref name="fields"/> is empty it pushes a copy of the main object.</summary>
+		/// <summary>
+		/// [-0, +1, e] Navigates fields nested in an object at the specified index, pushing the value of the specified sub-field. If <paramref name="fields"/> is empty it pushes a copy of the main object.
+		/// <para>WARNING: If the IEnumerable throws an exception during enumeration the stack will be left in a +1 state. You must ensure that no exceptions can be thrown or you must catch them and clean up the stack.</para>
+		/// </summary>
 		public static void getnestedfield(lua.State L, int index, IEnumerable<string> fields)
 		{
 			Debug.Assert(fields != null);                StackAssert.Start(L);
@@ -67,11 +70,19 @@ namespace LuaInterface.LuaAPI
 			Debug.Assert(o != null && L == o.Owner._L);
 			o.push(L);
 		}
+		/// <summary>[-0, +1, e] Pushes an arbitrary CLR object onto the stack.</summary>
+		[MethodImpl(INLINE)] public static void pushobject(lua.State L, Lua lua, object o)
+		{
+			Debug.Assert(L == lua._L);
+			lua.translator.push(L, o);
+		}
 
-		/// <summary>[-0, +1, m] Pushes a delegate onto the stack as a C function. http://www.lua.org/manual/5.1/manual.html#lua_CFunction </summary>
+		/// <summary>[-0, +1, m] Pushes a delegate onto the stack as a callable userdata.</summary>
+		[Obsolete("Use lua.pushcfunction")]
 		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_pushstdcallcfunction")] public static extern void pushstdcallcfunction(lua.State L, luanet.CSFunction function);
 
 		/// <summary>Delegate for functions passed to Lua as function pointers</summary>
+		[Obsolete("Use lua.CFunction")]
 		[UnmanagedFunctionPointer(CallingConvention.StdCall)] public delegate int CSFunction(lua.State L);
 	}
 }

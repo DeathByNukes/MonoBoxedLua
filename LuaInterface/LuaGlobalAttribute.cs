@@ -11,7 +11,7 @@ namespace LuaInterface
 	public sealed class LuaGlobalAttribute : Attribute
 	{
 		/// <summary>
-		/// An alternative name to use for calling the function in Lua - leave empty for CLR name
+		/// An alternative name to use for calling the function in Lua - leave null for CLR name
 		/// </summary>
 		public string Name { get; set; }
 

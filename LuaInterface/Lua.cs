@@ -144,37 +144,32 @@ namespace LuaInterface
 		#region Execution
 
 		/// <summary>Loads a Lua chunk from a string.</summary>
-		public LuaFunction LoadString(string chunk) { return LoadString(chunk, chunk); }
+		public LuaFunction LoadString(string chunk)
+		{
+			var L = _L;
+			if (luaL.loadstring(L, chunk) == LuaStatus.Ok)
+				return new LuaFunction(L, this);
+			else
+				throw ExceptionFromError(-2);
+		}
 		/// <summary>Loads a Lua chunk from a string.</summary>
 		public LuaFunction LoadString(string chunk, string name)
 		{
-			int oldTop = lua.gettop(_L);
-
-			++_executing;
-			try
-			{
-				if (luaL.loadbuffer(_L, chunk, name) != LuaStatus.Ok)
-					throw ExceptionFromError(oldTop);
-			}
-			finally { checked { --_executing; } }
-
-			LuaFunction result = translator.getFunction(_L, -1);
-			translator.popValues(_L, oldTop);
-
-			return result;
+			var L = _L;
+			if (luaL.loadbuffer(L, chunk, name) == LuaStatus.Ok)
+				return new LuaFunction(L, this);
+			else
+				throw ExceptionFromError(-2);
 		}
 
 		/// <summary>Loads a Lua chunk from a file. If <paramref name="fileName"/> is null, the chunk will be loaded from standard input.</summary>
 		public LuaFunction LoadFile(string fileName)
 		{
-			int oldTop = lua.gettop(_L);
-			if (luaL.loadfile(_L, fileName) != LuaStatus.Ok)
-				throw ExceptionFromError(oldTop);
-
-			LuaFunction result = translator.getFunction(_L, -1);
-			lua.settop(_L, oldTop);
-
-			return result;
+			var L = _L;
+			if (luaL.loadfile(L, fileName) == LuaStatus.Ok)
+				return new LuaFunction(L, this);
+			else
+				throw ExceptionFromError(-2);
 		}
 
 
@@ -602,13 +597,57 @@ namespace LuaInterface
 			return ud;
 		}
 
-		/// <summary>Registers an object's method as a Lua function (global or table field) The method may have any signature</summary>
-		public LuaFunction RegisterFunction(string path, object target, MethodBase function)
+		/// <summary>Registers an object's method as a Lua function (global or table field) The method may have any signature.</summary>
+		/// <param name="path">The global variable to store it in, or null. Can contain one or more dots to store it as a field inside a table.</param>
+		/// <param name="target">The instance to invoke the method on, or null if it is a static method.</param>
+		/// <param name="function">The method to register.</param>
+		/// <exception cref="ArgumentNullException"><paramref name="path"/> or <paramref name="function"/> is null.</exception>
+		/// <exception cref="ArgumentException"><paramref name="target"/> was null and <paramref name="function"/> is an instance method, or vice versa.</exception>
+		public void RegisterFunction(string path, object target, MethodBase function)
 		{
-			var wrapper = new lua.CFunction(new LuaMethodWrapper(translator,target,function.DeclaringType,function).call);
-			if (path != null) this[path] = wrapper;
-			return new LuaFunction(wrapper, this);
+			if (path == null) throw new ArgumentNullException("path");
+			if (function == null) throw new ArgumentNullException("function");
+			if (function.IsStatic != (target == null)) throw NewMethodTargetError(target);
+
+			this[path] = new lua.CFunction(new LuaMethodWrapper(translator, target, function.DeclaringType, function).call);
 		}
+		/// <summary>Creates a Lua function from an object's method. The method may have any signature.</summary>
+		/// <param name="target">The instance to invoke the method on, or null if it is a static method.</param>
+		/// <param name="function">The method to register.</param>
+		/// <exception cref="ArgumentNullException"><paramref name="function"/> is null.</exception>
+		/// <exception cref="ArgumentException"><paramref name="target"/> was null and <paramref name="function"/> is an instance method, or vice versa.</exception>
+		public LuaFunction NewFunction(object target, MethodBase function)
+		{
+			if (function == null) throw new ArgumentNullException("function");
+			if (function.IsStatic != (target == null)) throw NewMethodTargetError(target);
+
+			return new LuaFunction(new LuaMethodWrapper(translator, target, function.DeclaringType, function).call, this);
+		}
+		static ArgumentException NewMethodTargetError(object target)
+		{
+			return new ArgumentException(target == null
+				? "No target instance provided for instance method."
+				: "Target instance provided for static method."
+				, "target");
+		}
+
+		/// <summary>Registers a delegate as a Lua function (global or table field) The delegate may have any signature.</summary>
+		/// <param name="path">The global variable to store it in, or null. Can contain one or more dots to store it as a field inside a table.</param>
+		/// <param name="function">The delegate to register.</param>
+		/// <exception cref="ArgumentNullException"><paramref name="path"/> is null.</exception>
+		public void RegisterFunction(string path, Delegate function)
+		{
+			if (path == null) throw new ArgumentNullException("path");
+			var method = function.Method;
+			this[path] = new lua.CFunction(new LuaMethodWrapper(translator, function.Target, method.DeclaringType, method).call);
+		}
+		/// <summary>Creates a Lua function from a delegate. The delegate may have any signature.</summary>
+		public LuaFunction NewFunction(Delegate function)
+		{
+			var method = function.Method;
+			return new LuaFunction(new LuaMethodWrapper(translator, function.Target, method.DeclaringType, method).call, this);
+		}
+
 
 		/// <summary>Generates a Lua function which matches the behavior of Lua's standard print function but sends the strings to a specified delegate instead of stdout.
 		/// <example><code>

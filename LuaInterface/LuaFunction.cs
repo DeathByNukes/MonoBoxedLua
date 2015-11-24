@@ -13,13 +13,6 @@ namespace LuaInterface
 		: base(TryRef(L, interpreter, LuaType.Function), interpreter)
 		{
 		}
-		public LuaFunction(int reference, Lua interpreter)
-		: base(reference, interpreter)
-		{
-			this.function = null;
-			CheckType(LuaType.Function);
-		}
-
 		public LuaFunction(lua.CFunction function, Lua interpreter)
 		: base(LuaRefs.None, interpreter)
 		{

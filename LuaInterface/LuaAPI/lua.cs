@@ -36,26 +36,26 @@ namespace LuaInterface.LuaAPI
 
 
 	/// <summary>
-	/// P/Invoke wrapper of the Lua API.
-	/// Each function's summary starts with an indicator like this: [-o, +p, x]
-	/// The first field, o, is how many elements the function pops from the stack.
-	/// The second field, p, is how many elements the function pushes onto the stack. (Any function always pushes its results after popping its arguments.)
-	/// A field in the form x|y means the function can push (or pop) x or y elements, depending on the situation;
-	/// an interrogation mark '?' means that we cannot know how many elements the function pops/pushes by looking only at its arguments (e.g., they may depend on what is on the stack).
-	/// The third field, x, tells whether the function may throw errors:
-	/// '-' means the function never throws any error;
-	/// 'm' means the function may throw an error only due to not enough memory;
-	/// 'e' means the function may throw other kinds of errors;
-	/// 'v' means the function may throw an error on purpose.
+	/// <para>P/Invoke wrapper of the Lua API.</para>
+	/// <para>Each function's summary starts with an indicator like this: [-o, +p, x]</para>
+	/// <para>The first field, o, is how many elements the function pops from the stack.</para>
+	/// <para>The second field, p, is how many elements the function pushes onto the stack. (Any function always pushes its results after popping its arguments.)</para>
+	/// <para>A field in the form x|y means the function can push (or pop) x or y elements, depending on the situation;</para>
+	/// <para>an interrogation mark '?' means that we cannot know how many elements the function pops/pushes by looking only at its arguments (e.g., they may depend on what is on the stack).</para>
+	/// <para>The third field, x, tells whether the function may throw errors:</para>
+	/// <para>'-' means the function never throws any error;</para>
+	/// <para>'m' means the function may throw an error only due to not enough memory;</para>
+	/// <para>'e' means the function may throw other kinds of errors;</para>
+	/// <para>'v' means the function may throw an error on purpose.</para>
 	/// </summary>
 	/// <remarks>
-	/// The summaries are mostly just abridged copy pastes of the Lua manual, with a focus on
+	/// <para>The summaries are mostly just abridged copy pastes of the Lua manual, with a focus on
 	/// providing enough information to be useful in understanding and auditing existing code.
 	/// You should consult the actual manual at http://www.lua.org/manual/5.1/
-	/// whenever the documentation is insufficient.
-	/// Confusingly, most parts of the manual say that the error system uses c-style "long jumps".
+	/// whenever the documentation is insufficient.</para>
+	/// <para>Confusingly, most parts of the manual say that the error system uses c-style "long jumps".
 	/// LuaInterface's custom Lua build uses a C++ compiler, which automatically switches on
-	/// C++ style Lua exceptions. The abridged documentation corrects those statements.
+	/// C++ style Lua exceptions. The abridged documentation corrects those statements.</para>
 	/// </remarks>
 	public static unsafe partial class lua
 	{
