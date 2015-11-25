@@ -794,6 +794,20 @@ namespace LuaInterface
 			{	var x = o as lua.CFunction;
 				if(x!=null) { pushFunction(L,x); return; }  }
 
+			// disallow all reflection
+			{
+				var type = o.GetType();
+				do
+				{
+					if (type.Namespace.StartsWith("System.Reflection", StringComparison.Ordinal))
+					{
+						lua.pushstring(L, o.ToString());
+						return;
+					}
+					type = type.BaseType;
+				} while (type != null);
+			}
+
 			pushObject(L,o,"luaNet_metatable");
 		}
 
