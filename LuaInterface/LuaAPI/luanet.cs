@@ -63,18 +63,21 @@ namespace LuaInterface.LuaAPI
 		{
 			return interpreter._L;
 		}
-		/// <summary>[-0, +1, e] Pushes the referenced object onto the stack.</summary>
-		[MethodImpl(INLINE)] public static void pushobject<T>(lua.State L, T o)
+		/// <summary>[-0, +1, e] Pushes the referenced object onto its owner's stack.</summary>
+		[MethodImpl(INLINE)] public static void pushobject<T>(T o)
 		where T : LuaBase // generic method rather than just taking a LuaBase parameter probably makes it easier to do sealed class optimizations (todo: test this hypothesis)
 		{
-			Debug.Assert(o != null && L == o.Owner._L);
-			o.push(L);
+			o.push(o.Owner._L);
 		}
 		/// <summary>[-0, +1, e] Pushes an arbitrary CLR object onto the stack.</summary>
-		[MethodImpl(INLINE)] public static void pushobject(lua.State L, Lua lua, object o)
+		[MethodImpl(INLINE)] public static void pushobject(Lua lua, object o)
 		{
-			Debug.Assert(L == lua._L);
-			lua.translator.push(L, o);
+			lua.translator.push(lua._L, o);
+		}
+		/// <summary>[-0, +0, m] Gets a Lua object from the stack and translates it to a CLR object.</summary>
+		[MethodImpl(INLINE)] public static object getobject(Lua lua, int index)
+		{
+			return lua.translator.getObject(lua._L, index);
 		}
 
 		/// <summary>[-0, +1, m] Pushes a delegate onto the stack as a callable userdata.</summary>
