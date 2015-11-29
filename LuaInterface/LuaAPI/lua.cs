@@ -5,7 +5,9 @@ using System.Runtime.InteropServices;
 
 namespace LuaInterface.LuaAPI
 {
-	using size_t = System.UIntPtr;
+	using size_t = UIntPtr;
+	using char8 = Byte;
+	using Dbg = Debug;
 
 	/// <summary>Standard Lua constants with the "LUA_" prefix removed.</summary>
 	public static partial class LUA
@@ -15,7 +17,22 @@ namespace LuaInterface.LuaAPI
 		ENVIRONINDEX  = -10001,
 		GLOBALSINDEX  = -10002,
 
-		MULTRET = -1; // option for multiple returns in `lua_pcall' and `lua_call'
+		MULTRET = -1, // option for multiple returns in `lua_pcall' and `lua_call'
+		IDSIZE = 60, // gives the maximum size for the description of the source of a function in debug information.
+
+		MINSTACK = 20,
+
+		VERSION_NUM = 501;
+
+		public const string
+		VERSION = "Lua 5.1",
+		RELEASE = "Lua 5.1.5",
+		COPYRIGHT = "Copyright (C) 1994-2012 Lua.org, PUC-Rio",
+		AUTHORS = "R. Ierusalimschy, L. H. de Figueiredo & W. Celes";
+
+		public const string SIGNATURE = "\x1BLua"; // mark for precompiled code (`<esc>Lua')
+		/// <summary>the only time LUA_SIGNATURE is used in Lua 5.1 is when it outputs new bytecode. all the parsing code just uses LUA_SIGNATURE[0]</summary>
+		public const char SIGNATURE_0 = '\x1B';
 	}
 
 	public static partial class LUA
@@ -156,11 +173,11 @@ namespace LuaInterface.LuaAPI
 		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_toboolean"  )] public static extern bool   toboolean  (lua.State L, int index);
 		/// <summary>[-0, +0, m] Use <see cref="lua.tostring"/> instead.</summary>
 		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_tolstring"  )] public static extern void*  tolstring  (lua.State L, int index, out size_t len);
-		/// <summary>[-0, +0, -] Converts a value at the given acceptable index to a C function. That value must be a C function; otherwise, returns NULL.</summary>
+		/// <summary>[-0, +0, -] Converts a value at the given acceptable index to a C function. That value must be a C function; otherwise, returns <see langword="null"/>.</summary>
 		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_tocfunction")] public static extern void*  tocfunction(lua.State L, int index);
-		/// <summary>[-0, +0, -] If the value at the given acceptable index is a full userdata, returns its block address. If the value is a light userdata, returns its pointer. Otherwise, returns NULL.</summary>
+		/// <summary>[-0, +0, -] If the value at the given acceptable index is a full userdata, returns its block address. If the value is a light userdata, returns its pointer. Otherwise, returns <see langword="null"/>.</summary>
 		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_touserdata" )] public static extern void*  touserdata (lua.State L, int index);
-		/// <summary>[-0, +0, -] Converts the value at the given acceptable index to a generic C pointer (void*). The value can be a userdata, a table, a thread, or a function; otherwise, <see cref="lua.topointer"/> returns NULL. Typically this function is used only for debug information.</summary>
+		/// <summary>[-0, +0, -] Converts the value at the given acceptable index to a generic C pointer (void*). The value can be a userdata, a table, a thread, or a function; otherwise, <see cref="lua.topointer"/> returns <see langword="null"/>. Typically this function is used only for debug information.</summary>
 		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_topointer"  )] public static extern void*  topointer  (lua.State L, int index);
 		// omitted:
 		//   lua_isthread  (no threads)
@@ -172,7 +189,7 @@ namespace LuaInterface.LuaAPI
 		/// If the value is a number, then <see cref="lua.tostring"/> also changes the actual value in the stack to a string!
 		/// (This change confuses <see cref="lua.next"/> when <see cref="lua.tostring"/> is applied to keys during a table traversal.)
 		/// </summary>
-		/// <returns>The Lua value must be a string or a number; otherwise, the function returns null.</returns>
+		/// <returns>The Lua value must be a string or a number; otherwise, the function returns <see langword="null"/>.</returns>
 		public static string tostring(lua.State L, int index)
 		{
 			size_t strlen;
@@ -212,7 +229,7 @@ namespace LuaInterface.LuaAPI
 		/// <summary>[-0, +1, m] Pushes the string s onto the stack, which can contain embedded zeros.</summary>
 		public static void pushstring(lua.State L, string s)
 		{
-			Debug.Assert(s != null);
+			Dbg.Assert(s != null);
 			IntPtr ptr = Marshal.StringToHGlobalAnsi(s);
 			try { lua.pushlstring(L, ptr, s.Length.ToSizeType()); }
 			finally { Marshal.FreeHGlobal(ptr); }
@@ -296,8 +313,8 @@ namespace LuaInterface.LuaAPI
 
 	public static unsafe partial class lua
 	{
-		/// <summary>The reader function used by <see cref="lua.load"/>. Every time it needs another piece of the chunk, <see cref="lua.load"/> calls the reader, passing along its data parameter. The reader must return a pointer to a block of memory with a new piece of the chunk and set size to the block size. The block must exist until the reader function is called again. To signal the end of the chunk, the reader must return NULL or set size to zero. The reader function may return pieces of any size greater than zero.</summary>
-		[UnmanagedFunctionPointer(CC)] public delegate byte* Reader(lua.State L, void* data, out size_t size);
+		/// <summary>The reader function used by <see cref="lua.load"/>. Every time it needs another piece of the chunk, <see cref="lua.load"/> calls the reader, passing along its data parameter. The reader must return a pointer to a block of memory with a new piece of the chunk and set size to the block size. The block must exist until the reader function is called again. To signal the end of the chunk, the reader must return <see langword="null"/> or set size to zero. The reader function may return pieces of any size greater than zero.</summary>
+		[UnmanagedFunctionPointer(CC)] public delegate char8* Reader(lua.State L, IntPtr data, out size_t size);
 
 		/// <summary>[-(nargs + 1), +nresults, e] Calls a function.</summary>
 		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_call"  )] public static extern void    call  (lua.State L, int nargs, int nresults);
@@ -367,16 +384,125 @@ namespace LuaInterface.LuaAPI
 		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_concat")] public static extern void concat(lua.State L, int n);
 
 		#endregion
+		
+		#region Debug API
+	}
+	public static partial class LUA
+	{
+		public enum HOOK : int
+		{
+			/// <summary>The call hook is called when the interpreter calls a function. The hook is called just after Lua enters the new function, before the function gets its arguments.</summary>
+			CALL    = 0,
+			/// <summary>The return hook is called when the interpreter returns from a function. The hook is called just before Lua leaves the function. You have no access to the values to be returned by the function.</summary>
+			RET     = 1,
+			/// <summary>The line hook is called when the interpreter is about to start the execution of a new line of code, or when it jumps back in the code (even to the same line). (This event only happens while Lua is executing a Lua function.)</summary>
+			LINE    = 2,
+			/// <summary>The count hook is called after the interpreter executes every count instructions. (This event only happens while Lua is executing a Lua function.)</summary>
+			COUNT   = 3,
+			/// <summary>Lua is simulating a return from a function that did a tail call; in this case, it is useless to call <see cref="lua.getinfo"/>.</summary>
+			TAILRET = 4,
+		}
+		[Flags] public enum MASK : int
+		{
+			/// <summary>The call hook is called when the interpreter calls a function. The hook is called just after Lua enters the new function, before the function gets its arguments.</summary>
+			CALL  = 1 << LUA.HOOK.CALL,
+			/// <summary>The return hook is called when the interpreter returns from a function. The hook is called just before Lua leaves the function. You have no access to the values to be returned by the function.</summary>
+			RET   = 1 << LUA.HOOK.RET,
+			/// <summary>The line hook is called when the interpreter is about to start the execution of a new line of code, or when it jumps back in the code (even to the same line). (This event only happens while Lua is executing a Lua function.)</summary>
+			LINE  = 1 << LUA.HOOK.LINE,
+			/// <summary>The count hook is called after the interpreter executes every count instructions. (This event only happens while Lua is executing a Lua function.)</summary>
+			COUNT = 1 << LUA.HOOK.COUNT,
+		}
+	}
+	public static unsafe partial class lua
+	{
+		/// <summary>A structure used to carry different pieces of information about an active function. <see cref="lua.getstack"/> fills only the private part of this structure, for later use. To fill the other fields of <see cref="lua.Debug"/> with useful information, call <see cref="lua.getinfo"/>.</summary>
+		public struct Debug
+		{
+			/// <summary>Whenever a hook is called, its <see cref="lua.Debug"/> argument has its field <see cref="hook_event"/> set to the specific event that triggered the hook. (see <see cref="LUA.HOOK"/>) Moreover, for line events, the field <see cref="lua.Debug.currentline"/> is also set. To get the value of any other field in <see cref="lua.Debug"/>, the hook must call <see cref="lua.getinfo"/>. For return events, event can be <see cref="LUA.HOOK.RET"/>, the normal value, or <see cref="LUA.HOOK.TAILRET"/>.</summary>
+			public LUA.HOOK hook_event;
+			/// <summary>See <see cref="name"/>.</summary>
+			public char8 *name_raw;
+			/// <summary>See <see cref="namewhat"/>.</summary>
+			public char8 *namewhat_raw;
+			/// <summary>See <see cref="what"/>.</summary>
+			public char8 *what_raw;
+			/// <summary>See <see cref="source"/>.</summary>
+			public char8 *source_raw;
+			/// <summary>(l) The current line where the given function is executing. When no line information is available, <see cref="currentline"/> is set to -1.</summary>
+			public int currentline;
+			/// <summary>(u) The number of upvalues of the function.</summary>
+			public int nups;
+			/// <summary>(S) The line number where the definition of the function starts.</summary>
+			public int linedefined;
+			/// <summary>(S) The line number where the definition of the function ends.</summary>
+			public int lastlinedefined;
+			/// <summary>See <see cref="short_src"/>.</summary>
+			public fixed char8 short_src_raw[LUA.IDSIZE];
 
+			/// <summary>(n) A reasonable name for the given function. Because functions in Lua are first-class values, they do not have a fixed name: some functions can be the value of multiple global variables, while others can be stored only in a table field. The <see cref="lua.getinfo"/> function checks how the function was called to find a suitable name. If it cannot find a name, then name is set to <see langword="null"/>.</summary>
+			public string name      { get { return Marshal.PtrToStringAnsi(new IntPtr(name_raw)); } }
+			/// <summary>(n) Explains the <see cref="name"/> field. The value of <see cref="namewhat"/> can be "global", "local", "method", "field", "upvalue", or "" (the empty string), according to how the function was called. (Lua uses the empty string when no other option seems to apply.)</summary>
+			public string namewhat  { get { return Marshal.PtrToStringAnsi(new IntPtr(namewhat_raw)); } }
+			/// <summary>(S) The string "Lua" if the function is a Lua function, "C" if it is a C function, "main" if it is the main part of a chunk, and "tail" if it was a function that did a tail call. In the latter case, Lua has no other information about the function.</summary>
+			public string what      { get { return Marshal.PtrToStringAnsi(new IntPtr(what_raw)); } }
+			/// <summary>(S) If the function was defined in a string, then <see cref="source"/> is that string. If the function was defined in a file, then <see cref="source"/> starts with a '@' followed by the file name.</summary>
+			public string source    { get { return Marshal.PtrToStringAnsi(new IntPtr(source_raw)); } }
+			/// <summary>(S) A "printable" version of <see cref="source"/>, to be used in error messages.</summary>
+			public string short_src { get { fixed (char8 *ptr = short_src_raw) return Marshal.PtrToStringAnsi(new IntPtr(ptr)); } }
 
-		// omitted:
-		//   lua_gethook*** (complete lua_Debug interface omitted)
-		//   lua_getinfo
-		//   lua_getlocal
-		//   lua_getstack
-		//   lua_getupvalue
-		//   lua_sethook
-		//   lua_setlocal
-		//   lua_setupvalue
+			// private part
+			#pragma warning disable 169
+			int i_ci; // active function
+			#pragma warning restore 169
+		}
+
+		/// <summary>
+		/// <para>Type for debugging hook functions.</para>
+		/// <para>Whenever a hook is called, its <paramref name="ar"/> argument has its field <see cref="lua.Debug.hook_event"/> set to the specific event that triggered the hook. (see <see cref="LUA.HOOK"/>) Moreover, for line events, the field <see cref="lua.Debug.currentline"/> is also set. To get the value of any other field in <paramref name="ar"/>, the hook must call <see cref="lua.getinfo"/>. For return events, event can be <see cref="LUA.HOOK.RET"/>, the normal value, or <see cref="LUA.HOOK.TAILRET"/>. In the latter case, Lua is simulating a return from a function that did a tail call; in this case, it is useless to call <see cref="lua.getinfo"/>.</para>
+		/// <para>While Lua is running a hook, it disables other calls to hooks. Therefore, if a hook calls back Lua to execute a function or a chunk, this execution occurs without any calls to hooks.</para>
+		/// </summary>
+		[UnmanagedFunctionPointer(CC)] public delegate void Hook(lua.State L, ref lua.Debug ar);
+
+		/// <summary>[-0, +0, -] <para>Get information about the interpreter runtime stack.</para><para>This function fills parts of a <see cref="lua.Debug"/> structure with an identification of the activation record of the function executing at a given level. Level 0 is the current running function, whereas level n+1 is the function that has called level n. When there are no errors, <see cref="lua.getstack"/> returns <see langword="true"/>; when called with a level greater than the stack depth, it returns <see langword="false"/>.</para></summary>
+		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_getstack"    )] public static extern bool     getstack    (lua.State L, int level, ref lua.Debug ar);
+		/// <summary>
+		/// [-(0|1), +(0|1|2), m]
+		/// <para>Returns information about a specific function or function invocation.</para>
+		/// <para>To get information about a function invocation, the parameter <paramref name="ar"/> must be a valid activation record that was filled by a previous call to <see cref="lua.getstack"/> or given as argument to a hook (see <see cref="lua.Hook"/>).</para>
+		/// <para>To get information about a function you push it onto the stack and start the what string with the character '>'. (In that case, <see cref="lua.getinfo"/> pops the function in the top of the stack.) For instance, to know in which line a function f was defined, you can write the following code:</para>
+		/// <code>var ar = new lua.Debug();
+		///lua.getfield(L, LUA.GLOBALSINDEX, "f");  // get global 'f'
+		///lua.getinfo(L, ">S", ref ar);
+		///Console.WriteLine(ar.linedefined);</code>
+		/// <para>Each character in the string what selects some fields of the structure <paramref name="ar"/> to be filled or a value to be pushed on the stack:</para>
+		/// <para>'n': fills in the field <see cref="lua.Debug.name"/> and <see cref="lua.Debug.namewhat"/>;</para>
+		/// <para>'S': fills in the fields <see cref="lua.Debug.source"/>, <see cref="lua.Debug.short_src"/>, <see cref="lua.Debug.linedefined"/>, <see cref="lua.Debug.lastlinedefined"/>, and <see cref="lua.Debug.what"/>;</para>
+		/// <para>'l': fills in the field <see cref="lua.Debug.currentline"/>;</para>
+		/// <para>'u': fills in the field <see cref="lua.Debug.nups"/>;</para>
+		/// <para>'f': pushes onto the stack the function that is running at the given level;</para>
+		/// <para>'L': pushes onto the stack a table whose indices are the numbers of the lines that are valid on the function. (A valid line is a line with some associated code, that is, a line where you can put a break point. Non-valid lines include empty lines and comments.)</para>
+		/// <para>This function returns 0 on error (for instance, an invalid option in <paramref name="what"/>).</para>
+		/// </summary>
+		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_getinfo"     )] public static extern int      getinfo     (lua.State L, string what, ref lua.Debug ar);
+		/// <summary>[-0, +(0|1), -]<para>Gets information about a local variable of a given activation record. The parameter <paramref name="ar"/> must be a valid activation record that was filled by a previous call to <see cref="lua.getstack"/> or given as argument to a hook (see <see cref="lua.Hook"/>). The index <paramref name="n"/> selects which local variable to inspect (1 is the first parameter or active local variable, and so on, until the last active local variable). <see cref="lua.getlocal"/> pushes the variable's value onto the stack and returns its name.</para><para>Variable names starting with '(' (open parentheses) represent internal variables (loop control variables, temporaries, and C function locals).</para><para>Returns <see langword="null"/> (and pushes nothing) when the index is greater than the number of active local variables.</para></summary>
+		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_getlocal"    )] public static extern string   getlocal    (lua.State L, ref lua.Debug ar, int n);
+		/// <summary>[-(0|1), +0, -]<para>Sets the value of a local variable of a given activation record. Parameters <paramref name="ar"/> and n are as in lua_getlocal (see lua_getlocal). lua_setlocal assigns the value at the top of the stack to the variable and returns its name. It also pops the value from the stack.</para><para>Returns <see langword="null"/> (and pops nothing) when the index is greater than the number of active local variables.</para></summary>
+		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_setlocal"    )] public static extern string   setlocal    (lua.State L, ref lua.Debug ar, int n);
+		/// <summary>[-0, +(0|1), -]<para>Gets information about a closure's upvalue. (For Lua functions, upvalues are the external local variables that the function uses, and that are consequently included in its closure.) lua.getupvalue gets the index <paramref name="n"/> of an upvalue, pushes the upvalue's value onto the stack, and returns its name. <paramref name="funcindex"/> points to the closure in the stack. (Upvalues have no particular order, as they are active through the whole function. So, they are numbered in an arbitrary order.)</para><para>Returns <see langword="null"/> (and pushes nothing) when the index is greater than the number of upvalues. For C functions, this function uses the empty string "" as a name for all upvalues.</para></summary>
+		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_getupvalue"  )] public static extern string   getupvalue  (lua.State L, int funcindex, int n);
+		/// <summary>[-(0|1), +0, -]<para>Sets the value of a closure's upvalue. It assigns the value at the top of the stack to the upvalue and returns its name. It also pops the value from the stack. Parameters funcindex and n are as in the lua.getupvalue (see <see cref="lua.getupvalue"/>).</para><para>Returns <see langword="null"/> (and pops nothing) when the index is greater than the number of upvalues.</para></summary>
+		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_setupvalue"  )] public static extern string   setupvalue  (lua.State L, int funcindex, int n);
+
+		/// <summary>[-0, +0, -]<para>Sets the debugging hook function.</para><para>Argument <paramref name="f"/> is the hook function. mask specifies on which events the hook will be called: it is formed by a bitwise or of the <see cref="LUA.MASK"/> constants. The <see cref="count"/> argument is only meaningful when the mask includes <see cref="LUA.MASK.COUNT"/>.</para><para>A hook is disabled by setting mask to zero.</para></summary>
+		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_sethook"     )] public static extern int      sethook     (lua.State L, lua.Hook f, LUA.MASK mask, int count);
+		/// <summary>[-0, +0, -]<para>Returns the current hook function.</para></summary>
+		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_gethook"     )] public static extern lua.Hook gethook     (lua.State L);
+		/// <summary>[-0, +0, -]<para>Returns the current hook mask.</para></summary>
+		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_gethookmask" )] public static extern LUA.MASK gethookmask (lua.State L);
+		/// <summary>[-0, +0, -]<para>Returns the current hook count.</para></summary>
+		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_gethookcount")] public static extern int      gethookcount(lua.State L);
+
+		#endregion
 	}
 }
