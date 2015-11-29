@@ -32,12 +32,12 @@ namespace LuaInterfaceTest
 		}
 
 		/// <summary>Tests whether a specific object has been garbage collected.</summary>
-		public class GCTest
+		public struct GCTest
 		{
 			readonly WeakReference _weakref;
 			public GCTest(object o) { _weakref = new WeakReference(o); }
-			public void AssertAlive() { Assert.IsTrue(_weakref.IsAlive); }
-			public void AssertDead() { Assert.IsFalse(_weakref.IsAlive); }
+			public void AssertAlive() { Assert.IsTrue(_weakref.IsAlive, "The object was garbage collected."); }
+			public void AssertDead() { Assert.IsFalse(_weakref.IsAlive, "The object was not garbage collected."); }
 			public void Kill()
 			{
 				GcCollect();
@@ -52,6 +52,14 @@ namespace LuaInterfaceTest
 			Assert.IsNotNull(variable);
 			variable = null;
 		}
+		
+		/// <summary>Calls the provided method and returns. The method is guaranteed not to be inlined.</summary>
+		[MethodImpl(MethodImplOptions.NoInlining)]
+		public static void Execute(Action a) { a(); }
+
+		/// <summary>Calls a method and returns a <see cref="GCTest"/> for the method's result. The method is guaranteed not to be inlined.</summary>
+		[MethodImpl(MethodImplOptions.NoInlining)]
+		public static GCTest NewTest(Func<object> factory) { return new GCTest(factory()); }
 	}
 	[TestClass] public class Dispose
 	{

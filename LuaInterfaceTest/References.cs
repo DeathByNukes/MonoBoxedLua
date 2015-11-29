@@ -74,5 +74,26 @@ namespace LuaInterfaceTest
 				}
 			}
 		}
+
+		[TestMethod] public void ClrInLua()
+		{
+			using (var lua = new Lua())
+			{
+				var test = GcUtil.NewTest(() =>
+				{
+					var o = new object();
+					lua["o"] = o;
+					Assert.AreEqual(o, lua["o"]);
+					return o;
+				});
+				GcUtil.GcAll();
+				test.AssertAlive();
+
+				lua["o"] = null;
+				lua.CollectGarbage();
+				GcUtil.GcAll();
+				test.AssertDead();
+			}
+		}
 	}
 }
