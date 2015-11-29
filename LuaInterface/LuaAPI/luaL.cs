@@ -29,21 +29,21 @@ namespace LuaInterface.LuaAPI
 		/// <summary>[-0, +1, -] Pushes onto the stack the metatable associated with name tname in the registry (see <see cref="luaL.newmetatable"/>).</summary>
 		[MethodImpl(INLINE)] public static void getmetatable(lua.State L, string tname) { lua.getfield(L, LUA.REGISTRYINDEX, tname); }
 		/// <summary>[-0, +1, m] If the registry already has the key tname, returns false. Otherwise, creates a new table to be used as a metatable for userdata, adds it to the registry with key tname, and returns true. In both cases pushes onto the stack the final value associated with tname in the registry.</summary>
-		[DllImport(DLL,CallingConvention=CC,EntryPoint="luaL_newmetatable")] public static extern bool      newmetatable(lua.State L, string tname);
+		[DllImport(DLL,CallingConvention=CC,EntryPoint="luaL_newmetatable")] public static extern bool    newmetatable(lua.State L, string tname);
 		/// <summary>[-0, +(0|1), m] Pushes onto the stack the field e from the metatable of the object at index obj. If the object does not have a metatable, or if the metatable does not have this field, returns false and pushes nothing.</summary>
-		[DllImport(DLL,CallingConvention=CC,EntryPoint="luaL_getmetafield")] public static extern bool      getmetafield(lua.State L, int index, string field);
+		[DllImport(DLL,CallingConvention=CC,EntryPoint="luaL_getmetafield")] public static extern bool    getmetafield(lua.State L, int index, string field);
 
 		/// <summary>[-0, +1, m] Loads a buffer as a Lua chunk. This function uses <see cref="lua.load"/> to load the chunk in the buffer pointed to by buff with size sz. <paramref name="name"/> is the chunk name, used for debug information and error messages.</summary>
-		[DllImport(DLL,CallingConvention=CC,EntryPoint="luaL_loadbuffer"  )] public static extern LuaStatus loadbuffer  (lua.State L, IntPtr buff, int sz, string name);
+		[DllImport(DLL,CallingConvention=CC,EntryPoint="luaL_loadbuffer"  )] public static extern LUA.ERR loadbuffer  (lua.State L, IntPtr buff, int sz, string name);
 		/// <summary>[-0, +1, m] Loads a string as a Lua chunk. This function uses <see cref="lua.load"/> to load the chunk in the zero-terminated string s.</summary>
-		[DllImport(DLL,CallingConvention=CC,EntryPoint="luaL_loadstring"  )] public static extern LuaStatus loadstring  (lua.State L, string s);
+		[DllImport(DLL,CallingConvention=CC,EntryPoint="luaL_loadstring"  )] public static extern LUA.ERR loadstring  (lua.State L, string s);
 		/// <summary>[-0, +1, m] Loads a file as a Lua chunk. This function uses <see cref="lua.load"/> to load the chunk in the file named filename. If filename is NULL, then it loads from the standard input. The first line in the file is ignored if it starts with a #.</summary>
-		[DllImport(DLL,CallingConvention=CC,EntryPoint="luaL_loadfile"    )] public static extern LuaStatus loadfile    (lua.State L, string filename);
+		[DllImport(DLL,CallingConvention=CC,EntryPoint="luaL_loadfile"    )] public static extern LUA.ERR loadfile    (lua.State L, string filename);
 		/// <summary>[-0, +(0|1), e] Calls a metamethod. If the object at index <paramref name="obj"/> has a metatable and this metatable has a field e, this function calls this field and passes the object as its only argument. In this case this function returns true and pushes onto the stack the value returned by the call. If there is no metatable or no metamethod, this function returns false (without pushing any value on the stack).</summary>
-		[DllImport(DLL,CallingConvention=CC,EntryPoint="luaL_callmeta"    )] public static extern bool      callmeta    (lua.State L, int obj, string e);
+		[DllImport(DLL,CallingConvention=CC,EntryPoint="luaL_callmeta"    )] public static extern bool    callmeta    (lua.State L, int obj, string e);
 
 		/// <summary>[-0, +1, m] Loads a buffer as a Lua chunk. This function uses <see cref="lua.load"/> to load the chunk in the string s, which can contain embedded zeros. <paramref name="name"/> is the chunk name, used for debug information and error messages.</summary>
-		public static LuaStatus loadbuffer(lua.State L, string s, string name)
+		public static LUA.ERR loadbuffer(lua.State L, string s, string name)
 		{
 			Debug.Assert(s != null);
 			IntPtr ptr = Marshal.StringToHGlobalAnsi(s);
@@ -51,28 +51,28 @@ namespace LuaInterface.LuaAPI
 			finally { Marshal.FreeHGlobal(ptr); }
 		}
 		/// <summary>[-0, +?, m] Loads and runs the given string, which can contain embedded zeros.</summary>
-		[MethodImpl(INLINE)] public static LuaStatus dostring(lua.State L, string str)
+		[MethodImpl(INLINE)] public static LUA.ERR dostring(lua.State L, string str)
 		{
 			var result = luaL.loadstring(L, str);
-			return result != LuaStatus.Ok ? result : lua.pcall(L, 0, LUA.MULTRET, 0);
+			return result != LUA.ERR.Success ? result : lua.pcall(L, 0, LUA.MULTRET, 0);
 		}
 		/// <summary>[-0, +?, m] Loads and runs the given file.</summary>
-		[MethodImpl(INLINE)] public static LuaStatus dofile(lua.State L, string filename)
+		[MethodImpl(INLINE)] public static LUA.ERR dofile(lua.State L, string filename)
 		{
 			var result = luaL.loadfile(L, filename);
-			return result != LuaStatus.Ok ? result : lua.pcall(L, 0, LUA.MULTRET, 0);
+			return result != LUA.ERR.Success ? result : lua.pcall(L, 0, LUA.MULTRET, 0);
 		}
 
 		/// <summary>[-0, +0, m] Opens all standard Lua libraries into the given state.</summary>
 		[DllImport(DLL,CallingConvention=CC,EntryPoint="luaL_openlibs")] public static extern void openlibs(lua.State L);
 		/*
-		[DllImport(LUALIBDLL,CallingConvention=LUACC)] public static extern void luaopen_base   (lua.State L);
-		[DllImport(LUALIBDLL,CallingConvention=LUACC)] public static extern void luaopen_io     (lua.State L);
-		[DllImport(LUALIBDLL,CallingConvention=LUACC)] public static extern void luaopen_table  (lua.State L);
-		[DllImport(LUALIBDLL,CallingConvention=LUACC)] public static extern void luaopen_string (lua.State L);
-		[DllImport(LUALIBDLL,CallingConvention=LUACC)] public static extern void luaopen_math   (lua.State L);
-		[DllImport(LUALIBDLL,CallingConvention=LUACC)] public static extern void luaopen_debug  (lua.State L);
-		[DllImport(LUALIBDLL,CallingConvention=LUACC)] public static extern void luaopen_loadlib(lua.State L);
+		[DllImport(DLL,CallingConvention=CC)] public static extern void luaopen_base   (lua.State L);
+		[DllImport(DLL,CallingConvention=CC)] public static extern void luaopen_io     (lua.State L);
+		[DllImport(DLL,CallingConvention=CC)] public static extern void luaopen_table  (lua.State L);
+		[DllImport(DLL,CallingConvention=CC)] public static extern void luaopen_string (lua.State L);
+		[DllImport(DLL,CallingConvention=CC)] public static extern void luaopen_math   (lua.State L);
+		[DllImport(DLL,CallingConvention=CC)] public static extern void luaopen_debug  (lua.State L);
+		[DllImport(DLL,CallingConvention=CC)] public static extern void luaopen_loadlib(lua.State L);
 		*/
 
 		/// <summary>[-0, +1, m] Pushes onto the stack a string identifying the current position of the control at level lvl in the call stack. Typically this string has the following format: <c>chunkname:currentline:</c> Level 0 is the running function, level 1 is the function that called the running function, etc. This function is used to build a prefix for error messages.</summary>
@@ -94,13 +94,13 @@ namespace LuaInterface.LuaAPI
 		}
 	}
 
-	/// <summary>Special references</summary>
-	public static class LuaRefs
+	public static partial class LUA
 	{
+		/// <summary>Special references. (see <see cref="luaL.@ref(lua.State,int)"/>)</summary>
 		public const int
-		Min  =  1, // see http://www.lua.org/source/5.1/lauxlib.c.html#luaL_ref, registry[0] is FREELIST_REF
-		None = -2, // LUA_NOREF
-		Nil  = -1; // LUA_REFNIL
+		MinRef =  1, // see http://www.lua.org/source/5.1/lauxlib.c.html#luaL_ref, registry[0] is FREELIST_REF
+		NOREF  = -2,
+		REFNIL = -1;
 	}
 
 	public static unsafe partial class luaL

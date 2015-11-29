@@ -8,7 +8,7 @@ namespace LuaInterface.LuaAPI
 	using size_t = System.UIntPtr;
 
 	/// <summary>Standard Lua constants with the "LUA_" prefix removed.</summary>
-	public static class LUA
+	public static partial class LUA
 	{
 		public const int
 		REGISTRYINDEX = -10000,
@@ -18,20 +18,23 @@ namespace LuaInterface.LuaAPI
 		MULTRET = -1; // option for multiple returns in `lua_pcall' and `lua_call'
 	}
 
-	/// <summary>Lua types for the API, returned by the <see cref="lua.type"/> function</summary>
-	public enum LuaType
+	public static partial class LUA
 	{
-		/// <summary>The type returned when accessing an index outside the stack boundaries.</summary>
-		None = -1,
-		Nil = 0,
-		Boolean,
-		LightUserdata,
-		Number,
-		String,
-		Table,
-		Function,
-		Userdata,
-		Thread,
+		/// <summary>Lua types for the API, returned by the <see cref="lua.type"/> function</summary>
+		public enum T
+		{
+			/// <summary>The type returned when accessing an index outside the stack boundaries.</summary>
+			NONE          = -1,
+			NIL           = 0,
+			BOOLEAN       = 1,
+			LIGHTUSERDATA = 2,
+			NUMBER        = 3,
+			STRING        = 4,
+			TABLE         = 5,
+			FUNCTION      = 6,
+			USERDATA      = 7,
+			THREAD        = 8,
+		}
 	}
 
 
@@ -106,10 +109,10 @@ namespace LuaInterface.LuaAPI
 
 		#region access functions (stack -> C)
 
-		/// <summary>[-0, +0, -] Returns the type of the value in the given acceptable index, or <see cref="LuaType.None"/> for a non-valid index (that is, an index to an "empty" stack position).</summary>
-		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_type")] public static extern LuaType type(lua.State L, int index);
+		/// <summary>[-0, +0, -] Returns the type of the value in the given acceptable index, or <see cref="LUA.T.NONE"/> for a non-valid index (that is, an index to an "empty" stack position).</summary>
+		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_type")] public static extern LUA.T type(lua.State L, int index);
 		/// <summary>[-0, +0, -] Returns the name of the type encoded by the value tp, which must be one the values returned by <see cref="lua.type"/>.</summary>
-		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_typename")] public static extern string typename(lua.State L, LuaType tp);
+		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_typename")] public static extern string typename(lua.State L, LUA.T tp);
 
 		#region lua.is*
 
@@ -122,17 +125,17 @@ namespace LuaInterface.LuaAPI
 		/// <summary>[-0, +0, -] Returns true if the value at the given acceptable index is a userdata (either full or light), and false otherwise.</summary>
 		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_isuserdata" )] public static extern bool isuserdata (lua.State L, int index);
 		/// <summary>[-0, +0, -] Returns true if the value at the given acceptable index is a function (either C or Lua), and false otherwise.</summary>
-		public static bool isfunction     (lua.State L, int index) { return lua.type(L,index) == LuaType.Function; }
+		public static bool isfunction     (lua.State L, int index) { return lua.type(L,index) == LUA.T.FUNCTION; }
 		/// <summary>[-0, +0, -] Returns true if the value at the given acceptable index is a table, and false otherwise.</summary>
-		public static bool istable        (lua.State L, int index) { return lua.type(L,index) == LuaType.Table; }
+		public static bool istable        (lua.State L, int index) { return lua.type(L,index) == LUA.T.TABLE; }
 		/// <summary>[-0, +0, -] Returns true if the value at the given acceptable index is a light userdata, and false otherwise.</summary>
-		public static bool islightuserdata(lua.State L, int index) { return lua.type(L,index) == LuaType.LightUserdata; }
+		public static bool islightuserdata(lua.State L, int index) { return lua.type(L,index) == LUA.T.LIGHTUSERDATA; }
 		/// <summary>[-0, +0, -] Returns true if the value at the given acceptable index is nil, and false otherwise.</summary>
-		public static bool isnil          (lua.State L, int index) { return lua.type(L,index) == LuaType.Nil; }
+		public static bool isnil          (lua.State L, int index) { return lua.type(L,index) == LUA.T.NIL; }
 		/// <summary>[-0, +0, -] Returns true if the value at the given acceptable index has type boolean, and false otherwise.</summary>
-		public static bool isboolean      (lua.State L, int index) { return lua.type(L,index) == LuaType.Boolean; }
+		public static bool isboolean      (lua.State L, int index) { return lua.type(L,index) == LUA.T.BOOLEAN; }
 		/// <summary>[-0, +0, -] Returns true if the given acceptable index is not valid (that is, it refers to an element outside the current stack), and false otherwise.</summary>
-		public static bool isnone         (lua.State L, int index) { return lua.type(L,index) == LuaType.None; }
+		public static bool isnone         (lua.State L, int index) { return lua.type(L,index) == LUA.T.NONE; }
 		/// <summary>[-0, +0, -] Returns true if the given acceptable index is not valid (that is, it refers to an element outside the current stack) or if the value at this index is nil, and false otherwise.</summary>
 		public static bool isnoneornil    (lua.State L, int index) { return (int)lua.type(L,index) <= 0; }
 
@@ -266,24 +269,29 @@ namespace LuaInterface.LuaAPI
 		#region `load' and `call' functions (load and run Lua code)
 	} // lua
 
-	/// <summary>
-	/// Lua status codes returned by functions like <see cref="lua.call"/> and <see cref="lua.load"/>.
-	/// Each of the functions can only return a subset of these values. See the function's documentation in the Lua manual for details.
-	/// </summary>
-	public enum LuaStatus
+	public static partial class LUA
 	{
-		/// <summary>0: no errors.</summary>
-		Ok = 0,
-		/// <summary>LUA_ERRRUN: a runtime error.</summary>
-		ErrRun = 2,
-		/// <summary>LUA_ERRSYNTAX: syntax error during pre-compilation.</summary>
-		ErrSyntax,
-		/// <summary>LUA_ERRMEM: memory allocation error. For such errors, Lua does not call the error handler function.</summary>
-		ErrMem,
-		/// <summary>LUA_ERRERR: error while running the error handler function.</summary>
-		ErrErr,
-		/// <summary>LUA_ERRFILE: cannot open/read the file.</summary>
-		ErrFile,
+		/// <summary>
+		/// Lua status codes returned by functions like <see cref="lua.call"/> and <see cref="lua.load"/>.
+		/// Each of the functions can only return a subset of these values. See the function's documentation in the Lua manual for details.
+		/// </summary>
+		public enum ERR
+		{
+			/// <summary>0: no errors.</summary>
+			Success = 0,
+			/// <summary>LUA_YIELD: the thread is suspended</summary>
+			YIELD = 1,
+			/// <summary>LUA_ERRRUN: a runtime error.</summary>
+			RUN = 2,
+			/// <summary>LUA_ERRSYNTAX: syntax error during pre-compilation.</summary>
+			SYNTAX = 3,
+			/// <summary>LUA_ERRMEM: memory allocation error. For such errors, Lua does not call the error handler function.</summary>
+			MEM = 4,
+			/// <summary>LUA_ERRERR: error while running the error handler function.</summary>
+			ERR = 5,
+			/// <summary>LUA_ERRFILE: cannot open/read the file. (luaL)</summary>
+			ERRFILE = LUA.ERR.ERR + 1,
+		}
 	}
 
 	public static unsafe partial class lua
@@ -292,15 +300,15 @@ namespace LuaInterface.LuaAPI
 		[UnmanagedFunctionPointer(CC)] public delegate byte* Reader(lua.State L, void* data, out size_t size);
 
 		/// <summary>[-(nargs + 1), +nresults, e] Calls a function.</summary>
-		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_call"  )] public static extern void      call  (lua.State L, int nargs, int nresults);
+		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_call"  )] public static extern void    call  (lua.State L, int nargs, int nresults);
 		/// <summary>[-(nargs + 1), +(nresults|1), -] Calls a function in protected mode. If there is any error, <see cref="lua.pcall"/> catches it, pushes a single value on the stack (the error message), and returns an error code.</summary>
-		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_pcall" )] public static extern LuaStatus pcall (lua.State L, int nargs, int nresults, int errfunc);
-		/// <summary>[-0, +(0|1), -] Calls the C function <paramref name="func"/> in protected mode. <paramref name="func"/> starts with only one element in its stack, a light userdata containing ud. In case of errors, <see cref="lua.cpcall(lua.State,lua.CFunction,IntPtr)"/> returns the same error codes as <see cref="lua.pcall"/>, plus the error object on the top of the stack; otherwise, it returns <see cref="LuaStatus.Ok"/>, and does not change the stack. All values returned by <paramref name="func"/> are discarded.</summary>
-		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_cpcall")] public static extern LuaStatus cpcall(lua.State L, lua.CFunction func, IntPtr ud);
-		/// <summary>[-0, +(0|1), -] Calls the C function <paramref name="func"/> in protected mode. <paramref name="func"/> starts with only one element in its stack, a light userdata containing ud. In case of errors, <see cref="M:lua.cpcall(lua.State,void*,void*)"/> returns the same error codes as <see cref="lua.pcall"/>, plus the error object on the top of the stack; otherwise, it returns <see cref="LuaStatus.Ok"/>, and does not change the stack. All values returned by <paramref name="func"/> are discarded.</summary>
-		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_cpcall")] public static extern LuaStatus cpcall(lua.State L, void* func, void* ud);
+		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_pcall" )] public static extern LUA.ERR pcall (lua.State L, int nargs, int nresults, int errfunc);
+		/// <summary>[-0, +(0|1), -] Calls the C function <paramref name="func"/> in protected mode. <paramref name="func"/> starts with only one element in its stack, a light userdata containing ud. In case of errors, <see cref="lua.cpcall(lua.State,lua.CFunction,IntPtr)"/> returns the same error codes as <see cref="lua.pcall"/>, plus the error object on the top of the stack; otherwise, it returns <see cref="LUA.ERR.Success"/>, and does not change the stack. All values returned by <paramref name="func"/> are discarded.</summary>
+		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_cpcall")] public static extern LUA.ERR cpcall(lua.State L, lua.CFunction func, IntPtr ud);
+		/// <summary>[-0, +(0|1), -] Calls the C function <paramref name="func"/> in protected mode. <paramref name="func"/> starts with only one element in its stack, a light userdata containing ud. In case of errors, <see cref="M:lua.cpcall(lua.State,void*,void*)"/> returns the same error codes as <see cref="lua.pcall"/>, plus the error object on the top of the stack; otherwise, it returns <see cref="LUA.ERR.Success"/>, and does not change the stack. All values returned by <paramref name="func"/> are discarded.</summary>
+		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_cpcall")] public static extern LUA.ERR cpcall(lua.State L, void* func, void* ud);
 		/// <summary>[-0, +1, -] Loads a Lua chunk. If there are no errors, <see cref="lua.load"/> pushes the compiled chunk as a Lua function on top of the stack. Otherwise, it pushes an error message.</summary>
-		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_load"  )] public static extern LuaStatus load  (lua.State L, lua.Reader reader, IntPtr data, string chunkname);
+		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_load"  )] public static extern LUA.ERR load  (lua.State L, lua.Reader reader, IntPtr data, string chunkname);
 		// omitted:
 		//   lua_dump   (would write to unmanaged memory via lua_Writer)
 
@@ -317,32 +325,35 @@ namespace LuaInterface.LuaAPI
 
 		#region garbage-collection function and options
 	} // lua
-
-	/// <summary>Options for the Lua API function <see cref="lua.gc"/></summary>
-	public enum LuaGC
+	
+	public static partial class LUA
 	{
-		/// <summary>Stops the garbage collector.</summary>
-		Stop = 0,
-		/// <summary>Restarts the garbage collector.</summary>
-		Restart,
-		/// <summary>Performs a full garbage-collection cycle.</summary>
-		Collect,
-		/// <summary>Returns the current amount of memory (in Kbytes) in use by Lua.</summary>
-		Count,
-		/// <summary>Returns the remainder of dividing the current amount of bytes of memory in use by Lua by 1024.</summary>
-		CountB,
-		/// <summary>Performs an incremental step of garbage collection. The step "size" is controlled by data (larger values mean more steps) in a non-specified way. If you want to control the step size you must experimentally tune the value of data. The function returns 1 if the step finished a garbage-collection cycle.</summary>
-		Step,
-		/// <summary>Sets data as the new value for the pause of the collector (see §2.10). The function returns the previous value of the pause.</summary>
-		SetPause,
-		/// <summary>Sets data as the new value for the step multiplier of the collector (see §2.10). The function returns the previous value of the step multiplier.</summary>
-		SetStepMul,
+		/// <summary>Options for the Lua API function <see cref="lua.gc"/></summary>
+		public enum GC
+		{
+			/// <summary>Stops the garbage collector.</summary>
+			STOP       = 0,
+			/// <summary>Restarts the garbage collector.</summary>
+			RESTART    = 1,
+			/// <summary>Performs a full garbage-collection cycle.</summary>
+			COLLECT    = 2,
+			/// <summary>Returns the current amount of memory (in Kbytes) in use by Lua.</summary>
+			COUNT      = 3,
+			/// <summary>Returns the remainder of dividing the current amount of bytes of memory in use by Lua by 1024.</summary>
+			COUNTB     = 4,
+			/// <summary>Performs an incremental step of garbage collection. The step "size" is controlled by data (larger values mean more steps) in a non-specified way. If you want to control the step size you must experimentally tune the value of data. The function returns 1 if the step finished a garbage-collection cycle.</summary>
+			STEP       = 5,
+			/// <summary>Sets data as the new value for the pause of the collector (see §2.10). The function returns the previous value of the pause.</summary>
+			SETPAUSE   = 6,
+			/// <summary>Sets data as the new value for the step multiplier of the collector (see §2.10). The function returns the previous value of the step multiplier.</summary>
+			SETSTEPMUL = 7,
+		}
 	}
 
 	public static unsafe partial class lua
 	{
 		/// <summary>[-0, +0, e] Controls the garbage collector. This function performs several tasks, according to the value of the parameter <paramref name="what"/>.</summary>
-		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_gc")] public static extern int gc(lua.State L, LuaGC what, int data);
+		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_gc")] public static extern int gc(lua.State L, LUA.GC what, int data);
 
 		#endregion
 

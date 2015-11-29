@@ -265,7 +265,7 @@ namespace LuaInterface
 #if __NOGEN__
 			throwError(L,"Tables as Objects not implemented");
 #else
-			if(lua.type(L,1)==LuaType.Table)
+			if(lua.type(L,1)==LUA.T.TABLE)
 			{
 				string superclassName = lua.tostring(L, 2);
 				if (superclassName != null)
@@ -443,12 +443,12 @@ namespace LuaInterface
 				return pushError(L,"not an enum");
 			}
 			object res = null;
-			LuaType lt = lua.type(L,2);
-			if (lt == LuaType.Number) {
+			var lt = lua.type(L,2);
+			if (lt == LUA.T.NUMBER) {
 				int ival = (int)lua.tonumber(L,2);
 				res = Enum.ToObject(t,ival);
 			} else
-			if (lt == LuaType.String) {
+			if (lt == LUA.T.STRING) {
 				string sflags = lua.tostring(L,2);
 				string err = null;
 				try {
@@ -623,38 +623,38 @@ namespace LuaInterface
 			Debug.Assert(L == interpreter._L);
 			switch(lua.type(L,index))
 			{
-			case LuaType.None:
+			case LUA.T.NONE:
 				throw new ArgumentException("index points to an empty stack position", "index");
 
-			case LuaType.Nil:
+			case LUA.T.NIL:
 				return null;
 
-			case LuaType.Number:
+			case LUA.T.NUMBER:
 				return lua.tonumber(L,index);
 
-			case LuaType.String:
+			case LUA.T.STRING:
 				return lua.tostring(L,index);
 
-			case LuaType.Boolean:
+			case LUA.T.BOOLEAN:
 				return lua.toboolean(L,index);
 
-			case LuaType.Table:
+			case LUA.T.TABLE:
 				return getTable(L,index);
 
-			case LuaType.Function:
+			case LUA.T.FUNCTION:
 				return getFunction(L,index);
 
-			case LuaType.Userdata:
+			case LUA.T.USERDATA:
 				return getNetObject(L,index) ?? getUserData(L,index);
 
-			case LuaType.LightUserdata:
+			case LUA.T.LIGHTUSERDATA:
 				return new IntPtr(lua.touserdata(L, index));
 
-			case LuaType.Thread:
-				return LuaType.Thread; // not supported
+			case LUA.T.THREAD:
+				return LUA.T.THREAD; // not supported
 
 			default:
-				// all LuaTypes have a case, so this shouldn't happen
+				// all LUA.Ts have a case, so this shouldn't happen
 				throw new Exception("incorrect or corrupt program");
 			}
 		}

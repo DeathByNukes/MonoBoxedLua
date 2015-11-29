@@ -63,7 +63,7 @@ namespace LuaInterface
 		internal ExtractValue checkType(lua.State L,int index,Type paramType)
 		{
 			Debug.Assert(L == translator.interpreter._L);
-			LuaType luatype = lua.type(L, index);
+			var luatype = lua.type(L, index);
 
 			if(paramType.IsByRef) paramType=paramType.GetElementType();
 
@@ -82,17 +82,17 @@ namespace LuaInterface
 			//CP: Added support for generic parameters
 			if (paramType.IsGenericParameter)
 			{
-				if (luatype == LuaType.Boolean)
+				if (luatype == LUA.T.BOOLEAN)
 					return extractValues[typeof(bool).TypeHandle];
-				else if (luatype == LuaType.String)
+				else if (luatype == LUA.T.STRING)
 					return extractValues[typeof(string).TypeHandle];
-				else if (luatype == LuaType.Table)
+				else if (luatype == LUA.T.TABLE)
 					return extractValues[typeof(LuaTable).TypeHandle];
-				else if (luatype == LuaType.Userdata)
+				else if (luatype == LUA.T.USERDATA)
 					return extractValues[typeof(object).TypeHandle];
-				else if (luatype == LuaType.Function)
+				else if (luatype == LUA.T.FUNCTION)
 					return extractValues[typeof(LuaFunction).TypeHandle];
-				else if (luatype == LuaType.Number)
+				else if (luatype == LUA.T.NUMBER)
 					return extractValues[typeof(double).TypeHandle];
 				//else // suppress CS0642
 					;//an unsupported type was encountered
@@ -104,36 +104,36 @@ namespace LuaInterface
 
 			if (paramType == typeof(bool))
 			{
-				if (luatype == LuaType.Boolean)
+				if (luatype == LUA.T.BOOLEAN)
 					return extractValues[paramTypeHandle];
 			}
 			else if (paramType == typeof(string))
 			{
 				if (lua.isstring(L, index))
 					return extractValues[paramTypeHandle];
-				else if (luatype == LuaType.Nil)
+				else if (luatype == LUA.T.NIL)
 					return extractNetObject; // kevinh - silently convert nil to a null string pointer
 			}
 			else if (paramType == typeof(LuaTable))
 			{
-				if (luatype == LuaType.Table)
+				if (luatype == LUA.T.TABLE)
 					return extractValues[paramTypeHandle];
-				else if (luatype == LuaType.Nil)
+				else if (luatype == LUA.T.NIL)
 					return extractNetObject; // tkopal - silently convert nil to a null table
 			}
 			else if (paramType == typeof(LuaUserData))
 			{
-				if (luatype == LuaType.Userdata)
+				if (luatype == LUA.T.USERDATA)
 					return extractValues[paramTypeHandle];
 			}
 			else if (paramType == typeof(LuaFunction))
 			{
-				if (luatype == LuaType.Function)
+				if (luatype == LUA.T.FUNCTION)
 					return extractValues[paramTypeHandle];
-				else if (luatype == LuaType.Nil)
+				else if (luatype == LUA.T.NIL)
 					return extractNetObject; // elisee - silently convert nil to a null string pointer
 			}
-			else if (typeof(Delegate).IsAssignableFrom(paramType) && luatype == LuaType.Function)
+			else if (typeof(Delegate).IsAssignableFrom(paramType) && luatype == LUA.T.FUNCTION)
 			{
 #if __NOGEN__
 				translator.throwError(L,"Delegates not implemented");
@@ -141,7 +141,7 @@ namespace LuaInterface
 				return new ExtractValue(new DelegateGenerator(translator, paramType).extractGenerated);
 #endif
 			}
-			else if (paramType.IsInterface && luatype == LuaType.Table)
+			else if (paramType.IsInterface && luatype == LUA.T.TABLE)
 			{
 #if __NOGEN__
 				translator.throwError(L,"Interfaces not implemented");
@@ -149,12 +149,12 @@ namespace LuaInterface
 				return new ExtractValue(new ClassGenerator(translator, paramType).extractGenerated);
 #endif
 			}
-			else if ((paramType.IsInterface || paramType.IsClass) && luatype == LuaType.Nil)
+			else if ((paramType.IsInterface || paramType.IsClass) && luatype == LUA.T.NIL)
 			{
 				// kevinh - allow nil to be silently converted to null - extractNetObject will return null when the item ain't found
 				return extractNetObject;
 			}
-			else if (luatype == LuaType.Table)
+			else if (luatype == LUA.T.TABLE)
 			{
 				if (luaL.getmetafield(L, index, "__index"))
 				{
@@ -263,7 +263,7 @@ namespace LuaInterface
 		public object getAsObject(lua.State L,int index)
 		{
 			Debug.Assert(L == translator.interpreter._L);
-			if(lua.type(L,index)==LuaType.Table)
+			if(lua.type(L,index)==LUA.T.TABLE)
 			{
 				if(luaL.getmetafield(L,index,"__index"))
 				{
@@ -285,7 +285,7 @@ namespace LuaInterface
 		{
 			Debug.Assert(L == translator.interpreter._L);
 			object obj=translator.getNetObject(L,index);
-			if(obj==null && lua.type(L,index)==LuaType.Table)
+			if(obj==null && lua.type(L,index)==LUA.T.TABLE)
 			{
 				if(luaL.getmetafield(L,index,"__index"))
 				{

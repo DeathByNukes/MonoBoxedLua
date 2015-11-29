@@ -50,7 +50,7 @@ namespace LuaInterface
 		protected virtual void Dispose(bool disposing)
 		{
 			if (this.IsDisposed) return;
-			if (Reference >= LuaRefs.Min && !Owner._L.IsNull)
+			if (Reference >= LUA.MinRef && !Owner._L.IsNull)
 				luaL.unref(Owner._L, Reference);
 			Owner = null;
 			//if (disposing)
@@ -63,7 +63,7 @@ namespace LuaInterface
 
 		/// <summary>[-0, +1, m] Push the referenced object onto the stack.</summary>
 		/// <remarks>
-		/// No default implementation is provided because all implementers should be validating the type (see <see cref="CheckType(lua.State,LuaType)"/>)
+		/// No default implementation is provided because all implementers should be validating the type (see <see cref="CheckType(lua.State,LUA.T)"/>)
 		/// If you throw an exception you should leave the stack how it was.
 		/// DO NOT call <see cref="rawpush"/> from within your implementation; <see cref="rawpush"/> redirects to <see cref="push"/> in debug builds.
 		/// </remarks>
@@ -85,7 +85,7 @@ namespace LuaInterface
 		/// [-1, +0, v] Pops a value from the top of the stack and returns a reference or throws if it doesn't match the provided type.
 		/// Validating the type is critically important because some Lua functions don't check the type at all, potentially corrupting memory when given unexpected input.
 		/// </summary>
-		protected static int TryRef(lua.State L, Lua interpreter, LuaType t)
+		protected static int TryRef(lua.State L, Lua interpreter, LUA.T t)
 		{
 			Debug.Assert(L == interpreter._L);
 			var actual = lua.type(L,-1);
@@ -101,7 +101,7 @@ namespace LuaInterface
 		/// [-0, +0, v] Checks that the instance references the given type. If it doesn't, the instance is disposed and an exception is thrown.
 		/// Validating the type is critically important because some Lua functions don't check the type at all, potentially corrupting memory when given unexpected input.
 		/// </summary>
-		protected void CheckType(LuaType t)
+		protected void CheckType(LUA.T t)
 		{
 			var L = Owner._L;
 			luaL.getref(L, Reference);
@@ -117,7 +117,7 @@ namespace LuaInterface
 		/// [-(0|1), +0, v] Checks that the value on top of the stack is the given type. If it isn't then the value is popped, the instance is disposed, and an exception is thrown.
 		/// Validating the type is critically important because some Lua functions don't check the type at all, potentially corrupting memory when given unexpected input.
 		/// </summary>
-		protected void CheckType(lua.State L, LuaType t)
+		protected void CheckType(lua.State L, LUA.T t)
 		{
 			Debug.Assert(L == Owner._L);
 			var actual = lua.type(L,-1);
@@ -202,7 +202,7 @@ namespace LuaInterface
 			var L = Owner._L;
 			luaL.getref(L, Owner.tostring_ref);
 			rawpush(L);
-			if (lua.pcall(L, 1, 1, 0) != LuaStatus.Ok)
+			if (lua.pcall(L, 1, 1, 0) != LUA.ERR.Success)
 				throw Owner.ExceptionFromError(-2); // -2, pop the error from the stack
 			var str = lua.tostring(L, -1);
 			lua.pop(L,1);
@@ -281,11 +281,11 @@ namespace LuaInterface
 
 		/// <summary>Looks up the field and checks for a nil result. The field's value is discarded without performing any Lua to CLR translation.</summary>
 		public bool ContainsKey(object field) {
-			return this.FieldType(field) != LuaType.Nil;
+			return this.FieldType(field) != LUA.T.NIL;
 		}
 
 		/// <summary>Looks up the field and gets its Lua type. The field's value is discarded without performing any Lua to CLR translation.</summary>
-		public LuaType FieldType(object field)
+		public LUA.T FieldType(object field)
 		{
 			var L = Owner._L;                         StackAssert.Start(L);
 			push(L);
@@ -323,7 +323,7 @@ namespace LuaInterface
 			++Owner._executing;
 			var status = lua.pcall(L, nArgs, returnTypes == null ? LUA.MULTRET : returnTypes.Length, 0);
 			checked { --Owner._executing; }
-			if (status != LuaStatus.Ok)
+			if (status != LUA.ERR.Success)
 				throw Owner.ExceptionFromError(oldTop);
 
 			return translator.popValues(L, oldTop, returnTypes);

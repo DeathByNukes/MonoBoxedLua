@@ -60,20 +60,20 @@ namespace LuaInterface
 
 		/// <summary>[-1, +0, e] Pops a userdata from the top of the stack and creates a new reference. The value is discarded if a type exception is thrown.</summary>
 		public LuaUserData(lua.State L, Lua interpreter)
-		: base(TryRef(L, interpreter, LuaType.Userdata), interpreter)
+		: base(TryRef(L, interpreter, LUA.T.USERDATA), interpreter)
 		{
 		}
 		public LuaUserData(int reference, Lua interpreter)
 		: base(reference, interpreter)
 		{
-			CheckType(LuaType.Userdata);
+			CheckType(LUA.T.USERDATA);
 		}
 
 		protected internal override void push(lua.State L)
 		{
 			Debug.Assert(L == Owner._L);
 			luaL.getref(L, Reference);
-			CheckType(L, LuaType.Userdata);
+			CheckType(L, LUA.T.USERDATA);
 		}
 
 		#endregion

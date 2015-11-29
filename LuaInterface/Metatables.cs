@@ -100,12 +100,12 @@ namespace LuaInterface
 			Debug.WriteLine("lua stack depth: " + depth);
 			for (int i = 1; i <= depth; i++)
 			{
-				LuaType type = lua.type(L, i);
+				var type = lua.type(L, i);
 				// we dump stacks when deep in calls, calling typename while the stack is in flux can fail sometimes, so manually check for key types
-				string typestr = (type == LuaType.Table) ? "table" : lua.typename(L, type);
+				string typestr = (type == LUA.T.TABLE) ? "table" : lua.typename(L, type);
 
 				string strrep = lua.tostring(L, i);
-				if (type == LuaType.Userdata)
+				if (type == LUA.T.USERDATA)
 				{
 					object obj = translator.getRawNetObject(L, i);
 					strrep = obj.ToString();
@@ -241,7 +241,7 @@ namespace LuaInterface
 			}
 			getMember(L, obj.GetType(), obj, "__luaInterface_base_" + methodName, BindingFlags.Instance | BindingFlags.IgnoreCase);
 			lua.pop(L,1);
-			if (lua.type(L, -1) == LuaType.Nil)
+			if (lua.type(L, -1) == LUA.T.NIL)
 			{
 				lua.pop(L,1);
 				return getMember(L, obj.GetType(), obj, methodName, BindingFlags.Instance | BindingFlags.IgnoreCase);
@@ -512,7 +512,7 @@ namespace LuaInterface
 			// changing the lua typecode to string
 			// Note: We don't use isstring because the standard lua C isstring considers either strings or numbers to
 			// be true for isstring.
-			if (lua.type(L, 2) != LuaType.String)
+			if (lua.type(L, 2) != LUA.T.STRING)
 			{
 				detailMessage = "property names must be strings";
 				return false;
@@ -846,21 +846,15 @@ namespace LuaInterface
 
 			if (currentNetParam.GetCustomAttributes(typeof(ParamArrayAttribute), false).Length > 0)
 			{
-				LuaType luaType;
-
-				try
+				var luatype = lua.type(L, currentLuaParam);
+				if (luatype == LUA.T.NONE)
 				{
-					luaType = lua.type(L, currentLuaParam);
-				}
-				catch (Exception ex)
-				{
-					Debug.WriteLine("Could not retrieve lua type while attempting to determine params Array Status."+ ex.ToString());
-					Debug.WriteLine(ex.Message);
+					Debug.WriteLine("Could not retrieve lua type while attempting to determine params Array Status.");
 					extractValue = null;
 					return false;
 				}
 
-				if (luaType == LuaType.Table)
+				if (luatype == LUA.T.TABLE)
 				{
 					try
 					{
@@ -886,7 +880,7 @@ namespace LuaInterface
 					}
 					catch (Exception ex)
 					{
-						Debug.WriteLine(string.Format("An error occurred during an attempt to retrieve an extractor ({0}) while checking for params array status:{1}", paramElementType.FullName,ex.ToString()));
+						Debug.WriteLine("An error occurred during an attempt to retrieve an extractor ({0}) while checking for params array status:{1}", paramElementType.FullName, ex.ToString());
 					}
 
 					if (extractValue != null)

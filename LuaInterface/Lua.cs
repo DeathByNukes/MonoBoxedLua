@@ -147,7 +147,7 @@ namespace LuaInterface
 		public LuaFunction LoadString(string chunk)
 		{
 			var L = _L;
-			if (luaL.loadstring(L, chunk) == LuaStatus.Ok)
+			if (luaL.loadstring(L, chunk) == LUA.ERR.Success)
 				return new LuaFunction(L, this);
 			else
 				throw ExceptionFromError(-2);
@@ -156,7 +156,7 @@ namespace LuaInterface
 		public LuaFunction LoadString(string chunk, string name)
 		{
 			var L = _L;
-			if (luaL.loadbuffer(L, chunk, name) == LuaStatus.Ok)
+			if (luaL.loadbuffer(L, chunk, name) == LUA.ERR.Success)
 				return new LuaFunction(L, this);
 			else
 				throw ExceptionFromError(-2);
@@ -166,7 +166,7 @@ namespace LuaInterface
 		public LuaFunction LoadFile(string fileName)
 		{
 			var L = _L;
-			if (luaL.loadfile(L, fileName) == LuaStatus.Ok)
+			if (luaL.loadfile(L, fileName) == LUA.ERR.Success)
 				return new LuaFunction(L, this);
 			else
 				throw ExceptionFromError(-2);
@@ -190,10 +190,10 @@ namespace LuaInterface
 			try
 			{
 				var status = luaL.loadbuffer(_L, chunk, chunkName);
-				if (status == LuaStatus.Ok)
+				if (status == LUA.ERR.Success)
 				{
 					status = lua.pcall(_L, 0, LUA.MULTRET, 0);
-					if (status == LuaStatus.Ok)
+					if (status == LUA.ERR.Success)
 						return translator.popValues(_L, oldTop);
 				}
 				throw ExceptionFromError(oldTop);
@@ -239,10 +239,10 @@ namespace LuaInterface
 			try
 			{
 				var status = luaL.loadfile(_L,fileName);
-				if (status == LuaStatus.Ok)
+				if (status == LUA.ERR.Success)
 				{
 					status = lua.pcall(_L, 0, LUA.MULTRET, -2);
-					if (status == LuaStatus.Ok)
+					if (status == LUA.ERR.Success)
 						return translator.popValues(_L, oldTop);
 				}
 				throw ExceptionFromError(oldTop);
@@ -256,10 +256,10 @@ namespace LuaInterface
 
 		#endregion
 
-
+		/// <summary>Performs a full garbage-collection cycle.</summary>
 		public void CollectGarbage()
 		{
-			lua.gc(_L, LuaGC.Collect, 0);
+			lua.gc(_L, LUA.GC.COLLECT, 0);
 		}
 
 		#region Global Variables
@@ -407,7 +407,7 @@ namespace LuaInterface
 		{
 			var L = _L;                         StackAssert.Start(L);
 			luanet.getnestedfield(L, LUA.GLOBALSINDEX, fullPath);
-			CheckType(L, fullPath, LuaType.Number);
+			CheckType(L, fullPath, LUA.T.NUMBER);
 			var ret = lua.tonumber(L,-1);
 			lua.pop(L,1);                       StackAssert.End();
 			return ret;
@@ -417,7 +417,7 @@ namespace LuaInterface
 		{
 			var L = _L;                         StackAssert.Start(L);
 			luanet.getnestedfield(L, LUA.GLOBALSINDEX, fullPath);
-			CheckType(L, fullPath, LuaType.String);
+			CheckType(L, fullPath, LUA.T.STRING);
 			var ret = lua.tostring(L,-1);
 			lua.pop(L,1);                       StackAssert.End();
 			return ret;
@@ -428,7 +428,7 @@ namespace LuaInterface
 			var L = _L;
 			luanet.getnestedfield(L, LUA.GLOBALSINDEX, fullPath);
 			var type = lua.type(L,-1);
-			if (type == LuaType.Nil)
+			if (type == LUA.T.NIL)
 			{
 				lua.pop(L,1);
 				return null;
@@ -450,21 +450,21 @@ namespace LuaInterface
 			luanet.getnestedfield(L, LUA.GLOBALSINDEX, fullPath);
 			switch (lua.type(L,-1))
 			{
-			case LuaType.Function:              StackAssert.End(1);
+			case LUA.T.FUNCTION:              StackAssert.End(1);
 				return new LuaFunction(L, this);
 
-			case LuaType.Userdata:
+			case LUA.T.USERDATA:
 				var o = translator.getNetObject(L, -1) as lua.CFunction;
 				if (o == null) break;
 				lua.pop(L,1);                       StackAssert.End();
 				return new LuaFunction(o, this);
 
-			case LuaType.Nil:
+			case LUA.T.NIL:
 				lua.pop(L,1);                       StackAssert.End();
 				return null;
 			}
 			lua.pop(L,1);                       StackAssert.End();
-			throw NewTypeException(fullPath, LuaType.Function);
+			throw NewTypeException(fullPath, LUA.T.FUNCTION);
 		}
 		/// <summary>Gets a function global variable as a delegate of type delegateType</summary>
 		public Delegate GetFunction(Type delegateType,string fullPath)
@@ -479,19 +479,19 @@ namespace LuaInterface
 
 
 		/// <summary>[-(0|1), +0, v]</summary>
-		static void CheckType(lua.State L, string fullPath, LuaType type)
+		static void CheckType(lua.State L, string fullPath, LUA.T type)
 		{
 			CheckType(L, fullPath, lua.type(L,-1), type);
 		}
 		/// <summary>[-(0|1), +0, v]</summary>
-		static void CheckType(lua.State L, string fullPath, LuaType actual_type, LuaType type)
+		static void CheckType(lua.State L, string fullPath, LUA.T actual_type, LUA.T type)
 		{
 			// the old behavior didn't support conversions and threw InvalidCastException
 			if (actual_type == type) return;
 			lua.pop(L, 1);
 			throw NewTypeException(fullPath, type);
 		}
-		static InvalidCastException NewTypeException(string fullPath, LuaType type)
+		static InvalidCastException NewTypeException(string fullPath, LUA.T type)
 		{
 			return new InvalidCastException(String.Format("Lua value at \"{0}\" was not a {1}.", fullPath, type.ToString().ToLowerInvariant()));
 		}
@@ -749,7 +749,7 @@ namespace LuaInterface
 		internal static void leaked(int reference)
 		{
 			#if DEBUG
-			if (reference >= LuaRefs.Min) checked { ++g_leak_count; }
+			if (reference >= LUA.MinRef) checked { ++g_leak_count; }
 			#endif
 		}
 

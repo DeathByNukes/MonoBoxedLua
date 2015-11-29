@@ -137,11 +137,11 @@ namespace LuaInterface
 
 		/// <summary>Looks up the field, ignoring metatables, and checks for a nil result.</summary>
 		public bool RawContainsKey(object field) {
-			return this.RawFieldType(field) != LuaType.Nil;
+			return this.RawFieldType(field) != LUA.T.NIL;
 		}
 
 		/// <summary>Looks up the field, ignoring metatables, and gets its Lua type.</summary>
-		public LuaType RawFieldType(object field)
+		public LUA.T RawFieldType(object field)
 		{
 			var L = Owner._L;                         StackAssert.Start(L);
 			push(L);
@@ -217,7 +217,7 @@ namespace LuaInterface
 				lua.pushnil(L);
 				while (lua.next(L, -2))
 				{
-					if (lua.type(L, -2) == LuaType.String)
+					if (lua.type(L, -2) == LUA.T.STRING)
 						body(lua.tostring(L, -2), translator.getObject(L, -1));
 					lua.pop(L, 1);
 				}
@@ -421,14 +421,14 @@ namespace LuaInterface
 
 		/// <summary>[-1, +0, e] Pops a table from the top of the stack and creates a new reference. The value is discarded if a type exception is thrown.</summary>
 		public LuaTable(lua.State L, Lua interpreter)
-		: base(TryRef(L, interpreter, LuaType.Table), interpreter)
+		: base(TryRef(L, interpreter, LUA.T.TABLE), interpreter)
 		{
 		}
 
 		public LuaTable(int reference, Lua interpreter)
 		: base(reference, interpreter)
 		{
-			CheckType(LuaType.Table);
+			CheckType(LUA.T.TABLE);
 		}
 
 		internal object rawgetFunction(string field)
@@ -446,7 +446,7 @@ namespace LuaInterface
 		{
 			Debug.Assert(L == Owner._L);
 			luaL.getref(Owner._L, Reference);
-			CheckType(Owner._L, LuaType.Table);
+			CheckType(Owner._L, LUA.T.TABLE);
 		}
 
 		#endregion
