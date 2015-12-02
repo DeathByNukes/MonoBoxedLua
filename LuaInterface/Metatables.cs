@@ -880,7 +880,7 @@ namespace LuaInterface
 					}
 					catch (Exception ex)
 					{
-						Debug.WriteLine("An error occurred during an attempt to retrieve an extractor ({0}) while checking for params array status:{1}", paramElementType.FullName, ex.ToString());
+						Debug.WriteLine(string.Format("An error occurred during an attempt to retrieve an extractor ({0}) while checking for params array status:{1}", paramElementType.FullName, ex.ToString()));
 					}
 
 					if (extractValue != null)
