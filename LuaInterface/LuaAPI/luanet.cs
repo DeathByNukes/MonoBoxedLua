@@ -58,6 +58,16 @@ namespace LuaInterface.LuaAPI
 			luanet.getnestedfield(L, index, path.Split('.'));
 		}
 
+		/// <summary>[-(nargs + 1), +(nresults|0), -]</summary>
+		[MethodImpl(INLINE)] public static Exception pcall(lua.State L, int nargs, int nresults)
+		{
+			if (lua.pcall(L, nargs, nresults, 0) == LUA.ERR.Success)
+				return null;
+			var message = lua.tostring(L,-1) ?? "Error message was a "+lua.type(L,-1).ToString();
+			lua.pop(L,1);
+			return new LuaScriptException(message, ""); // todo
+		}
+
 		/// <summary>[-0, +0, -] Gets a <see cref="Lua"/> instance's internal lua_State pointer.</summary>
 		[MethodImpl(INLINE)] public static lua.State getstate(Lua interpreter)
 		{
@@ -78,6 +88,36 @@ namespace LuaInterface.LuaAPI
 		[MethodImpl(INLINE)] public static object getobject(Lua lua, int index)
 		{
 			return lua.translator.getObject(lua._L, index);
+		}
+
+		/// <summary>Checks what kind of index this is. <see cref="IndexTypes.Invalid"/> represents zero and very large negative numbers.</summary>
+		public static IndexTypes indextype(int index)
+		{
+			if (index > 0)  return IndexTypes.Absolute;
+			// comparisons with LUA_*INDEX is what Lua does internally
+			if (index > LUA.REGISTRYINDEX) return index == 0 ? IndexTypes.Invalid : IndexTypes.Relative;
+			if (index >= LUA.GLOBALSINDEX) return IndexTypes.Pseudo;
+			if (index >= lua.upvalueindex(256)) return IndexTypes.Upvalue; // http://www.lua.org/manual/5.1/manual.html#3.4
+			return IndexTypes.Invalid;
+		}
+		/// <summary>Returned by <see cref="luanet.indextype"/>.</summary>
+		public enum IndexTypes { Invalid, Absolute, Relative, Pseudo, Upvalue }
+
+		/// <summary>[-0, +0, -] Converts relative index to a normal (absolute) index. If the relative index goes out of the stack bounds, 0 is returned. If <paramref name="index"/> is not a relative index it is returned unchanged.</summary>
+		public static int absoluteindex(lua.State L, int index)
+		{
+			if (index >= 0 || index <= LUA.REGISTRYINDEX)
+				return index;
+			int i = lua.gettop(L) + index + 1;
+			return i < 0 ? 0 : i;
+		}
+
+		/// <summary>[-0, +0, -] Returns whether the currently executing code was called by Lua.</summary>
+		public static bool infunction(lua.State L)
+		{
+			// this function is should resolve to the same thing as "L->ci != L->base_ci" in internal lua code
+			var ar = new lua.Debug();
+			return lua.getstack(L, 0, ref ar); // returns unsuccessful if there is no stack
 		}
 
 		/// <summary>[-0, +1, m] Pushes a delegate onto the stack as a callable userdata.</summary>

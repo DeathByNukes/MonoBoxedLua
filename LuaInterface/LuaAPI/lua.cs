@@ -34,6 +34,14 @@ namespace LuaInterface.LuaAPI
 		/// <summary>the only time LUA_SIGNATURE is used in Lua 5.1 is when it outputs new bytecode. all the parsing code just uses LUA_SIGNATURE[0]</summary>
 		public const char SIGNATURE_0 = '\x1B';
 	}
+	public static partial class lua
+	{
+		/// <summary>
+		/// <para>When a C function is created, it is possible to associate some values with it, thus creating a C closure; these values are called upvalues and are accessible to the function whenever it is called (see <see cref="lua.pushcclosure"/>).</para>
+		/// <para>Whenever a C function is called, its upvalues are located at specific pseudo-indices. These pseudo-indices are produced by <see cref="lua.upvalueindex"/>. The first value associated with a function is at position lua.upvalueindex(1), and so on. Any access to lua.upvalueindex(n), where n is greater than the number of upvalues of the current function (but not greater than 256), produces an acceptable (but invalid) index.</para>
+		/// </summary>
+		[MethodImpl(INLINE)] public static int upvalueindex(int i) { return LUA.GLOBALSINDEX - i; }
+	}
 
 	public static partial class LUA
 	{
@@ -342,7 +350,7 @@ namespace LuaInterface.LuaAPI
 
 		#region garbage-collection function and options
 	} // lua
-	
+
 	public static partial class LUA
 	{
 		/// <summary>Options for the Lua API function <see cref="lua.gc"/></summary>
@@ -384,7 +392,7 @@ namespace LuaInterface.LuaAPI
 		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_concat")] public static extern void concat(lua.State L, int n);
 
 		#endregion
-		
+
 		#region Debug API
 	}
 	public static partial class LUA
@@ -494,7 +502,7 @@ namespace LuaInterface.LuaAPI
 		/// <summary>[-(0|1), +0, -]<para>Sets the value of a closure's upvalue. It assigns the value at the top of the stack to the upvalue and returns its name. It also pops the value from the stack. Parameters funcindex and n are as in the lua.getupvalue (see <see cref="lua.getupvalue"/>).</para><para>Returns <see langword="null"/> (and pops nothing) when the index is greater than the number of upvalues.</para></summary>
 		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_setupvalue"  )] public static extern string   setupvalue  (lua.State L, int funcindex, int n);
 
-		/// <summary>[-0, +0, -]<para>Sets the debugging hook function.</para><para>Argument <paramref name="f"/> is the hook function. mask specifies on which events the hook will be called: it is formed by a bitwise or of the <see cref="LUA.MASK"/> constants. The <see cref="count"/> argument is only meaningful when the mask includes <see cref="LUA.MASK.COUNT"/>.</para><para>A hook is disabled by setting mask to zero.</para></summary>
+		/// <summary>[-0, +0, -]<para>Sets the debugging hook function.</para><para>Argument <paramref name="f"/> is the hook function. mask specifies on which events the hook will be called: it is formed by a bitwise or of the <see cref="LUA.MASK"/> constants. The <paramref name="count"/> argument is only meaningful when the mask includes <see cref="LUA.MASK.COUNT"/>.</para><para>A hook is disabled by setting mask to zero.</para></summary>
 		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_sethook"     )] public static extern int      sethook     (lua.State L, lua.Hook f, LUA.MASK mask, int count);
 		/// <summary>[-0, +0, -]<para>Returns the current hook function.</para></summary>
 		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_gethook"     )] public static extern lua.Hook gethook     (lua.State L);

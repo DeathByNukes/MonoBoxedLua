@@ -52,7 +52,7 @@ namespace LuaInterfaceTest
 			Assert.IsNotNull(variable);
 			variable = null;
 		}
-		
+
 		/// <summary>Calls the provided method and returns. The method is guaranteed not to be inlined.</summary>
 		[MethodImpl(MethodImplOptions.NoInlining)]
 		public static void Execute(Action a) { a(); }

@@ -53,6 +53,7 @@
   </Choose>
   <ItemGroup>
     <Compile Include="CallLua.cs" />
+    <Compile Include="StackIndex.cs" />
     <Compile Include="Security.cs" />
     <Compile Include="Error.cs" />
     <Compile Include="Dispose.cs" />

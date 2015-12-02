@@ -85,12 +85,11 @@ namespace LuaInterface
 		// We need to keep this in a managed reference so the delegate doesn't get garbage collected
 		static readonly lua.CFunction panicCallback = L =>
 		{
-			// string desc = lua.tostring(L, 1);
-			string reason = String.Format("unprotected error in call to Lua API ({0})", lua.tostring(L, -1));
-
-		   //        lua_tostring(L, -1);
-
-			throw new LuaException(reason);
+			var err = lua.tostring(L,-1) ?? "Error message was a "+lua.type(L,-1).ToString();
+			lua.pop(L, 1);
+			Trace.TraceError("Lua panic! "+err);
+			throw new LuaException(string.Format("unprotected error in call to Lua API ({0})", err));
+			// note: panic completely wiped the old stack!
 		};
 
 

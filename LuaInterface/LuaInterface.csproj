@@ -92,10 +92,12 @@
     <Compile Include="CheckType.cs" />
     <Compile Include="GenerateEventAssembly.cs" />
     <Compile Include="Lua.cs" />
+    <Compile Include="LuaAPI\StackIndex.cs" />
     <Compile Include="LuaAPI\lua.cs" />
     <Compile Include="LuaAPI\lua.State.cs" />
     <Compile Include="LuaAPI\luaL.cs" />
     <Compile Include="LuaAPI\luanet.cs" />
+    <Compile Include="LuaAPI\LuaValue.cs" />
     <Compile Include="LuaAPI\size_t.cs" />
     <Compile Include="LuaBase.cs" />
     <Compile Include="LuaException.cs" />
