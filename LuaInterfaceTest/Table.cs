@@ -359,5 +359,68 @@ namespace LuaInterfaceTest
 				Assert.AreEqual(expected, string.Join(", ", table.IPairs.Select(TestFormat)));
 			}
 		}
+
+		[TestMethod] public void Summarize()
+		{
+			using (var l = NewTest())
+			{
+				var L = luanet.getstate(l);
+				Assert.AreEqual(LUA.ERR.Success, luaL.dostring(L, @"
+return _G,newTestTable(nil,nil),{
+	'1', 2, 'three', 4, 5, 2*3, {7}
+},{
+	'1', 2, 'three', nil, 5, 2*3, seven=7, eight={8}
+},{
+	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa = 1,
+	bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb = function() return 1 end,
+	cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc = {},
+	['ddddddddddddddddddddddddddddddddddddddddd)(*&^(*&%^ dddddddddddddddddddddddddddddddddddddddddddddddddd'] = {},
+},{
+	true,true,true,true,
+},{
+	[true] = false,
+	[false] = true,
+},{
+	true,true,true,true,
+	aaaaaa = 1,
+	bbbbbb = function() return 1 end,
+	cccccc = {},
+	['ddd)(*&^(*&%^ ddd'] = {},
+},{
+	aaaaaa = 1,
+	bbbbbb = function() return 1 end,
+	cccccc = {},
+	['ddd)(*&^(*&%^ ddd'] = {},
+	[true] = false,
+	[false] = true,
+},{
+	true,true,true,true,
+	[true] = false,
+	[false] = true,
+},{
+	true,true,true,true,
+	aaaaaa = 1,
+	bbbbbb = function() return 1 end,
+	cccccc = {},
+	['ddd)(*&^(*&%^ ddd'] = {},
+	[true] = false,
+	[false] = true,
+}
+				"));
+
+				// luanet.summarizetable must not throw any exceptions!
+				int top = lua.gettop(L);
+				for (int i = 1; i <= top; ++i)
+				{
+					luanet.summarizetable(L,i, 256);          Assert.AreEqual(top, lua.gettop(L));
+					luanet.summarizetable(L,i, 0);            Assert.AreEqual(top, lua.gettop(L));
+					luanet.summarizetable(L,i, 10);           Assert.AreEqual(top, lua.gettop(L));
+					luanet.summarizetable(L,i, int.MinValue); Assert.AreEqual(top, lua.gettop(L));
+					luanet.summarizetable(L,i, int.MaxValue); Assert.AreEqual(top, lua.gettop(L));
+				}
+				luanet.summarizetable(L, -1, 256);
+				Assert.AreEqual(top, lua.gettop(L));
+			}
+		}
 	}
 }

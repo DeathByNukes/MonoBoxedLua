@@ -129,7 +129,14 @@ namespace LuaInterface.LuaAPI
 		{
 			index = luanet.absoluteindex(L, index);
 			Debug.Assert(lua.istable(L,index));
-			var objlen = lua.objlen(L,index);
+			uint objlen;
+			unsafe
+			{
+				void* objlen_p = lua.objlen(L,index).ToPointer();
+				if (objlen_p > (void*)uint.MaxValue)
+					return "really big";
+				objlen = unchecked((uint)objlen_p);
+			}
 			uint c_str = 0, c_str_added = 0, c_other = 0; // count_
 			int len_str = 0;
 			// build the output as a list of strings which are only concatenated at the very end
@@ -194,7 +201,12 @@ namespace LuaInterface.LuaAPI
 				}
 			}
 
-			c_other -= objlen.ToUInt32();
+			// length can be larger than the actual number of keys if it's a sparse array
+			if (objlen <= c_other)
+				c_other -= objlen;
+			else
+				c_other = 0;
+
 			if (c_other == 0)
 				o[2] = "";
 			else
