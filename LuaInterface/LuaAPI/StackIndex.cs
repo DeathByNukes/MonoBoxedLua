@@ -28,7 +28,7 @@ namespace LuaInterface.LuaAPI
 
 		public luanet.IndexTypes IndexType { get { return luanet.indextype(Index); } }
 		public LUA.T             Type      { get { _log("Type");  L.NullCheck(); return lua.type(L, Index); } }
-		public LuaValue          Value     { get { _log("Value"); L.NullCheck(); return LuaValue.read(L, Index); } }
+		public LuaValue          Value     { get { _log("Value"); L.NullCheck(); return LuaValue.read(L, Index, true); } }
 
 		public void push() { _log("push()"); L.NullCheck(); lua.pushvalue(L, Index); }
 
@@ -87,7 +87,7 @@ namespace LuaInterface.LuaAPI
 				lua.pushnil(L);
 				while (lua.next(L, index))
 				{
-					results.Add(new StackIndexChild(this, new[] { LuaValue.read(L, -2) }));
+					results.Add(new StackIndexChild(this, new[] { LuaValue.read(L, -2, true) }));
 					lua.pop(L,1);
 				}                                            StackAssert.End();
 			}
@@ -168,7 +168,7 @@ namespace LuaInterface.LuaAPI
 		{
 			_log("Value");
 			this.push();
-			return LuaValue.pop(this.Parent.L);
+			return LuaValue.pop(this.Parent.L, true);
 		}}
 
 		public override string ToString()
@@ -208,7 +208,7 @@ namespace LuaInterface.LuaAPI
 				{
 					var keys = new LuaValue[_keys.Length+1];
 					Array.Copy(_keys, keys, _keys.Length);
-					keys[keys.Length-1] = LuaValue.read(L, -2);
+					keys[keys.Length-1] = LuaValue.read(L, -2, true);
 					results.Add(new StackIndexChild(this.Parent, keys));
 					lua.pop(L,1);
 				}                                            StackAssert.End();

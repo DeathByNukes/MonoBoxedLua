@@ -120,6 +120,97 @@ namespace LuaInterface.LuaAPI
 			return lua.getstack(L, 0, ref ar); // returns unsuccessful if there is no stack
 		}
 
+		#region summarizetable
+
+		/// <summary>[-0, +0, e] Generates a human readable summary of a table's contents.</summary>
+		/// <param name="L"></param><param name="index"></param>
+		/// <param name="strings_limit">When the list of string keys grows larger than this it will stop adding more. This limit applies to the number of characters, not the number of keys.</param>
+		public static string summarizetable(lua.State L, int index, int strings_limit)
+		{
+			index = luanet.absoluteindex(L, index);
+			Debug.Assert(lua.istable(L,index));
+			var objlen = lua.objlen(L,index);
+			uint c_str = 0, c_str_added = 0, c_other = 0; // count_
+			int len_str = 0;
+			// build the output as a list of strings which are only concatenated at the very end
+			var o = new List<string>(7) {"length: ", objlen.ToString(), ", non-string/array keys: ", "", ", strings: ", "", " ("};
+
+			var old_top = lua.gettop(L);
+			try
+			{
+				lua.pushnil(L);
+				while (lua.next(L,index))
+				{
+					if (lua.type(L,-2) != LUA.T.STRING)
+						++c_other;
+					else
+					{
+						++c_str;
+						if (len_str < strings_limit)
+						{
+							++c_str_added;
+							var s = lua.tostring(L,-2);
+							if (_containsWhitespace(s))
+								s = "“"+s+"”";
+							len_str += s.Length + 1;
+							o.Add(s);
+							switch (lua.type(L,-1))
+							{
+							case LUA.T.FUNCTION:
+								len_str += 2;
+								o.Add("() ");
+								break;
+							case LUA.T.TABLE:
+								len_str += 3;
+								o.Add("={} ");
+								break;
+							default:
+								o.Add(" ");
+								break;
+							}
+						}
+					}
+					lua.pop(L,1);
+				}
+			}
+			#if DEBUG
+			finally { lua.settop(L, old_top); }
+			#else
+			catch { lua.settop(L, old_top); throw; }
+			#endif
+
+			if (c_str == 0)
+				o.RemoveRange(4,3);
+			else
+			{
+				o[5] = c_str.ToString();
+				if (c_str != c_str_added)
+					o.Add("...)");
+				else
+				{
+					var last = o[o.Count - 1];
+					o[o.Count - 1] = last.Substring(0,last.Length-1); // remove the space from the end
+					o.Add(")");
+				}
+			}
+
+			c_other -= objlen.ToUInt32();
+			if (c_other == 0)
+				o[2] = "";
+			else
+				o[3] = c_other.ToString();
+
+			return string.Concat(o.ToArray());
+		}
+		static bool _containsWhitespace(string s)
+		{
+			for (int i = 0; i < s.Length; ++i)
+				if (Char.IsWhiteSpace(s[i])) return true;
+			return false;
+		}
+
+		#endregion
+
 		/// <summary>[-0, +1, m] Pushes a delegate onto the stack as a callable userdata.</summary>
 		[Obsolete("Use lua.pushcfunction")]
 		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_pushstdcallcfunction")] public static extern void pushstdcallcfunction(lua.State L, luanet.CSFunction function);

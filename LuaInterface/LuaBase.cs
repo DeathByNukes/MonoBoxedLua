@@ -296,6 +296,19 @@ namespace LuaInterface
 			return type;
 		}
 
+		/// <summary>Indexer alternative that only fetches plain Lua value types and strings.</summary>
+		public LuaValue GetValue(LuaValue field)
+		{
+			field.VerifySupport("field");
+			var L = Owner._L;                         StackAssert.Start(L);
+			rawpush(L);
+			field.push(L);
+			lua.gettable(L,-2);
+			var obj = LuaValue.read(L, -1, false);
+			lua.pop(L,2);                             StackAssert.End();
+			return obj;
+		}
+
 		#endregion
 
 		#region Call

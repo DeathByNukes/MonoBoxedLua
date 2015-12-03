@@ -752,7 +752,7 @@ namespace LuaInterface
 		}
 #endif
 
-		/// <summary>[-0, +1, m] Pushes the object into the Lua stack according to its type.</summary>
+		/// <summary>[-0, +1, e] Pushes the object into the Lua stack according to its type.</summary>
 		internal void push(lua.State L, object o)
 		{
 			Debug.Assert(L == interpreter._L);
@@ -793,6 +793,8 @@ namespace LuaInterface
 
 			{	var x = o as lua.CFunction;
 				if(x!=null) { pushFunction(L,x); return; }  }
+
+			if(o is LuaValue) { ((LuaValue)o).push(L); return; }
 
 			// disallow all reflection
 			{

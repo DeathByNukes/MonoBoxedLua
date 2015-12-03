@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using LuaInterface;
 using LuaInterface.Helpers;
+using LuaInterface.LuaAPI;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace LuaInterfaceTest
@@ -68,7 +69,7 @@ namespace LuaInterfaceTest
 				Assert.AreEqual(_ArrayEnd, table.Length);
 				Assert.AreEqual(15, table.Count());
 
-				// - try reading normal values, which the metatable can't intercept -);
+				// - try reading normal values, which the metatable can't intercept -
 
 				// array
 				for (double i = 1; i <= _ArrayEnd; ++i)
@@ -93,6 +94,36 @@ namespace LuaInterfaceTest
 					Assert.AreEqual(_MetaRead, table[k]);
 
 				Assert.AreEqual(_MetaRead, (string)table[_EmptyNested]);
+			}
+		}
+		[TestMethod] public void GetValue()
+		{
+			using (var lua = NewTest())
+			using (var table = (LuaTable) lua.DoString("return newTestTable(true, false)", "@Table.cs.GetValue.lua")[0])
+			{
+				Assert.AreEqual(_ArrayEnd, table.Length);
+				Assert.AreEqual(15, table.Count());
+
+				// - try reading normal values, which the metatable can't intercept -
+
+				// array
+				for (double i = 1; i <= _ArrayEnd; ++i)
+					Assert.AreEqual(i, (double)table.GetValue(i));
+
+				// associative array
+				for (int i = 0; i < _Keys.Count; ++i)
+					Assert.AreEqual((double)(i + 1), (double)table.GetValue(_Keys[i]));
+
+				// double key
+				Assert.AreEqual(_DoubleValue, (string)table.GetValue(_Double));
+
+				// - try reading missing values, which the metatable will intercept -
+
+				for (double i = _ArrayEnd+1; i <= _ArrayEnd*2; ++i)
+					Assert.AreEqual(_MetaRead, (string)table.GetValue(i));
+
+				foreach (string k in _EmptyKeys)
+					Assert.AreEqual(_MetaRead, (string)table.GetValue(k));
 			}
 		}
 
@@ -182,6 +213,39 @@ namespace LuaInterfaceTest
 
 				for (double i = _ArrayEnd+1; i <= _ArrayEnd*2; ++i)
 					Assert.IsNull(table.RawGet(i));
+			}
+		}
+
+		[TestMethod] public void RawGetValue()
+		{
+			using (var lua = NewTest())
+			using (var table = (LuaTable) lua.DoString("return newTestTable(true, false)", "@Table.cs.RawGetValue.lua")[0])
+			{
+				// - try reading normal values, which the metatable can't intercept either way -
+
+				// array
+				for (int i = 1; i <= _ArrayEnd; ++i)
+					Assert.AreEqual((double)i, (double)table.RawGetValue(i));
+				for (double i = 1; i <= _ArrayEnd; ++i)
+					Assert.AreEqual(i, (double)table.RawGetValue(i));
+
+				// associative array
+				for (int i = 0; i < _Keys.Count; ++i)
+					Assert.AreEqual((double)(i + 1), (double)table.RawGetValue(_Keys[i]));
+
+				// double key
+				Assert.AreEqual(_DoubleValue, (string)table.RawGetValue(_Double));
+
+				// - try reading missing values, which the metatable would intercept if we weren't using RawGet -
+
+				for (int i = _ArrayEnd+1; i <= _ArrayEnd*2; ++i)
+					Assert.AreEqual(LUA.T.NIL, table.RawGetValue(i).Type);
+
+				foreach (string k in _EmptyKeys)
+					Assert.AreEqual(LUA.T.NIL, table.RawGetValue(k).Type);
+
+				for (double i = _ArrayEnd+1; i <= _ArrayEnd*2; ++i)
+					Assert.AreEqual(LUA.T.NIL, table.RawGetValue(i).Type);
 			}
 		}
 

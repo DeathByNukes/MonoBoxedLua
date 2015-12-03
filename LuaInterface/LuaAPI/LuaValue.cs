@@ -1,6 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Diagnostics;
 using System.Runtime.InteropServices;
 
 namespace LuaInterface.LuaAPI
@@ -23,6 +21,9 @@ namespace LuaInterface.LuaAPI
 		public LuaValue(LUA.T type) : this() { this.Type = type; }
 
 		private LuaValue(string value, LUA.T type) : this() { _string = value; this.Type = type; }
+
+		public static LuaValue Nil { get { return default(LuaValue); } }
+		public static LuaValue None { get { return new LuaValue(LUA.T.NONE); } }
 
 		public static implicit operator bool  (LuaValue v) { if (v.Type == LUA.T.BOOLEAN)       return v._boolean;       throw v._newCastException(LUA.T.BOOLEAN); }
 		public static implicit operator IntPtr(LuaValue v) { if (v.Type == LUA.T.LIGHTUSERDATA) return v._lightuserdata; throw v._newCastException(LUA.T.LIGHTUSERDATA); }
@@ -68,13 +69,26 @@ namespace LuaInterface.LuaAPI
 				case LUA.T.LIGHTUSERDATA: return _lightuserdata == other._lightuserdata;
 				case LUA.T.NUMBER:        return _number == other._number;
 				case LUA.T.STRING:        return _string == other._string;
-				default: throw _newException();
+				default: throw _newException(); // they might be equal or they might not
 			}
 		}
 
 		public override bool Equals(object obj)
 		{
-			return obj is LuaValue && this.Equals((LuaValue) obj);
+			if (obj is LuaValue)
+				return this.Equals((LuaValue) obj);
+			switch (this.Type)
+			{
+				case LUA.T.NIL:           return obj == null;
+				case LUA.T.BOOLEAN:       return _boolean.Equals(obj);
+				case LUA.T.LIGHTUSERDATA: return _lightuserdata.Equals(obj);
+				case LUA.T.NUMBER:        return _number.Equals(obj);
+				case LUA.T.STRING:        return _string.Equals(obj);
+				case LUA.T.TABLE:    if (obj is LuaTable)    throw _newException(); break;
+				case LUA.T.FUNCTION: if (obj is LuaFunction) throw _newException(); break;
+				case LUA.T.USERDATA: throw _newException();
+			}
+			return false;
 		}
 
 		public override int GetHashCode()
@@ -113,34 +127,22 @@ namespace LuaInterface.LuaAPI
 			}
 		}
 
-		/// <summary>[-0, +1, m]</summary>
-		/// <exception cref="NotSupportedException">The value is unknown. (see <see cref="IsSupported"/>)</exception>
+		/// <summary>[-0, +1, e] Pushes the value, or raises a Lua error if the value is unknown. (see <see cref="IsSupported"/>)</summary>
 		public void push(lua.State L)
 		{
 			switch (this.Type)
 			{
-			case LUA.T.NIL:
-				lua.pushnil(L);
-				break;
-			case LUA.T.BOOLEAN:
-				lua.pushboolean(L, _boolean);
-				break;
-			case LUA.T.LIGHTUSERDATA:
-				lua.pushlightuserdata(L, _lightuserdata);
-				break;
-			case LUA.T.NUMBER:
-				lua.pushnumber(L, _number);
-				break;
-			case LUA.T.STRING:
-				lua.pushstring(L, _string);
-				break;
-			default:
-				throw _newException();
+				case LUA.T.NIL:           lua.pushnil(L);                           break;
+				case LUA.T.BOOLEAN:       lua.pushboolean(L, _boolean);             break;
+				case LUA.T.LIGHTUSERDATA: lua.pushlightuserdata(L, _lightuserdata); break;
+				case LUA.T.NUMBER:        lua.pushnumber(L, _number);               break;
+				case LUA.T.STRING:        lua.pushstring(L, _string);               break;
+				default:                  luaL.error(L, _NotSupportedMsg);          break;
 			}
 		}
 
 		/// <summary>[-0, +0, -]</summary>
-		unsafe public static LuaValue read(lua.State L, int index)
+		unsafe public static LuaValue read(lua.State L, int index, bool detailed_tostring)
 		{
 			var type = lua.type(L, index);
 			switch (type)
@@ -154,99 +156,16 @@ namespace LuaInterface.LuaAPI
 			case LUA.T.STRING:
 				return new LuaValue(lua.tostring(L, index));
 			case LUA.T.TABLE:
-				return new LuaValue(_summarizeTable(L, index), LUA.T.TABLE);
+				return new LuaValue(detailed_tostring ? luanet.summarizetable(L, index, 256) : null, LUA.T.TABLE);
 			default:
 				return new LuaValue(type);
 			}
 		}
 
-		public static string _summarizeTable(lua.State L, int i)
-		{
-			i = luanet.absoluteindex(L, i);
-			Debug.Assert(lua.istable(L,i));
-			var objlen = lua.objlen(L,i);
-			uint c_str = 0, c_str_added = 0, c_other = 0; // count_
-			int len_str = 0;
-			// build the output as a list of strings which are only concatenated at the very end
-			var o = new List<string>(7) {"length: ", objlen.ToString(), ", non-string/array keys: ", "", ", strings: ", "", " ("};
-
-			var old_top = lua.gettop(L);
-			try
-			{
-				lua.pushnil(L);
-				while (lua.next(L,i))
-				{
-					if (lua.type(L,-2) != LUA.T.STRING)
-						++c_other;
-					else
-					{
-						++c_str;
-						if (len_str < 256)
-						{
-							++c_str_added;
-							var s = lua.tostring(L,-2);
-							if (_containsWhitespace(s))
-								s = "“"+s+"”";
-							len_str += s.Length + 1;
-							o.Add(s);
-							switch (lua.type(L,-1))
-							{
-							case LUA.T.FUNCTION:
-								len_str += 2;
-								o.Add("() ");
-								break;
-							case LUA.T.TABLE:
-								len_str += 3;
-								o.Add("={} ");
-								break;
-							default:
-								o.Add(" ");
-								break;
-							}
-						}
-					}
-					lua.pop(L,1);
-				}
-			}
-			#if DEBUG
-			finally { lua.settop(L, old_top); }
-			#else
-			catch { lua.settop(L, old_top); throw; }
-			#endif
-
-			if (c_str == 0)
-				o.RemoveRange(4,3);
-			else
-			{
-				o[5] = c_str.ToString();
-				if (c_str != c_str_added)
-					o.Add("...)");
-				else
-				{
-					var last = o[o.Count - 1];
-					o[o.Count - 1] = last.Substring(0,last.Length-1); // remove the space from the end
-					o.Add(")");
-				}
-			}
-
-			c_other -= objlen.ToUInt32();
-			if (c_other == 0)
-				o[2] = "";
-			else
-				o[3] = c_other.ToString();
-
-			return string.Concat(o.ToArray());
-		}
-		static bool _containsWhitespace(string s)
-		{
-			for (int i = 0; i < s.Length; ++i)
-				if (Char.IsWhiteSpace(s[i])) return true;
-			return false;
-		}
 		/// <summary>[-1, +0, -]</summary>
-		public static LuaValue pop(lua.State L)
+		public static LuaValue pop(lua.State L, bool detailed_tostring)
 		{
-			var ret = read(L, -1);
+			var ret = read(L, -1, detailed_tostring);
 			if (ret.Type != LUA.T.NONE)
 				lua.pop(L, 1);
 			return ret;
@@ -270,9 +189,13 @@ namespace LuaInterface.LuaAPI
 				}
 			}
 		}
-		NotSupportedException _newException() { return new NotSupportedException(this.Type.ToString() + " is not supported."); }
+
+		string _NotSupportedMsg { get { return this.Type.ToString() + " is not supported."; } }
+		NotSupportedException _newException() { return new NotSupportedException(_NotSupportedMsg); }
 
 		/// <summary>Throws <see cref="NotSupportedException"/> if <see cref="IsSupported"/> is false.</summary>
 		public void VerifySupport() { if (!this.IsSupported) throw _newException(); }
+		/// <summary>Throws <see cref="ArgumentException"/> if <see cref="IsSupported"/> is false.</summary>
+		public void VerifySupport(string param_name) { if (!this.IsSupported) throw new ArgumentException(_NotSupportedMsg); }
 	}
 }

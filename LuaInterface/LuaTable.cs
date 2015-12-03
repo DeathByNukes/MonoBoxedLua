@@ -63,6 +63,19 @@ namespace LuaInterface
 			return count;
 		}
 
+		/// <summary>Generates a brief human readable summary of the table's contents.</summary>
+		public string Summarize() { return this.Summarize(256); }
+		/// <summary>Generates a human readable summary of the table's contents.</summary>
+		/// <param name="strings_limit">When the list of string keys grows larger than this it will stop adding more. This limit applies to the number of characters, not the number of keys.</param>
+		public string Summarize(int strings_limit)
+		{
+			var L = Owner._L;
+			push(L);
+			var ret = luanet.summarizetable(L, -1, strings_limit);
+			lua.pop(L,1);
+			return ret;
+		}
+
 		#endregion
 
 		#region Raw Access
@@ -98,6 +111,19 @@ namespace LuaInterface
 			Owner.translator.push(L, field);
 			lua.rawget(L, -2);
 			var obj = Owner.translator.getObject(L, -1);
+			lua.pop(L,2);                             StackAssert.End();
+			return obj;
+		}
+
+		/// <summary><see cref="RawGet(object)"/> alternative that only fetches plain Lua value types and strings.</summary>
+		public LuaValue RawGetValue(LuaValue field)
+		{
+			field.VerifySupport("field");
+			var L = Owner._L;                         StackAssert.Start(L);
+			push(L);
+			field.push(L);
+			lua.rawget(L, -2);
+			var obj = LuaValue.read(L, -1, false);
 			lua.pop(L,2);                             StackAssert.End();
 			return obj;
 		}
