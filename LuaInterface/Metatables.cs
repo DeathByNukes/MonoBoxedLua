@@ -79,11 +79,8 @@ namespace LuaInterface
 		{
 			Debug.Assert(L == translator.interpreter._L);
 			object obj = translator.getRawNetObject(L, 1);
-			if (obj != null)
-			{
-				translator.push(L, obj.ToString() + ": " + obj.GetHashCode());
-			}
-			else lua.pushnil(L);
+			if (obj == null) return luaL.error(L, "argument is not a CLR object");
+			lua.pushstring(L, obj.ToString());
 			return 1;
 		}
 
@@ -166,48 +163,29 @@ namespace LuaInterface
 				// Try to use get_Item to index into this .net object
 				//MethodInfo getter = objType.GetMethod("get_Item");
 				// issue here is that there may be multiple indexers..
-				MethodInfo[] methods = objType.GetMethods();
-
-				foreach (MethodInfo mInfo in methods)
+				foreach (MethodInfo mInfo in objType.GetMethods())
+				if (mInfo.Name == "get_Item") 
 				{
-					if (mInfo.Name == "get_Item")
+					ParameterInfo[] actualParms = mInfo.GetParameters();
+					if (actualParms.Length != 1) //check if the signature matches the input
+						continue;
+					// Get the index in a form acceptable to the getter
+					index = translator.getAsType(L, 2, actualParms[0].ParameterType);
+					// Just call the indexer - if out of bounds an exception will happen
+					try
 					{
-						//check if the signature matches the input
-						if (mInfo.GetParameters().Length == 1)
-						{
-							MethodInfo getter = mInfo;
-							ParameterInfo[] actualParms = (getter != null) ? getter.GetParameters() : null;
-							if (actualParms == null || actualParms.Length != 1)
-							{
-								return ObjectTranslator.pushError(L, "method not found (or no indexer): " + index);
-							}
-							else
-							{
-								// Get the index in a form acceptable to the getter
-								index = translator.getAsType(L, 2, actualParms[0].ParameterType);
-								// Just call the indexer - if out of bounds an exception will happen
-								try
-								{
-									object result = getter.Invoke(obj, new object[]{index});
-									translator.push(L, result);
-									failed = false;
-								}
-								catch (TargetInvocationException e)
-								{
-									// Provide a more readable description for the common case of key not found
-									if (e.InnerException is KeyNotFoundException)
-									   return ObjectTranslator.pushError(L, "key '" + index + "' not found ");
-									else
-									   return ObjectTranslator.pushError(L, "exception indexing '" + index + "' " + e.Message);
-
-
-								}
-							}
-						}
+						translator.push(L, mInfo.Invoke(obj, new[]{index}));
+						failed = false;
+					}
+					catch (TargetInvocationException e)
+					{
+						// Provide a more readable description for the common case of key not found
+						if (e.InnerException is KeyNotFoundException)
+							return ObjectTranslator.pushError(L, "key '" + index + "' not found ");
+						else
+							return ObjectTranslator.pushError(L, "exception indexing '" + index + "' " + e.InnerException.Message);
 					}
 				}
-
-
 			}
 			if (failed) {
 				return ObjectTranslator.pushError(L,"cannot find " + index);
@@ -279,7 +257,7 @@ namespace LuaInterface
 			if (cachedMember is lua.CFunction)
 			{
 				translator.pushFunction(L, (lua.CFunction)cachedMember);
-				translator.push(L, true);
+				lua.pushboolean(L, true);
 				return 2;
 			}
 			else if (cachedMember != null)
@@ -327,9 +305,7 @@ namespace LuaInterface
 					if (cachedMember == null) setMemberCache(memberCache, objType, methodName, member);
 					try
 					{
-						object val = property.GetValue(obj, null);
-
-						translator.push(L, val);
+						translator.push(L, property.GetValue(obj, null));
 					}
 					catch (ArgumentException)
 					{
@@ -379,7 +355,7 @@ namespace LuaInterface
 
 						if (cachedMember == null) setMemberCache(memberCache, objType, methodName, wrapper);
 						translator.pushFunction(L, wrapper);
-						translator.push(L, true);
+						lua.pushboolean(L, true);
 						return 2;
 					}
 				}
@@ -403,7 +379,7 @@ namespace LuaInterface
 			}
 
 			// push false because we are NOT returning a function (see luaIndexFunction)
-			translator.push(L, false);
+			lua.pushboolean(L, false);
 			return 2;
 		}
 		/// <summary>Checks if a MemberInfo object is cached, returning it or null.</summary>

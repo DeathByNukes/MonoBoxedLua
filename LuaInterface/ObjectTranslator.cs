@@ -801,7 +801,7 @@ namespace LuaInterface
 				var type = o.GetType();
 				do
 				{
-					if (type.Namespace.StartsWith("System.Reflection", StringComparison.Ordinal))
+					if ((type.Namespace ?? "").StartsWith("System.Reflection", StringComparison.Ordinal))
 					{
 						lua.pushstring(L, o.ToString());
 						return;
