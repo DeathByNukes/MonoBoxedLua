@@ -134,11 +134,8 @@ namespace LuaInterface
 				return 0;
 		}
 
-		// incremented whenever execution passes from CLR to Lua and decremented when it returns
-		internal uint _executing = 0;
-
 		/// <summary>True while a script is being executed</summary>
-		public bool IsExecuting { get { return _executing != 0; } }
+		public bool IsExecuting { get { return luanet.infunction(_L); } }
 
 		#region Execution
 
@@ -185,19 +182,10 @@ namespace LuaInterface
 		public object[] DoString(string chunk, string chunkName)
 		{
 			int oldTop = lua.gettop(_L);
-			++_executing;
-			try
-			{
-				var status = luaL.loadbuffer(_L, chunk, chunkName);
-				if (status == LUA.ERR.Success)
-				{
-					status = lua.pcall(_L, 0, LUA.MULTRET, 0);
-					if (status == LUA.ERR.Success)
-						return translator.popValues(_L, oldTop);
-				}
-				throw ExceptionFromError(oldTop);
-			}
-			finally { checked { --_executing; } }
+			if (luaL.loadbuffer(_L, chunk, chunkName) == LUA.ERR.Success)
+				if (lua.pcall(_L, 0, LUA.MULTRET, 0) == LUA.ERR.Success)
+					return translator.popValues(_L, oldTop);
+			throw ExceptionFromError(oldTop);
 		}
 		/// <summary>
 		/// Excutes a Lua chunk and returns all the chunk's return values in an array.
@@ -234,23 +222,10 @@ namespace LuaInterface
 		{
 			lua.pushcfunction(_L,tracebackFunction);
 			int oldTop=lua.gettop(_L);
-			++_executing;
-			try
-			{
-				var status = luaL.loadfile(_L,fileName);
-				if (status == LUA.ERR.Success)
-				{
-					status = lua.pcall(_L, 0, LUA.MULTRET, -2);
-					if (status == LUA.ERR.Success)
-						return translator.popValues(_L, oldTop);
-				}
-				throw ExceptionFromError(oldTop);
-			}
-			finally
-			{
-				checked { --_executing; }
-				lua.settop(_L, oldTop - 1);
-			}
+			if (luaL.loadfile(_L,fileName) == LUA.ERR.Success)
+				if (lua.pcall(_L, 0, LUA.MULTRET, -2) == LUA.ERR.Success)
+					return translator.popValues(_L, oldTop);
+			throw ExceptionFromError(oldTop);
 		}
 
 		#endregion

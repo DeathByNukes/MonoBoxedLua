@@ -333,10 +333,7 @@ namespace LuaInterface
 			for(int i = 0; i < nArgs; ++i)
 				translator.push(L,args[i]);
 
-			++Owner._executing;
-			var status = lua.pcall(L, nArgs, returnTypes == null ? LUA.MULTRET : returnTypes.Length, 0);
-			checked { --Owner._executing; }
-			if (status != LUA.ERR.Success)
+			if (lua.pcall(L, nArgs, returnTypes == null ? LUA.MULTRET : returnTypes.Length, 0) != LUA.ERR.Success)
 				throw Owner.ExceptionFromError(oldTop);
 
 			return translator.popValues(L, oldTop, returnTypes);
