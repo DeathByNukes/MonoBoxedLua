@@ -120,6 +120,29 @@ namespace LuaInterface.LuaAPI
 			return lua.getstack(L, 0, ref ar); // returns unsuccessful if there is no stack
 		}
 
+		/// <summary>[-0, +0, m] luaL.where clone that returns a string rather than pushing to the stack.</summary>
+		public static string where(lua.State L, int level)
+		{
+			var ar = new lua.Debug();
+			if (lua.getstack(L, level, ref ar))  // check function at level
+			{
+				lua.getinfo(L, "Sl", ref ar);  // get info about it
+				if (ar.currentline > 0)  // is there info?
+					return string.Format("{0}:{1}: ", ar.short_src, ar.currentline.ToString()); // tostring here avoids boxing
+			}
+			return "";  // else, no information available...
+		}
+
+		/// <summary>[-0, +0, m] Grows the stack size to top + <paramref name="sz"/> elements, throwing a CLR exception if the stack cannot grow to that size.</summary>
+		/// <param name="L"></param><param name="sz"></param><param name="mes">An additional text to go into the error message.</param>
+		/// <exception cref="LuaScriptException"></exception>
+		public static void checkstack(lua.State L, int sz, string mes)
+		{
+			Debug.Assert(!string.IsNullOrEmpty(mes));
+			if (!lua.checkstack(L, sz))
+				throw new LuaScriptException(string.Format("stack overflow ({0})", mes), luanet.where(L, 1));
+		}
+
 		#region summarizetable
 
 		/// <summary>[-0, +0, e] Generates a human readable summary of a table's contents.</summary>

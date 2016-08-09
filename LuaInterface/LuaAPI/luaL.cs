@@ -87,10 +87,18 @@ namespace LuaInterface.LuaAPI
 		public static int error(lua.State L, string message)
 		{
 			// re-implemented to avoid headaches with native variable arguments and Lua's format strings
-			luaL.where(L, 1);
-			lua.pushstring(L, message);
-			lua.concat(L, 2);
+			lua.pushstring(L, luanet.where(L, 1) + message);
 			return lua.error(L);
+		}
+
+		/// <summary>[-0, +0, v] Grows the stack size to top + <paramref name="sz"/> elements, raising an error if the stack cannot grow to that size.</summary>
+		/// <param name="L"></param><param name="sz"></param><param name="mes">An additional text to go into the error message.</param>
+		public static void checkstack(lua.State L, int sz, string mes)
+		{
+			// luaL_checkstack shouldn't be pinvoked. the message would be marshaled with each call but rarely used.
+			Debug.Assert(!string.IsNullOrEmpty(mes));
+			if (!lua.checkstack(L, sz))
+				luaL.error(L, "stack overflow ({0})", mes);
 		}
 	}
 
