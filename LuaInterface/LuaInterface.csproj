@@ -17,7 +17,7 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug Windows|x86'">
     <DebugSymbols>true</DebugSymbols>
-    <OutputPath>bin\x86\Debug Windows\</OutputPath>
+    <OutputPath>..\bin x86\Debug Windows\</OutputPath>
     <DefineConstants>DEBUG;WINDOWS</DefineConstants>
     <Optimize>false</Optimize>
     <DebugType>full</DebugType>
@@ -31,7 +31,7 @@
     <CheckForOverflowUnderflow>true</CheckForOverflowUnderflow>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release Windows|x86'">
-    <OutputPath>bin\x86\Release Windows\</OutputPath>
+    <OutputPath>..\bin x86\Release Windows\</OutputPath>
     <DefineConstants>WINDOWS</DefineConstants>
     <PlatformTarget>x86</PlatformTarget>
     <ErrorReport>prompt</ErrorReport>
@@ -44,7 +44,7 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug Linux|x86'">
     <DebugSymbols>true</DebugSymbols>
-    <OutputPath>bin\x86\Debug Linux\</OutputPath>
+    <OutputPath>..\bin x86\Debug Linux\</OutputPath>
     <DefineConstants>DEBUG;LINUX</DefineConstants>
     <Optimize>false</Optimize>
     <DebugType>full</DebugType>
@@ -56,7 +56,7 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release Linux|x86'">
-    <OutputPath>bin\x86\Release Linux\</OutputPath>
+    <OutputPath>..\bin x86\Release Linux\</OutputPath>
     <DefineConstants>LINUX</DefineConstants>
     <PlatformTarget>x86</PlatformTarget>
     <ErrorReport>prompt</ErrorReport>
@@ -67,7 +67,7 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug OS X|x86'">
     <DebugSymbols>true</DebugSymbols>
-    <OutputPath>bin\x86\Debug OS X\</OutputPath>
+    <OutputPath>..\bin x86\Debug OS X\</OutputPath>
     <DefineConstants>DEBUG;MACOSX</DefineConstants>
     <Optimize>false</Optimize>
     <DebugType>full</DebugType>
@@ -79,7 +79,7 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release OS X|x86'">
-    <OutputPath>bin\x86\Release OS X\</OutputPath>
+    <OutputPath>..\bin x86\Release OS X\</OutputPath>
     <DefineConstants>MACOSX</DefineConstants>
     <PlatformTarget>x86</PlatformTarget>
     <ErrorReport>prompt</ErrorReport>
@@ -93,12 +93,14 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <NoWarn>1591</NoWarn>
     <DocumentationFile>LuaInterface.xml</DocumentationFile>
+    <OutputPath>..\bin\Debug Linux\</OutputPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug Windows|AnyCPU'">
     <DefineConstants>DEBUG;WINDOWS</DefineConstants>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <DocumentationFile>LuaInterface.xml</DocumentationFile>
     <NoWarn>1591</NoWarn>
+    <OutputPath>..\bin\Debug Windows\</OutputPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release Windows|AnyCPU'">
     <DefineConstants>WINDOWS</DefineConstants>
@@ -106,6 +108,7 @@
     <Optimize>true</Optimize>
     <DocumentationFile>LuaInterface.xml</DocumentationFile>
     <NoWarn>1591</NoWarn>
+    <OutputPath>..\bin\Release Windows\</OutputPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release Linux|AnyCPU'">
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
@@ -113,12 +116,14 @@
     <DefineConstants>LINUX</DefineConstants>
     <DocumentationFile>LuaInterface.xml</DocumentationFile>
     <NoWarn>1591</NoWarn>
+    <OutputPath>..\bin\Release Linux\</OutputPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug OS X|AnyCPU'">
     <DefineConstants>DEBUG;MACOSX</DefineConstants>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <DocumentationFile>LuaInterface.xml</DocumentationFile>
     <NoWarn>1591</NoWarn>
+    <OutputPath>..\bin\Debug OS X\</OutputPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release OS X|AnyCPU'">
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
@@ -126,6 +131,7 @@
     <DefineConstants>MACOSX</DefineConstants>
     <DocumentationFile>LuaInterface.xml</DocumentationFile>
     <NoWarn>1591</NoWarn>
+    <OutputPath>..\bin\Release OS X\</OutputPath>
   </PropertyGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>
@@ -161,10 +167,6 @@
     <Reference Include="System" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\lua-5.1.5\Release\lua51.dll" Condition=" '$(Configuration)' == 'Debug Windows' or '$(Configuration)' == 'Release Windows' ">
-      <Link>lua51.dll</Link>
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
     <None Include="..\lua-5.1.5\Release\liblua-linux32.so" Condition=" '$(Configuration)' == 'Debug Linux' or '$(Configuration)' == 'Release Linux' ">
       <Link>liblua-linux32.so</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

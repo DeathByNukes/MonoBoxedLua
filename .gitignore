@@ -2,6 +2,7 @@
 *.suo
 obj
 bin
+bin x86
 *.user
 *.sdf
 *.o

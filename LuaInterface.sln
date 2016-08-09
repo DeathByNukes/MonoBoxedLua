@@ -1,11 +1,16 @@
 ﻿
-Microsoft Visual Studio Solution File, Format Version 11.00
-# Visual C# Express 2010
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 2012
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LuaInterface", "LuaInterface\LuaInterface.csproj", "{E915A0A4-2641-4F7E-8A88-8F123FA88BF1}"
+	ProjectSection(ProjectDependencies) = postProject
+		{FA16F3BA-3616-4E60-9F9A-B32A3C21E9AE} = {FA16F3BA-3616-4E60-9F9A-B32A3C21E9AE}
+	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LuaInterfaceSample", "LuaInterfaceSample\LuaInterfaceSample.csproj", "{9B821FBD-6A89-4FD7-8FC0-02B5BCF58AA1}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LuaInterfaceTest", "LuaInterfaceTest\LuaInterfaceTest.csproj", "{0A09E6F0-FDC9-4347-BFF1-DC0C1BE527EE}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "lua51", "lua-5.1.5\lua51.vcxproj", "{FA16F3BA-3616-4E60-9F9A-B32A3C21E9AE}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -53,6 +58,14 @@ Global
 		{0A09E6F0-FDC9-4347-BFF1-DC0C1BE527EE}.Release OS X|x86.Build.0 = Release|x86
 		{0A09E6F0-FDC9-4347-BFF1-DC0C1BE527EE}.Release Windows|x86.ActiveCfg = Release|x86
 		{0A09E6F0-FDC9-4347-BFF1-DC0C1BE527EE}.Release Windows|x86.Build.0 = Release|x86
+		{FA16F3BA-3616-4E60-9F9A-B32A3C21E9AE}.Debug Linux|x86.ActiveCfg = Debug|Win32
+		{FA16F3BA-3616-4E60-9F9A-B32A3C21E9AE}.Debug OS X|x86.ActiveCfg = Debug|Win32
+		{FA16F3BA-3616-4E60-9F9A-B32A3C21E9AE}.Debug Windows|x86.ActiveCfg = Debug|Win32
+		{FA16F3BA-3616-4E60-9F9A-B32A3C21E9AE}.Debug Windows|x86.Build.0 = Debug|Win32
+		{FA16F3BA-3616-4E60-9F9A-B32A3C21E9AE}.Release Linux|x86.ActiveCfg = Release|Win32
+		{FA16F3BA-3616-4E60-9F9A-B32A3C21E9AE}.Release OS X|x86.ActiveCfg = Release|Win32
+		{FA16F3BA-3616-4E60-9F9A-B32A3C21E9AE}.Release Windows|x86.ActiveCfg = Release|Win32
+		{FA16F3BA-3616-4E60-9F9A-B32A3C21E9AE}.Release Windows|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
