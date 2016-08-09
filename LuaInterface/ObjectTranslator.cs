@@ -155,22 +155,14 @@ namespace LuaInterface
 			lua.settable(L,-3);
 			lua.pop(L,1);                      StackAssert.End();
 		}
-		/// <summary>Passes errors (argument e) to the Lua interpreter</summary>
+		/// <summary>Passes errors (argument e) to the Lua interpreter. This function throws a Lua exception, and therefore never returns.</summary>
 		internal void throwError(lua.State L, object e)
 		{
 			Debug.Assert(L == interpreter._L);
-			// We use this to remove anything pushed by luaL_where
-			int oldTop = lua.gettop(L);
-
+			// Determine the position in the script where the exception was triggered
 			// Stack frame #1 is our C# wrapper, so not very interesting to the user
 			// Stack frame #2 must be the lua code that called us, so that's what we want to use
-			luaL.where(L, 1);
-			object[] curlev = popValues(L, oldTop);
-
-			// Determine the position in the script where the exception was triggered
-			string errLocation = "";
-			if (curlev.Length > 0)
-				errLocation = curlev[0].ToString();
+			string errLocation = luanet.where(L, 1);
 
 			string message = e as string;
 			if (message != null)
@@ -190,6 +182,8 @@ namespace LuaInterface
 
 			push(L, e);
 			lua.error(L);
+			Debug.Assert(false);
+			Environment.Exit(1);
 		}
 		/// <summary>Implementation of load_assembly. Throws an error if the assembly is not found.</summary>
 		private int loadAssembly(lua.State L)
@@ -752,6 +746,13 @@ namespace LuaInterface
 		}
 #endif
 
+		/// <summary>[-0, +1, e] Pushes the object into the Lua stack according to its type. Disposes orphaned objects. (<see cref="LuaTable.IsOrphaned"/>)</summary>
+		internal void pushReturnValue(lua.State L, object o)
+		{
+			push(L, o);
+			var t = o as LuaTable;
+			if (t != null && t.IsOrphaned) t.Dispose();
+		}
 		/// <summary>[-0, +1, e] Pushes the object into the Lua stack according to its type.</summary>
 		internal void push(lua.State L, object o)
 		{

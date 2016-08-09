@@ -114,26 +114,6 @@ namespace LuaInterface
 
 
 
-		/// <summary>
-		/// Convert C# exceptions into Lua errors
-		/// </summary>
-		/// <returns>num of things on stack</returns>
-		/// <param name="e">null for no pending exception</param>
-		internal int SetPendingException(Exception e)
-		{
-			Exception caughtExcept = e;
-
-			if (caughtExcept != null)
-			{
-				translator.throwError(_L, caughtExcept);
-				lua.pushnil(_L);
-
-				return 1;
-			}
-			else
-				return 0;
-		}
-
 		/// <summary>True while a script is being executed</summary>
 		public bool IsExecuting { get { return luanet.infunction(_L); } }
 
@@ -181,10 +161,11 @@ namespace LuaInterface
 		/// <returns>all the chunk's return values in an array.</returns>
 		public object[] DoString(string chunk, string chunkName)
 		{
-			int oldTop = lua.gettop(_L);
-			if (luaL.loadbuffer(_L, chunk, chunkName) == LUA.ERR.Success)
-				if (lua.pcall(_L, 0, LUA.MULTRET, 0) == LUA.ERR.Success)
-					return translator.popValues(_L, oldTop);
+			var L = _L;
+			int oldTop = lua.gettop(L);
+			if (luaL.loadbuffer(L, chunk, chunkName) == LUA.ERR.Success)
+				if (lua.pcall(L, 0, LUA.MULTRET, 0) == LUA.ERR.Success)
+					return translator.popValues(L, oldTop);
 			throw ExceptionFromError(oldTop);
 		}
 		/// <summary>
@@ -208,23 +189,38 @@ namespace LuaInterface
 
 		static readonly lua.CFunction tracebackFunction = L =>
 		{
-			// hahaha why
-			lua.getglobal(L,"debug");
-			lua.getfield(L,-1,"traceback");
-			lua.pushvalue(L,1);
-			lua.pushnumber(L,2);
-			lua.call (L,2,1);
+			// copy pasted from lua.c traceback()
+			// todo: custom implementation of debug.traceback that fills out a special CLR exception
+			if (!lua.isstring(L, 1)) // 'message' not a string?
+				return 1; // keep it intact
+			lua.getfield(L, LUA.GLOBALSINDEX, "debug");
+			if (!lua.istable(L, -1)) {
+				lua.pop(L, 1);
+				return 1;
+			}
+			lua.getfield(L, -1, "traceback");
+			if (!lua.isfunction(L, -1)) {
+				lua.pop(L, 2);
+				return 1;
+			}
+			lua.pushvalue(L, 1); // pass error message
+			lua.pushnumber(L, 2); // skip this function and traceback
+			lua.call(L, 2, 1); // call debug.traceback
 			return 1;
 		};
 
 		/// <summary>Excutes a Lua file and returns all the chunk's return values in an array</summary>
 		public object[] DoFile(string fileName)
 		{
-			lua.pushcfunction(_L,tracebackFunction);
-			int oldTop=lua.gettop(_L);
-			if (luaL.loadfile(_L,fileName) == LUA.ERR.Success)
-				if (lua.pcall(_L, 0, LUA.MULTRET, -2) == LUA.ERR.Success)
-					return translator.popValues(_L, oldTop);
+			var L = _L;
+			int oldTop=lua.gettop(L);
+			lua.pushcfunction(L,tracebackFunction); // not removed by pcall
+			if (luaL.loadfile(L,fileName) == LUA.ERR.Success)
+			if (lua.pcall(L, 0, LUA.MULTRET, -2) == LUA.ERR.Success)
+			{
+				lua.remove(L, oldTop+1);
+				return translator.popValues(L, oldTop);
+			}
 			throw ExceptionFromError(oldTop);
 		}
 

@@ -100,18 +100,18 @@ namespace LuaInterface
 			_BindingType = bindingType;
 
 			//CP: Removed NonPublic binding search and added IgnoreCase
+			// bug: targetType may be null? todo: inspect code that uses _Members and this constructor
 			_Members = targetType.UnderlyingSystemType.GetMember(methodName, MemberTypes.Method, bindingType | BindingFlags.Public | BindingFlags.IgnoreCase/*|BindingFlags.NonPublic*/);
 		}
 
 
-		/// <summary>
-		/// Convert C# exceptions into Lua errors
-		/// </summary>
-		/// <returns>num of things on stack</returns>
-		/// <param name="e">null for no pending exception</param>
-		int SetPendingException(Exception e)
+		/// <summary>Convert C# exceptions into Lua errors. Never returns.</summary>
+		int SetPendingException(lua.State L, Exception e)
 		{
-			return _Translator.interpreter.SetPendingException(e);
+			Debug.Assert(L == _Translator.interpreter._L);
+			Debug.Assert(e != null);
+			_Translator.throwError(L, e);
+			return 0; // never returns
 		}
 
 
@@ -129,14 +129,9 @@ namespace LuaInterface
 
 			bool isStatic = (_BindingType & BindingFlags.Static) == BindingFlags.Static;
 
-			SetPendingException(null);
-
 			if (methodToCall == null) // Method from name
 			{
-				if (isStatic)
-					targetObject = null;
-				else
-					targetObject = _ExtractTarget(L, 1);
+				targetObject = isStatic ? null : _ExtractTarget(L, 1);
 
 				//lua.remove(L,1); // Pops the receiver
 				if (_LastCalledMethod.cachedMethod != null) // Cached?
@@ -158,44 +153,30 @@ namespace LuaInterface
 							{
 								MethodArgs type = _LastCalledMethod.argTypes[i];
 								object luaParamValue = type.extractValue(L, i + 1 + numStackToSkip);
-								if (_LastCalledMethod.argTypes[i].isParamsArray)
-								{
-									args[type.index] = _Translator.tableToArray(luaParamValue,type.paramsArrayType);
-								}
-								else
-								{
-									args[type.index] = luaParamValue;
-								}
 
-								if (args[type.index] == null &&
-									!lua.isnil(L, i + 1 + numStackToSkip))
-								{
+								args[type.index] = _LastCalledMethod.argTypes[i].isParamsArray
+									? _Translator.tableToArray(luaParamValue, type.paramsArrayType)
+									: luaParamValue;
+
+								if (args[type.index] == null && !lua.isnil(L, i + 1 + numStackToSkip))
 									throw new LuaException("argument number " + (i + 1) + " is invalid");
-								}
 							}
-							if ((_BindingType & BindingFlags.Static) == BindingFlags.Static)
-							{
-								_Translator.push(L, method.Invoke(null, args));
-							}
-							else
-							{
-								if (_LastCalledMethod.cachedMethod.IsConstructor)
-									_Translator.push(L, ((ConstructorInfo)method).Invoke(args));
-								else
-									_Translator.push(L, method.Invoke(targetObject,args));
-							}
+							_Translator.pushReturnValue(L, method.IsConstructor
+								? ((ConstructorInfo) method).Invoke(args)
+								: method.Invoke(targetObject, args)  );
+
 							failedCall = false;
 						}
 						catch (TargetInvocationException e)
 						{
 							// Failure of method invocation
-							return SetPendingException(e.GetBaseException());
+							return SetPendingException(L, e.InnerException);
 						}
 						catch (Exception e)
 						{
 							if (_Members.Length == 1) // Is the method overloaded?
 								// No, throw error
-								return SetPendingException(e);
+								return SetPendingException(L, e);
 						}
 					}
 				}
@@ -211,8 +192,7 @@ namespace LuaInterface
 						if (targetObject == null)
 						{
 							_Translator.throwError(L, String.Format("instance method '{0}' requires a non null target object", _MethodName));
-							lua.pushnil(L);
-							return 1;
+							return 0; // never returns
 						}
 
 						lua.remove(L, 1); // Pops the receiver
@@ -241,8 +221,7 @@ namespace LuaInterface
 							: ("invalid arguments to method: " + candidateName);
 
 						_Translator.throwError(L, msg);
-						lua.pushnil(L);
-						return 1;
+						return 0; // never returns
 					}
 				}
 			}
@@ -256,21 +235,22 @@ namespace LuaInterface
 					if (methodToCall.IsGenericMethodDefinition)
 					{
 						//need to make a concrete type of the generic method definition
-						List<Type> typeArgs = new List<Type>();
+						var args = _LastCalledMethod.args;
+						var typeArgs = new Type[args.Length];
 
-						foreach (object arg in _LastCalledMethod.args)
-							typeArgs.Add(arg.GetType());
+						for (int i = 0; i < args.Length; ++i)
+							typeArgs[i] = args[i].GetType();
 
-						MethodInfo concreteMethod = (methodToCall as MethodInfo).MakeGenericMethod(typeArgs.ToArray());
+						MethodInfo concreteMethod = ((MethodInfo) methodToCall).MakeGenericMethod(typeArgs);
 
-						_Translator.push(L, concreteMethod.Invoke(targetObject, _LastCalledMethod.args));
+						_Translator.pushReturnValue(L, concreteMethod.Invoke(targetObject, args));
+
 						failedCall = false;
 					}
 					else if (methodToCall.ContainsGenericParameters)
 					{
 						_Translator.throwError(L, "unable to invoke method on generic class as the current method is an open generic method");
-						lua.pushnil(L);
-						return 1;
+						return 0; // never returns
 					}
 				}
 				else
@@ -284,8 +264,7 @@ namespace LuaInterface
 					if (!_Translator.matchParameters(L, methodToCall, ref _LastCalledMethod))
 					{
 						_Translator.throwError(L, "invalid arguments to method call");
-						lua.pushnil(L);
-						return 1;
+						return 0; // never returns
 					}
 				}
 			}
@@ -296,44 +275,25 @@ namespace LuaInterface
 					throw new LuaException("Lua stack overflow");
 				try
 				{
-					if (isStatic)
-					{
-						_Translator.push(L, _LastCalledMethod.cachedMethod.Invoke(null, _LastCalledMethod.args));
-					}
-					else
-					{
-						if (_LastCalledMethod.cachedMethod.IsConstructor)
-							_Translator.push(L, ((ConstructorInfo)_LastCalledMethod.cachedMethod).Invoke(_LastCalledMethod.args));
-						else
-						{
-							object returnValue = _LastCalledMethod.cachedMethod.Invoke( targetObject, _LastCalledMethod.args );
-							_Translator.push(L, returnValue);
-
-							var returnTable = returnValue as LuaTable;
-							if (returnTable != null && returnTable.IsOrphaned) returnTable.Dispose();
-						}
-					}
+					_Translator.pushReturnValue(L, _LastCalledMethod.cachedMethod.IsConstructor
+						? ((ConstructorInfo) _LastCalledMethod.cachedMethod).Invoke(_LastCalledMethod.args)
+						: _LastCalledMethod.cachedMethod.Invoke(isStatic ? null : targetObject, _LastCalledMethod.args)  );
 				}
 				catch (TargetInvocationException e)
 				{
-					return SetPendingException(e.GetBaseException());
+					return SetPendingException(L, e.InnerException);
 				}
 				catch (Exception e)
 				{
-					return SetPendingException(e);
+					return SetPendingException(L, e);
 				}
 			}
 
 			// Pushes out and ref return values
-			for (int index = 0; index < _LastCalledMethod.outList.Length; index++)
+			foreach (int arg in _LastCalledMethod.outList)
 			{
 				nReturnValues++;
-
-				object outArg = _LastCalledMethod.args[_LastCalledMethod.outList[index]];
-				_Translator.push(L, outArg);
-
-				var outTable = outArg as LuaTable;
-				if (outTable != null && outTable.IsOrphaned) outTable.Dispose();
+				_Translator.pushReturnValue(L, _LastCalledMethod.args[arg]);
 			}
 
 			//by isSingle 2010-09-10 11:26:31
