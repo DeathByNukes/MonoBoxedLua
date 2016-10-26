@@ -281,11 +281,11 @@ namespace LuaInterface
 
 		/// <summary>Looks up the field and checks for a nil result. The field's value is discarded without performing any Lua to CLR translation.</summary>
 		public bool ContainsKey(object field) {
-			return this.FieldType(field) != LUA.T.NIL;
+			return this.FieldType(field) != LuaType.Nil;
 		}
 
 		/// <summary>Looks up the field and gets its Lua type. The field's value is discarded without performing any Lua to CLR translation.</summary>
-		public LUA.T FieldType(object field)
+		public LuaType FieldType(object field)
 		{
 			var L = Owner._L;                         StackAssert.Start(L);
 			push(L);
@@ -293,7 +293,7 @@ namespace LuaInterface
 			lua.gettable(L,-2);
 			var type = lua.type(L, -1);
 			lua.pop(L,2);                             StackAssert.End();
-			return type;
+			return (LuaType) type;
 		}
 
 		/// <summary>Indexer alternative that only fetches plain Lua value types and strings.</summary>
@@ -410,5 +410,20 @@ namespace LuaInterface
 		}
 
 		#endregion
+	}
+
+	/// <summary>Lua types.</summary>
+	public enum LuaType
+	{
+		//None          = LUA.T.NONE,
+		Nil           = LUA.T.NIL,
+		Boolean       = LUA.T.BOOLEAN,
+		LightUserData = LUA.T.LIGHTUSERDATA,
+		Number        = LUA.T.NUMBER,
+		String        = LUA.T.STRING,
+		Table         = LUA.T.TABLE,
+		Function      = LUA.T.FUNCTION,
+		UserData      = LUA.T.USERDATA,
+		Thread        = LUA.T.THREAD,
 	}
 }

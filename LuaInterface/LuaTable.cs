@@ -163,11 +163,11 @@ namespace LuaInterface
 
 		/// <summary>Looks up the field, ignoring metatables, and checks for a nil result.</summary>
 		public bool RawContainsKey(object field) {
-			return this.RawFieldType(field) != LUA.T.NIL;
+			return this.RawFieldType(field) != LuaType.Nil;
 		}
 
 		/// <summary>Looks up the field, ignoring metatables, and gets its Lua type.</summary>
-		public LUA.T RawFieldType(object field)
+		public LuaType RawFieldType(object field)
 		{
 			var L = Owner._L;                         StackAssert.Start(L);
 			push(L);
@@ -175,7 +175,7 @@ namespace LuaInterface
 			lua.rawget(L,-2);
 			var type = lua.type(L, -1);
 			lua.pop(L,2);                             StackAssert.End();
-			return type;
+			return (LuaType) type;
 		}
 
 		#endregion
