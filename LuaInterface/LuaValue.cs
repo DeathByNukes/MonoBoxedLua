@@ -34,6 +34,11 @@ namespace LuaInterface
 		public static implicit operator double?(LuaValue v) { switch (v.Type) { case LuaType.Number:        return new double?(v._number);        case LuaType.Nil: return default(double?); } throw v._newCastException(LuaType.Number); }
 		InvalidCastException _newCastException(LuaType t) { return new InvalidCastException(string.Format("Tried to read a {0} as a {1}.", this.Type, t)); }
 
+		public bool   OrDefault(bool   default_value) { return this.Type == LuaType.Boolean       ? _boolean       : default_value; }
+		public IntPtr OrDefault(IntPtr default_value) { return this.Type == LuaType.LightUserData ? _lightuserdata : default_value; }
+		public double OrDefault(double default_value) { return this.Type == LuaType.Number        ? _number        : default_value; }
+		public string OrDefault(string default_value) { return this.Type == LuaType.String        ? _string        : default_value; }
+
 		public static implicit operator LuaValue(bool   v) { return new LuaValue(v); }
 		public static implicit operator LuaValue(IntPtr v) { return new LuaValue(v); }
 		public static implicit operator LuaValue(double v) { return new LuaValue(v); }
