@@ -28,15 +28,18 @@ namespace LuaInterface
 		public static implicit operator bool  (LuaValue v) { if (v.Type == LuaType.Boolean)       return v._boolean;       throw v._newCastException(LuaType.Boolean); }
 		public static implicit operator IntPtr(LuaValue v) { if (v.Type == LuaType.LightUserData) return v._lightuserdata; throw v._newCastException(LuaType.LightUserData); }
 		public static implicit operator double(LuaValue v) { if (v.Type == LuaType.Number)        return v._number;        throw v._newCastException(LuaType.Number); }
+		public static implicit operator float (LuaValue v) { if (v.Type == LuaType.Number)        return (float)v._number; throw v._newCastException(LuaType.Number); }
 		public static implicit operator string(LuaValue v)  { switch (v.Type) { case LuaType.String:        return v._string;                     case LuaType.Nil: return null;             } throw v._newCastException(LuaType.String); }
 		public static implicit operator bool?  (LuaValue v) { switch (v.Type) { case LuaType.Boolean:       return new bool?(v._boolean);         case LuaType.Nil: return default(bool?);   } throw v._newCastException(LuaType.Boolean); }
 		public static implicit operator IntPtr?(LuaValue v) { switch (v.Type) { case LuaType.LightUserData: return new IntPtr?(v._lightuserdata); case LuaType.Nil: return default(IntPtr?); } throw v._newCastException(LuaType.LightUserData); }
 		public static implicit operator double?(LuaValue v) { switch (v.Type) { case LuaType.Number:        return new double?(v._number);        case LuaType.Nil: return default(double?); } throw v._newCastException(LuaType.Number); }
+		public static implicit operator float? (LuaValue v) { switch (v.Type) { case LuaType.Number:        return new float?((float)v._number);  case LuaType.Nil: return default(float?);  } throw v._newCastException(LuaType.Number); }
 		InvalidCastException _newCastException(LuaType t) { return new InvalidCastException(string.Format("Tried to read a {0} as a {1}.", this.Type, t)); }
 
 		public bool   OrDefault(bool   default_value) { return this.Type == LuaType.Boolean       ? _boolean       : default_value; }
 		public IntPtr OrDefault(IntPtr default_value) { return this.Type == LuaType.LightUserData ? _lightuserdata : default_value; }
 		public double OrDefault(double default_value) { return this.Type == LuaType.Number        ? _number        : default_value; }
+		public float  OrDefault(float  default_value) { return this.Type == LuaType.Number        ? (float)_number : default_value; }
 		public string OrDefault(string default_value) { return this.Type == LuaType.String        ? _string        : default_value; }
 
 		public static implicit operator LuaValue(bool   v) { return new LuaValue(v); }
