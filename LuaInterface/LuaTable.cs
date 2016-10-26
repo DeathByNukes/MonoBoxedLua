@@ -231,6 +231,64 @@ namespace LuaInterface
 			finally { lua.settop(L, oldTop); }
 		}
 
+		/// <summary>
+		/// Iterates over the table's integer keys with string values without making a copy.
+		/// Like "ipairs()" in Lua, the iteration is ordered starting from 1 and ends before the first empty index.
+		/// </summary>
+		/// <param name="body">The first parameter is a key and the second is a value.</param>
+		public void ForEachIS(Action<int, string> body)
+		{
+			var L = Owner._L;
+			int oldTop = lua.gettop(L);
+			push(L);
+			try
+			{
+				for (int i = 1; ; ++i)
+				{
+					lua.rawgeti(L, -1, i);
+					switch (lua.type(L, -1))
+					{
+					case LUA.T.NIL:
+						return;
+					case LUA.T.STRING:
+						body(i, lua.tostring(L, -1));
+						break;
+					}
+					lua.pop(L, 1);
+				}
+			}
+			finally { lua.settop(L, oldTop); }
+		}
+
+		/// <summary>
+		/// Iterates over the table's integer keys with numeric values without making a copy.
+		/// Like "ipairs()" in Lua, the iteration is ordered starting from 1 and ends before the first empty index.
+		/// </summary>
+		/// <param name="body">The first parameter is a key and the second is a value.</param>
+		public void ForEachIN(Action<int, double> body)
+		{
+			var L = Owner._L;
+			int oldTop = lua.gettop(L);
+			push(L);
+			try
+			{
+				for (int i = 1; ; ++i)
+				{
+					lua.rawgeti(L, -1, i);
+					switch (lua.type(L, -1))
+					{
+					case LUA.T.NIL:
+						return;
+					case LUA.T.STRING:
+						body(i, lua.tonumber(L, -1));
+						break;
+					}
+					lua.pop(L, 1);
+				}
+			}
+			finally { lua.settop(L, oldTop); }
+		}
+
 		/// <summary>Iterates over the table's string keys without making a copy. Like "pairs()" in Lua, the iteration is unordered.</summary>
 		/// <param name="body">The first parameter is a key and the second is a value.</param>
 		public void ForEachS(Action<string, object> body)
@@ -245,6 +303,46 @@ namespace LuaInterface
 				{
 					if (lua.type(L, -2) == LUA.T.STRING)
 						body(lua.tostring(L, -2), translator.getObject(L, -1));
+					lua.pop(L, 1);
+				}
+			}
+			finally { lua.settop(L, oldTop); }
+		}
+
+		/// <summary>Iterates over the table's string keys with string values without making a copy. Like "pairs()" in Lua, the iteration is unordered.</summary>
+		/// <param name="body">The first parameter is a key and the second is a value.</param>
+		public void ForEachSS(Action<string, string> body)
+		{
+			var L = Owner._L;
+			int oldTop = lua.gettop(L);
+			push(L);
+			try
+			{
+				lua.pushnil(L);
+				while (lua.next(L, -2))
+				{
+					if (lua.type(L, -2) == LUA.T.STRING && lua.type(L, -1) == LUA.T.STRING)
+						body(lua.tostring(L, -2), lua.tostring(L, -1));
+					lua.pop(L, 1);
+				}
+			}
+			finally { lua.settop(L, oldTop); }
+		}
+
+		/// <summary>Iterates over the table's string keys with numeric values without making a copy. Like "pairs()" in Lua, the iteration is unordered.</summary>
+		/// <param name="body">The first parameter is a key and the second is a value.</param>
+		public void ForEachSN(Action<string, double> body)
+		{
+			var L = Owner._L;
+			int oldTop = lua.gettop(L);
+			push(L);
+			try
+			{
+				lua.pushnil(L);
+				while (lua.next(L, -2))
+				{
+					if (lua.type(L, -2) == LUA.T.STRING && lua.type(L, -1) == LUA.T.NUMBER)
+						body(lua.tostring(L, -2), lua.tonumber(L, -1));
 					lua.pop(L, 1);
 				}
 			}
