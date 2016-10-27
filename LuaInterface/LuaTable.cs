@@ -128,6 +128,17 @@ namespace LuaInterface
 			return obj;
 		}
 
+		/// <summary><see cref="RawGet(int)"/> alternative that only fetches plain Lua value types and strings.</summary>
+		public object RawGetValue(int field)
+		{
+			var L = Owner._L;                         StackAssert.Start(L);
+			push(L);
+			lua.rawgeti(L, -1, field);
+			var obj = LuaValue.read(L, -1, false);
+			lua.pop(L,2);                             StackAssert.End();
+			return obj;
+		}
+
 
 		/// <summary>Sets a numeric field of a table ignoring its metatable, if it exists</summary>
 		public void RawSet(int field, object value)
