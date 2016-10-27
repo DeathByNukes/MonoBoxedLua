@@ -236,7 +236,7 @@ namespace LuaInterface
 		/// Like "ipairs()" in Lua, the iteration is ordered starting from 1 and ends before the first empty index.
 		/// </summary>
 		/// <param name="body">The first parameter is a key and the second is a value.</param>
-		public void ForEachIS(Action<int, string> body)
+		public void ForEachIV(Action<int, LuaValue> body)
 		{
 			var L = Owner._L;
 			int oldTop = lua.gettop(L);
@@ -251,36 +251,7 @@ namespace LuaInterface
 					case LUA.T.NIL:
 						return;
 					case LUA.T.STRING:
-						body(i, lua.tostring(L, -1));
-						break;
-					}
-					lua.pop(L, 1);
-				}
-			}
-			finally { lua.settop(L, oldTop); }
-		}
-
-		/// <summary>
-		/// Iterates over the table's integer keys with numeric values without making a copy.
-		/// Like "ipairs()" in Lua, the iteration is ordered starting from 1 and ends before the first empty index.
-		/// </summary>
-		/// <param name="body">The first parameter is a key and the second is a value.</param>
-		public void ForEachIN(Action<int, double> body)
-		{
-			var L = Owner._L;
-			int oldTop = lua.gettop(L);
-			push(L);
-			try
-			{
-				for (int i = 1; ; ++i)
-				{
-					lua.rawgeti(L, -1, i);
-					switch (lua.type(L, -1))
-					{
-					case LUA.T.NIL:
-						return;
-					case LUA.T.STRING:
-						body(i, lua.tonumber(L, -1));
+						body(i, LuaValue.read(L, -1, false));
 						break;
 					}
 					lua.pop(L, 1);
@@ -311,7 +282,7 @@ namespace LuaInterface
 
 		/// <summary>Iterates over the table's string keys with string values without making a copy. Like "pairs()" in Lua, the iteration is unordered.</summary>
 		/// <param name="body">The first parameter is a key and the second is a value.</param>
-		public void ForEachSS(Action<string, string> body)
+		public void ForEachSV(Action<string, LuaValue> body)
 		{
 			var L = Owner._L;
 			int oldTop = lua.gettop(L);
@@ -322,16 +293,35 @@ namespace LuaInterface
 				while (lua.next(L, -2))
 				{
 					if (lua.type(L, -2) == LUA.T.STRING && lua.type(L, -1) == LUA.T.STRING)
-						body(lua.tostring(L, -2), lua.tostring(L, -1));
+						body(lua.tostring(L, -2), LuaValue.read(L, -1, false));
 					lua.pop(L, 1);
 				}
 			}
 			finally { lua.settop(L, oldTop); }
 		}
 
-		/// <summary>Iterates over the table's string keys with numeric values without making a copy. Like "pairs()" in Lua, the iteration is unordered.</summary>
+		/// <summary>Iterates over the table without making a copy. Like "pairs()" in Lua, the iteration is unordered.</summary>
 		/// <param name="body">The first parameter is a key and the second is a value.</param>
-		public void ForEachSN(Action<string, double> body)
+		public void ForEachV(Action<LuaValue, object> body)
+		{
+			var L = Owner._L; var translator = Owner.translator;
+			int oldTop = lua.gettop(L);
+			push(L);
+			try
+			{
+				lua.pushnil(L);
+				while (lua.next(L, -2))
+				{
+					body(LuaValue.read(L, -2, false), translator.getObject(L, -1));
+					lua.pop(L, 1);
+				}
+			}
+			finally { lua.settop(L, oldTop); }
+		}
+
+		/// <summary>Iterates over the table without making a copy. Like "pairs()" in Lua, the iteration is unordered.</summary>
+		/// <param name="body">The first parameter is a key and the second is a value.</param>
+		public void ForEachVV(Action<LuaValue, LuaValue> body)
 		{
 			var L = Owner._L;
 			int oldTop = lua.gettop(L);
@@ -341,8 +331,7 @@ namespace LuaInterface
 				lua.pushnil(L);
 				while (lua.next(L, -2))
 				{
-					if (lua.type(L, -2) == LUA.T.STRING && lua.type(L, -1) == LUA.T.NUMBER)
-						body(lua.tostring(L, -2), lua.tonumber(L, -1));
+					body(LuaValue.read(L, -2, false), LuaValue.read(L, -1, false));
 					lua.pop(L, 1);
 				}
 			}
@@ -358,7 +347,7 @@ namespace LuaInterface
 		/// Warning: The dictionary may contain <see cref="IDisposable"/> keys or values, all of which must be disposed.
 		/// </summary>
 		/// <seealso cref="LuaHelpers.DisposeAll(System.Collections.Generic.IEnumerable{System.Collections.Generic.KeyValuePair{object,object}})"/>
-		public IDictionary<object, object> ToDict() { return ToDict(null); }
+		public Dictionary<object, object> ToDict() { return (Dictionary<object, object>) ToDict(null); }
 
 		/// <summary>
 		/// Shallow-copies the table to a dictionary.
@@ -384,7 +373,7 @@ namespace LuaInterface
 		/// Warning: The dictionary may contain <see cref="IDisposable"/> values, all of which must be disposed.
 		/// </summary>
 		/// <seealso cref="LuaHelpers.DisposeAll(System.Collections.Generic.IEnumerable{object})"/>
-		public IDictionary<string, object> ToSDict() { return ToSDict(null); }
+		public Dictionary<string, object> ToSDict() { return (Dictionary<string, object>) ToSDict(null); }
 
 		/// <summary>
 		/// Shallow-copies the table to a dictionary.
@@ -406,11 +395,75 @@ namespace LuaInterface
 		}
 
 		/// <summary>
+		/// Shallow-copies the table to a new dictionary.
+		/// Warning: The dictionary may contain <see cref="IDisposable"/> values, all of which must be disposed.
+		/// </summary>
+		/// <seealso cref="LuaHelpers.DisposeAll(System.Collections.Generic.IEnumerable{object})"/>
+		public Dictionary<string, LuaValue> ToSVDict() { return (Dictionary<string, LuaValue>) ToSVDict(null); }
+
+		/// <summary>
+		/// Shallow-copies the table to a dictionary.
+		/// Warning: The dictionary may contain <see cref="IDisposable"/> values, all of which must be disposed.
+		/// </summary>
+		/// <param name="dict">If not null, the table data will be assigned to that dictionary.</param>
+		/// <returns>A new IDictionary or <paramref name="dict"/>.</returns>
+		/// <seealso cref="LuaHelpers.DisposeAll(System.Collections.Generic.IEnumerable{object})"/>
+		public IDictionary<string, LuaValue> ToSVDict(IDictionary<string, LuaValue> dict)
+		{
+			if (dict == null)
+				dict = new Dictionary<string, LuaValue>();
+
+			this.ForEachSV((k,v) =>
+			{
+				dict[k] = v;
+			});
+			return dict;
+		}
+
+		/// <summary>Shallow-copies the table to a new dictionary, omitting keys not supported by <see cref="LuaValue"/>.</summary>
+		public Dictionary<LuaValue, object> ToVDict() { return (Dictionary<LuaValue, object>) ToVDict(null); }
+		
+		/// <summary>Shallow-copies the table to a new dictionary, omitting keys not supported by <see cref="LuaValue"/>.</summary>
+		/// <param name="dict">If not null, the table data will be assigned to that dictionary.</param>
+		/// <returns>A new IDictionary or <paramref name="dict"/>.</returns>
+		public IDictionary<LuaValue, object> ToVDict(IDictionary<LuaValue, object> dict)
+		{
+			if (dict == null)
+				dict = new Dictionary<LuaValue, object>(this.Count()); // pre-count in this one because LuaValue implies the user wants to avoid heap allocations
+
+			this.ForEachV((k,v) =>
+			{
+				if (k.IsSupported)
+					dict[k] = v;
+			});
+			return dict;
+		}
+
+		/// <summary>Shallow-copies the table to a new dictionary, omitting keys not supported by <see cref="LuaValue"/>.</summary>
+		public Dictionary<LuaValue, LuaValue> ToVVDict() { return (Dictionary<LuaValue, LuaValue>) ToVVDict(null); }
+		
+		/// <summary>Shallow-copies the table to a new dictionary, omitting keys not supported by <see cref="LuaValue"/>.</summary>
+		/// <param name="dict">If not null, the table data will be assigned to that dictionary.</param>
+		/// <returns>A new IDictionary or <paramref name="dict"/>.</returns>
+		public IDictionary<LuaValue, LuaValue> ToVVDict(IDictionary<LuaValue, LuaValue> dict)
+		{
+			if (dict == null)
+				dict = new Dictionary<LuaValue, LuaValue>(this.Count()); // pre-count in this one because LuaValue implies the user wants to avoid heap allocations
+
+			this.ForEachVV((k,v) =>
+			{
+				if (k.IsSupported)
+					dict[k] = v;
+			});
+			return dict;
+		}
+
+		/// <summary>
 		/// Shallow-copies the table's integer keyed entries to a new list.
 		/// Warning: The list may contain <see cref="IDisposable"/> entries, all of which must be disposed.
 		/// </summary>
 		/// <seealso cref="LuaHelpers.DisposeAll(System.Collections.Generic.IEnumerable{object})"/>
-		public IList<object> ToList() { return ToList(null); }
+		public List<object> ToList() { return (List<object>) ToList(null); }
 
 		/// <summary>
 		/// Shallow-copies the table's integer keyed entries to a list.
@@ -425,6 +478,32 @@ namespace LuaInterface
 				list = new List<object>(this.Length);
 
 			this.ForEachI((i,v) =>
+			{
+				list.Add(v);
+			});
+			return list;
+		}
+		
+		/// <summary>
+		/// Shallow-copies the table's integer keyed entries to a new list.
+		/// Warning: The list may contain <see cref="IDisposable"/> entries, all of which must be disposed.
+		/// </summary>
+		/// <seealso cref="LuaHelpers.DisposeAll(System.Collections.Generic.IEnumerable{object})"/>
+		public List<LuaValue> ToVList() { return (List<LuaValue>) ToVList(null); }
+
+		/// <summary>
+		/// Shallow-copies the table's integer keyed entries to a list.
+		/// Warning: The list may contain <see cref="IDisposable"/> entries, all of which must be disposed.
+		/// </summary>
+		/// <param name="list">If not null, the table data will be assigned to that list.</param>
+		/// <returns>A new IList or <paramref name="list"/>.</returns>
+		/// <seealso cref="LuaHelpers.DisposeAll(System.Collections.Generic.IEnumerable{object})"/>
+		public IList<LuaValue> ToVList(IList<LuaValue> list)
+		{
+			if (list == null)
+				list = new List<LuaValue>(this.Length);
+
+			this.ForEachIV((i,v) =>
 			{
 				list.Add(v);
 			});
@@ -451,6 +530,26 @@ namespace LuaInterface
 				Debug.Assert(array.Length <= this.Length);
 
 			this.ForEachI((i,o) =>
+			{
+				array[i-1] = o;
+			});
+			return array;
+		}
+
+		/// <summary>Shallow-copies the table's integer keyed entries to a new array.</summary>
+		public LuaValue[] ToVArray() { return ToVArray(null); }
+		
+		/// <summary>Shallow-copies the table's integer keyed entries to a new array.</summary>
+		/// <param name="array">If not null, the table data will be assigned to that array.</param>
+		/// <returns>A new LuaValue[] or <paramref name="array"/>.</returns>
+		public LuaValue[] ToVArray(LuaValue[] array)
+		{
+			if (array == null)
+				array = new LuaValue[this.Length];
+			else
+				Debug.Assert(array.Length <= this.Length);
+
+			this.ForEachIV((i,o) =>
 			{
 				array[i-1] = o;
 			});
