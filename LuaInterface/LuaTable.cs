@@ -129,7 +129,7 @@ namespace LuaInterface
 		}
 
 		/// <summary><see cref="RawGet(int)"/> alternative that only fetches plain Lua value types and strings.</summary>
-		public object RawGetValue(int field)
+		public LuaValue RawGetValue(int field)
 		{
 			var L = Owner._L;                         StackAssert.Start(L);
 			push(L);
