@@ -3,7 +3,9 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using LuaInterface.LuaAPI;
+using System.IO;
 
 namespace LuaInterface
 {
@@ -59,8 +61,6 @@ namespace LuaInterface
 			lua.rawget(L, LUA.REGISTRYINDEX);
 			if(luanet.popboolean(L))
 				throw new LuaException("There is already a LuaInterface.Lua instance associated with this Lua state");
-
-			lua.pushvalue(L, LUA.GLOBALSINDEX); // todo: why is this here?
 
 			_StatePassed = true;
 			Init(L);
@@ -119,9 +119,14 @@ namespace LuaInterface
 
 		#region Execution
 
+		/// <summary><para>Lua bytecode created by lua_dump/string.dump is prefixed with this character, which must be present in order for Lua to recognize it as bytecode.</para><para>Bytecode is completely insecure; specially crafted bytecode can write arbitrary memory. You are advised to check untrusted scripts for this prefix and reject them.</para></summary>
+		public const char BytecodePrefix = LUA.SIGNATURE_0;
+
 		/// <summary>Loads a Lua chunk from a string.</summary>
 		public LuaFunction LoadString(string chunk)
 		{
+			if (chunk == null) throw new ArgumentNullException("chunk");
+			Debug.Assert(chunk.IndexOf('\0') == -1, "must not contain null characters");
 			var L = _L;
 			if (luaL.loadstring(L, chunk) == LUA.ERR.Success)
 				return new LuaFunction(L, this);
@@ -131,6 +136,8 @@ namespace LuaInterface
 		/// <summary>Loads a Lua chunk from a string.</summary>
 		public LuaFunction LoadString(string chunk, string name)
 		{
+			if (chunk == null || name == null) throw new ArgumentNullException(chunk == null ? "chunk" : "name");
+			Debug.Assert(chunk.IndexOf('\0') == -1, "must not contain null characters");
 			var L = _L;
 			if (luaL.loadbuffer(L, chunk, name) == LUA.ERR.Success)
 				return new LuaFunction(L, this);
@@ -141,8 +148,26 @@ namespace LuaInterface
 		/// <summary>Loads a Lua chunk from a file. If <paramref name="fileName"/> is null, the chunk will be loaded from standard input.</summary>
 		public LuaFunction LoadFile(string fileName)
 		{
+			if (fileName == null) throw new ArgumentNullException("fileName");
 			var L = _L;
 			if (luaL.loadfile(L, fileName) == LUA.ERR.Success)
+				return new LuaFunction(L, this);
+			else
+				throw ExceptionFromError(-2);
+		}
+
+		/// <summary>Loads a Lua chunk from a buffer.</summary>
+		public LuaFunction LoadBuffer(byte[] chunk, string name) { return LoadBuffer(new ArraySegment<byte>(chunk), name); }
+		/// <summary>Loads a Lua chunk from a buffer.</summary>
+		public unsafe LuaFunction LoadBuffer(ArraySegment<byte> chunk, string name)
+		{
+			if (chunk.Array == null) throw new ArgumentNullException("chunk");
+			// ArraySegment validates the offset and length when it is first constructed
+			var L = _L;
+			LUA.ERR status;
+			fixed (byte* array = chunk.Array)
+				status = luaL.loadbuffer(L, new IntPtr(array + chunk.Offset), chunk.Count, name);
+			if (status == LUA.ERR.Success)
 				return new LuaFunction(L, this);
 			else
 				throw ExceptionFromError(-2);

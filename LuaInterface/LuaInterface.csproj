@@ -144,7 +144,7 @@
     <Compile Include="LuaAPI\lua.State.cs" />
     <Compile Include="LuaAPI\luaL.cs" />
     <Compile Include="LuaAPI\luanet.cs" />
-    <Compile Include="LuaAPI\LuaValue.cs" />
+    <Compile Include="LuaValue.cs" />
     <Compile Include="LuaAPI\size_t.cs" />
     <Compile Include="LuaBase.cs" />
     <Compile Include="LuaException.cs" />

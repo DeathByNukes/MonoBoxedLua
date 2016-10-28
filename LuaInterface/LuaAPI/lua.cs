@@ -324,6 +324,9 @@ namespace LuaInterface.LuaAPI
 		/// <summary>The reader function used by <see cref="lua.load"/>. Every time it needs another piece of the chunk, <see cref="lua.load"/> calls the reader, passing along its data parameter. The reader must return a pointer to a block of memory with a new piece of the chunk and set size to the block size. The block must exist until the reader function is called again. To signal the end of the chunk, the reader must return <see langword="null"/> or set size to zero. The reader function may return pieces of any size greater than zero.</summary>
 		[UnmanagedFunctionPointer(CC)] public delegate char8* Reader(lua.State L, IntPtr data, out size_t size);
 
+		/// <summary><para>The type of the writer function used by <see cref="dump"/>. Every time it produces another piece of chunk, lua.dump calls the writer, passing along the buffer to be written (<paramref name="p"/>), its size (<paramref name="sz"/>), and the data parameter supplied to lua.dump (<paramref name="ud"/>).</para><para>The writer returns an error code: 0 means no errors; any other value means an error and stops lua.dump from calling the writer again.</para></summary>
+		[UnmanagedFunctionPointer(CC)] public delegate int Writer(lua.State L, void* p, size_t sz, IntPtr ud);
+
 		/// <summary>[-(nargs + 1), +nresults, e] Calls a function.</summary>
 		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_call"  )] public static extern void    call  (lua.State L, int nargs, int nresults);
 		/// <summary>[-(nargs + 1), +(nresults|1), -] Calls a function in protected mode. If there is any error, <see cref="lua.pcall"/> catches it, pushes a single value on the stack (the error message), and returns an error code.</summary>
@@ -334,8 +337,8 @@ namespace LuaInterface.LuaAPI
 		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_cpcall")] public static extern LUA.ERR cpcall(lua.State L, void* func, void* ud);
 		/// <summary>[-0, +1, -] Loads a Lua chunk. If there are no errors, <see cref="lua.load"/> pushes the compiled chunk as a Lua function on top of the stack. Otherwise, it pushes an error message.</summary>
 		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_load"  )] public static extern LUA.ERR load  (lua.State L, lua.Reader reader, IntPtr data, string chunkname);
-		// omitted:
-		//   lua_dump   (would write to unmanaged memory via lua_Writer)
+		/// <summary>[-0, +0, m] <para>Dumps a function as a binary chunk. Receives a Lua function on the top of the stack and produces a binary chunk that, if loaded again, results in a function equivalent to the one dumped. As it produces parts of the chunk, lua.dump calls function writer (see <see cref="Writer"/>) with the given data to write them.</para><para>The value returned is the error code returned by the last call to the writer; 0 means no errors.</para><para>This function does not pop the Lua function from the stack.</para></summary>
+		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_dump"  )] public static extern int     dump  (lua.State L, lua.Writer writer, IntPtr data);
 
 		#endregion
 
