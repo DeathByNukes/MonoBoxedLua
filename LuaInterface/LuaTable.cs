@@ -621,7 +621,7 @@ namespace LuaInterface
 		/// Shallow-copies the table to a new non-generic dictionary.
 		/// Warning: The dictionary may contain <see cref="IDisposable"/> keys or values, all of which must be disposed.
 		/// </summary>
-		public System.Collections.IDictionary ToLegacyDict() { return ToLegacyDict(null); }
+		public System.Collections.Specialized.ListDictionary ToLegacyDict() { return (System.Collections.Specialized.ListDictionary) ToLegacyDict(null); }
 
 		/// <summary>
 		/// Shallow-copies the table to a non-generic dictionary.

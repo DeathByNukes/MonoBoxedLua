@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 
@@ -17,7 +18,7 @@ namespace LuaInterface.Helpers
 		}
 
 		/// <summary>Tests if each object is a <see cref="LuaBase"/> and disposes it.</summary>
-		public static void DisposeAll(this IEnumerable<object> objects)
+		public static void DisposeAll(this IEnumerable objects)
 		{
 			Debug.Assert(objects != null);
 			foreach (var entry in objects)
@@ -35,15 +36,15 @@ namespace LuaInterface.Helpers
 		}
 
 		/// <summary>Returns an object that, upon disposal, tests if each enumerated object is a <see cref="LuaBase"/> and disposes it.</summary>
-		public static IDisposable DeferDisposeAll(this IEnumerable<object> objects)
+		public static IDisposable DeferDisposeAll(this IEnumerable objects)
 		{
 			Debug.Assert(objects != null);
 			return new EnumerableDisposer(objects);
 		}
 		private class EnumerableDisposer : IDisposable
 		{
-			private IEnumerable<object> _objects;
-			public EnumerableDisposer(IEnumerable<object> objects) { _objects = objects; }
+			private IEnumerable _objects;
+			public EnumerableDisposer(IEnumerable objects) { _objects = objects; }
 			public void Dispose() { _objects.DisposeAll(); }
 		}
 		/// <summary>Returns an object that, upon disposal, tests if each key and each value is a <see cref="LuaBase"/> and disposes them.</summary>
