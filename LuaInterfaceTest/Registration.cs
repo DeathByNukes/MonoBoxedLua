@@ -1,9 +1,17 @@
 ﻿using System.Reflection;
 using LuaInterface;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace LuaInterfaceTest
 {
+	#if NUNIT
+	using NUnit.Framework;
+	using TestClassAttribute = NUnit.Framework.TestFixtureAttribute;
+	using TestMethodAttribute = NUnit.Framework.TestAttribute;
+	using TestCleanupAttribute = NUnit.Framework.TearDownAttribute;
+	#else
+	using Microsoft.VisualStudio.TestTools.UnitTesting;
+	#endif
+
 	[TestClass] public class Registration
 	{
 		[TestCleanup] public void Cleanup()
@@ -21,6 +29,32 @@ namespace LuaInterfaceTest
 			public static string Fifth() { return "Fifth"; }
 		}
 		[TestMethod] public void RegisterFunction()
+		{
+			using (var lua = new Lua())
+			{
+				var target = new RegisterFunction_Target();
+				lua.RegisterFunction("First", target, typeof(RegisterFunction_Target).GetMethod("First"));
+				lua.DoString("assert(First() == 'First')");
+
+				lua.RegisterFunction("Second", null, typeof(RegisterFunction_Target).GetMethod("Second"));
+				lua.DoString("assert(Second() == 'Second')");
+
+				lua.RegisterFunction("Third", null, typeof(RegisterFunction_Target).GetMethod("Third", BindingFlags.NonPublic | BindingFlags.Static));
+				lua.DoString("assert(Third() == 'Third')");
+
+				lua["Fourth"] = lua.NewFunction(null, typeof(RegisterFunction_Target).GetMethod("Fourth"));
+				lua.DoString("assert(Fourth() == 'Fourth')");
+
+				lua.NewTable("Util");
+				lua.RegisterFunction("Util.Fifth", null, typeof(RegisterFunction_Target).GetMethod("Fifth"));
+				lua.DoString("assert(Util.Fifth() == 'Fifth')");
+
+				lua.RegisterFunction("Sixth", EzDelegate.Func(() => "Sixth"));
+				lua.DoString("assert(Sixth() == 'Sixth')");
+			}
+		}
+		#if !ENABLE_MONO || !(UNITY_5 || UNITY_4) // unity's compiler can't do type inference on method groups...
+		[TestMethod] public void RegisterFunctionEzDelegate()
 		{
 			using (var lua = new Lua())
 			{
@@ -45,6 +79,7 @@ namespace LuaInterfaceTest
 				lua.DoString("assert(Sixth() == 'Sixth')");
 			}
 		}
+		#endif
 
 		class TaggedInstanceMethods_Target
 		{

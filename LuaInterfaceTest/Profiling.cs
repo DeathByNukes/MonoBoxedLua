@@ -3,12 +3,19 @@ using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using LuaInterface;
 using LuaInterface.LuaAPI;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace LuaInterfaceTest
 {
-	[TestClass]
-	public class Profiling
+	#if NUNIT
+	using NUnit.Framework;
+	using TestClassAttribute = NUnit.Framework.TestFixtureAttribute;
+	using TestMethodAttribute = NUnit.Framework.TestAttribute;
+	using TestCleanupAttribute = NUnit.Framework.TearDownAttribute;
+	#else
+	using Microsoft.VisualStudio.TestTools.UnitTesting;
+	#endif
+
+	[TestClass] public class Profiling
 	{
 		[MethodImpl(MethodImplOptions.NoInlining)] static int Noop(lua.State L) { return 0; }
 
@@ -17,8 +24,7 @@ namespace LuaInterfaceTest
 			Trace.WriteLine(string.Format("{0}: {1}ms", description, timer.ElapsedMilliseconds));
 		}
 
-		[TestMethod]
-		public void CFunctions()
+		[TestMethod] public void CFunctions()
 		{
 			const uint iterations = 2048*2048;
 			using (var li = new Lua())
@@ -48,7 +54,7 @@ namespace LuaInterfaceTest
 				lua.setglobal(L, "Noop");
 
 				lua.pushvalue(L, -1);
-				timer.Restart();
+				timer.Reset();timer.Start();
 				lua.call(L, 0, 0);
 				timer.Stop();
 				Display(timer, "Lua -> stdcall -> CLR");
@@ -62,7 +68,7 @@ namespace LuaInterfaceTest
 				lua.setglobal(L, "Noop");
 
 				lua.pushvalue(L, -1);
-				timer.Restart();
+				timer.Reset();timer.Start();
 				lua.call(L, 0, 0);
 				timer.Stop();
 				Display(timer, "Lua -> cdecl -> CLR");
@@ -73,7 +79,7 @@ namespace LuaInterfaceTest
 				luaL.dostring(L, "function Noop() end");
 
 				lua.pushvalue(L, -1);
-				timer.Restart();
+				timer.Reset();timer.Start();
 				lua.call(L, 0, 0);
 				timer.Stop();
 				Display(timer, "Lua -> Lua");

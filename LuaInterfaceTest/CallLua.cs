@@ -6,11 +6,19 @@
 using System;
 using System.Collections.Generic;
 using LuaInterface;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 
 namespace LuaInterfaceTest
 {
+	#if NUNIT
+	using NUnit.Framework;
+	using TestClassAttribute = NUnit.Framework.TestFixtureAttribute;
+	using TestMethodAttribute = NUnit.Framework.TestAttribute;
+	using TestCleanupAttribute = NUnit.Framework.TearDownAttribute;
+	#else
+	using Microsoft.VisualStudio.TestTools.UnitTesting;
+	#endif
+
 	// adding new Lua functions is particularly easy...
 	public class MyClass
 	{
@@ -171,7 +179,7 @@ namespace LuaInterfaceTest
 				);
 
 				using (var Y = L.GetTable("Y")) // equivalent to (LuaTable)L["Y"] but faster
-				foreach (var pair in Y)
+				foreach (KeyValuePair<object, object> pair in Y)
 					Test.Print("{0}={1}", pair.Key, pair.Value);
 
 				Test.AssertPrinted(
@@ -255,7 +263,7 @@ namespace LuaInterfaceTest
 		public static string PopOutput() { return PopOutput("\n"); }
 		public static string PopOutput(string separator)
 		{
-			string ret = string.Join(separator, _messages);
+			string ret = string.Join(separator, _messages.ToArray());
 			_messages.Clear();
 			return ret;
 		}

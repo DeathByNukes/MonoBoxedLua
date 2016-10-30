@@ -4,10 +4,18 @@ using System.Linq;
 using LuaInterface;
 using LuaInterface.Helpers;
 using LuaInterface.LuaAPI;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace LuaInterfaceTest
 {
+	#if NUNIT
+	using NUnit.Framework;
+	using TestClassAttribute = NUnit.Framework.TestFixtureAttribute;
+	using TestMethodAttribute = NUnit.Framework.TestAttribute;
+	using TestCleanupAttribute = NUnit.Framework.TearDownAttribute;
+	#else
+	using Microsoft.VisualStudio.TestTools.UnitTesting;
+	#endif
+
 	[TestClass] public class Table
 	{
 		[TestCleanup] public void Cleanup()
@@ -291,16 +299,27 @@ namespace LuaInterfaceTest
 			}
 		}
 
-		private object TestFormat(object o)
+		static string TestFormat(object o)
 		{
 			if (o is string) return string.Format("'{0}'", o);
 			if (o is LuaTable) return "table";
-			return o;
+			return o.ToString();
 		}
-		private string TestFormatPair<K,V>(KeyValuePair<K,V> pair)
+		private static string TestFormatPair<K,V>(KeyValuePair<K,V> pair)
 		{
 			return string.Format("{0}={1}", TestFormat(pair.Key), TestFormat(pair.Value));
 		}
+
+		private static string TestFormat(IEnumerable<object> source)
+		{
+			return string.Join(", ", source.Select<object, string>(TestFormat).ToArray());
+		}
+		private static string TestFormatPair<K,V>(IEnumerable<KeyValuePair<K,V>> source)
+		{
+			return string.Join(", ", source.Select<KeyValuePair<K,V>, string>(TestFormatPair).ToArray());
+		}
+
+
 
 		[TestMethod] public void ToDict()
 		{
@@ -312,15 +331,15 @@ namespace LuaInterfaceTest
 
 				var dict = table.ToDict();
 				using (dict.DeferDisposeAll())
-					Assert.AreEqual(expected, string.Join(", ", dict.Select(TestFormatPair)));
+					Assert.AreEqual(expected, TestFormatPair(dict));
 
-				Assert.AreEqual(expected, string.Join(", ", table.Pairs.Select(TestFormatPair)));
+				Assert.AreEqual(expected, TestFormatPair(table.Pairs));
 
-				Assert.AreEqual(expected, string.Join(", ", table.Select(TestFormatPair)));
+				Assert.AreEqual(expected, TestFormatPair(table));
 
 				using (var t2 = table.NewReference())
-					Assert.AreEqual(expected, string.Join(", ", t2.Select(TestFormatPair)));
-				Assert.AreEqual(expected, string.Join(", ", table.Select(TestFormatPair)));
+					Assert.AreEqual(expected, TestFormatPair(t2));
+				Assert.AreEqual(expected, TestFormatPair(table));
 			}
 		}
 
@@ -333,9 +352,9 @@ namespace LuaInterfaceTest
 
 				var dict = table.ToSDict();
 				using (dict.Values.DeferDisposeAll())
-					Assert.AreEqual(expected, string.Join(", ", dict.Select(TestFormatPair)));
+					Assert.AreEqual(expected, TestFormatPair(dict));
 
-				Assert.AreEqual(expected, string.Join(", ", table.SPairs.Select(TestFormatPair)));
+				Assert.AreEqual(expected, TestFormatPair(table.SPairs));
 			}
 		}
 
@@ -348,15 +367,15 @@ namespace LuaInterfaceTest
 
 				var list = table.ToList();
 				using (list.DeferDisposeAll())
-					Assert.AreEqual(expected, string.Join(", ", list.Select(TestFormat)));
+					Assert.AreEqual(expected, TestFormat(list));
 				list = null;
 
 				var array = table.ToArray();
 				using (array.DeferDisposeAll())
-					Assert.AreEqual(expected, string.Join(", ", array.Select(TestFormat)));
+					Assert.AreEqual(expected, TestFormat(array));
 				array = null;
 
-				Assert.AreEqual(expected, string.Join(", ", table.IPairs.Select(TestFormat)));
+				Assert.AreEqual(expected, TestFormat(table.IPairs));
 			}
 		}
 

@@ -2,10 +2,18 @@
 using System.Linq;
 using LuaInterface;
 using LuaInterface.LuaAPI;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace LuaInterfaceTest
 {
+	#if NUNIT
+	using NUnit.Framework;
+	using TestClassAttribute = NUnit.Framework.TestFixtureAttribute;
+	using TestMethodAttribute = NUnit.Framework.TestAttribute;
+	using TestCleanupAttribute = NUnit.Framework.TearDownAttribute;
+	#else
+	using Microsoft.VisualStudio.TestTools.UnitTesting;
+	#endif
+
 	[TestClass] public class StackIndexTest
 	{
 		[TestCleanup] public void Cleanup()

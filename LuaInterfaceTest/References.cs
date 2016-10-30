@@ -1,13 +1,22 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
 using LuaInterface;
 using LuaInterface.Helpers;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace LuaInterfaceTest
 {
+	#if NUNIT
+	using NUnit.Framework;
+	using TestClassAttribute = NUnit.Framework.TestFixtureAttribute;
+	using TestMethodAttribute = NUnit.Framework.TestAttribute;
+	using TestCleanupAttribute = NUnit.Framework.TearDownAttribute;
+	#else
+	using Microsoft.VisualStudio.TestTools.UnitTesting;
+	#endif
+
 	[TestClass] public class References
 	{
 		[TestCleanup] public void Cleanup()
@@ -21,12 +30,12 @@ namespace LuaInterfaceTest
 			{
 				var types = (
 					from assembly in AppDomain.CurrentDomain.GetAssemblies()
-					from type in assembly.GetTypes()
+					from type in SafeGetTypes(assembly)
 					where !type.IsAbstract && typeof(LuaBase).IsAssignableFrom(type)
 					select type  )
 					.ToArray();
 
-				Trace.WriteLine("Types: " + string.Join(", ", (object[])types));
+				Trace.WriteLine("Types: " + string.Join(", ", types.Select(t=>t.ToString()).ToArray()));
 				foreach (var type in types)
 				{
 					var method = type.GetMethod("NewReference", BindingFlags.Public | BindingFlags.Instance, null, Type.EmptyTypes, null);
@@ -52,6 +61,19 @@ namespace LuaInterfaceTest
 					Assert.Inconclusive("Not all LuaBase implementations are covered by this test.");
 			}
 		}
+
+		static IEnumerable<Type> SafeGetTypes(Assembly assembly)
+		{
+			try { return assembly.GetTypes(); }
+			catch (ReflectionTypeLoadException ex)
+			{
+				foreach (var err in ex.LoaderExceptions)
+				if (err != null)
+					Console.WriteLine(err.Message);
+				return ex.Types.Where(t=>t != null);
+			}
+		}
+
 		[TestMethod] public void Equality()
 		{
 			using (var lua = new Lua())

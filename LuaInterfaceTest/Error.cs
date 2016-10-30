@@ -3,10 +3,18 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using LuaInterface;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace LuaInterfaceTest
 {
+	#if NUNIT
+	using NUnit.Framework;
+	using TestClassAttribute = NUnit.Framework.TestFixtureAttribute;
+	using TestMethodAttribute = NUnit.Framework.TestAttribute;
+	using TestCleanupAttribute = NUnit.Framework.TearDownAttribute;
+	#else
+	using Microsoft.VisualStudio.TestTools.UnitTesting;
+	#endif
+
 	[TestClass] public class Error
 	{
 		#region Tools
@@ -80,7 +88,11 @@ namespace LuaInterfaceTest
 		static LuaScriptException GetPCallException(object[] results) {
 			Assert.AreEqual(2, results.Length);
 			Assert.AreEqual(false, results[0]);
+			#if NUNIT
+			Assert.IsInstanceOf<LuaScriptException>(results[1]);
+			#else
 			Assert.IsInstanceOfType(results[1], typeof(LuaScriptException));
+			#endif
 			return (LuaScriptException) results[1];
 		}
 		class TestException : Exception {
@@ -160,8 +172,8 @@ namespace LuaInterfaceTest
 					Assert.Fail("didn't throw (outer)");
 				}
 				catch (LuaScriptException ex) { CheckException(ex); }
-				Assert.AreEqual(1, hit_finally);
-				Assert.AreEqual(true, (bool)lua["hit_finally"]);
+				Assert.AreEqual(1, hit_finally, "finally{} wasn't called during Lua error or was called more than once");
+				Assert.AreEqual(true, (bool)lua["hit_finally"], "finally{} didn't write Lua value");
 
 				// suspicious that the "magic finally" might involve the CLR backtracking once it regains control much later
 				// so added this test to confirm the side-effects entirely within Lua
