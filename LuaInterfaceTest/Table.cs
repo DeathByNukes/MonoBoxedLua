@@ -239,13 +239,13 @@ namespace LuaInterfaceTest
 				// - try reading missing values, which the metatable would intercept if we weren't using RawGet -
 
 				for (int i = _ArrayEnd+1; i <= _ArrayEnd*2; ++i)
-					Assert.AreEqual(LUA.T.NIL, table.RawGetValue(i).Type);
+					Assert.AreEqual(LuaType.Nil, table.RawGetValue(i).Type);
 
 				foreach (string k in _EmptyKeys)
-					Assert.AreEqual(LUA.T.NIL, table.RawGetValue(k).Type);
+					Assert.AreEqual(LuaType.Nil, table.RawGetValue(k).Type);
 
 				for (double i = _ArrayEnd+1; i <= _ArrayEnd*2; ++i)
-					Assert.AreEqual(LUA.T.NIL, table.RawGetValue(i).Type);
+					Assert.AreEqual(LuaType.Nil, table.RawGetValue(i).Type);
 			}
 		}
 
