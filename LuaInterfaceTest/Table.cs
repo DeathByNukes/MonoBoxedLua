@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using LuaInterface;
 using LuaInterface.Helpers;
 using LuaInterface.LuaAPI;
@@ -441,5 +442,83 @@ return _G,newTestTable(nil,nil),{
 				Assert.AreEqual(top, lua.gettop(L));
 			}
 		}
+
+		[TestMethod] public void BigTable()
+		{
+			using (var lua = new Lua())
+			{
+				LuaRegistrationHelper.TaggedStaticMethods(lua, this.GetType());
+				lua["lua"] = lua;
+				lua.DoString("a = MakeBigTable(1, lua)");
+				lua.DoString("b = MakeBigTable(256, lua)");
+				lua.DoString("ConsumeBigTable(b)");
+				lua.DoString("c = MakeBigTable(65536, lua)");
+				lua.DoString("ConsumeBigTable(a)");
+				lua.DoString("ConsumeBigTable(c)");
+			}
+		}
+		[LuaGlobal] public static LuaTable MakeBigTable(int n, Lua lua)
+		{
+			var r = new Random(n);
+			var t = lua.NewTable(n, 0);
+			for (int i = 1; i <= n; ++i)
+			{
+				var row = lua.NewTable();
+
+				var field = lua.NewTable(3, 0);
+				field[1] = r.Next();
+				field[2] = r.NextDouble();
+				field[3] = r.NextDouble().ToString();
+				row["vector"] = field;
+				field.Dispose();
+				
+				field = lua.NewTable(0, 3);
+				field["a"] = r.Next();
+				field["b"] = r.NextDouble();
+				field["c"] = r.NextDouble().ToString();
+				row["obj"] = field;
+				field.Dispose();
+				
+				row["int"] = r.Next();
+				row["double"] = r.NextDouble();
+				row["string"] = r.NextDouble().ToString();
+				row["bool"] = r.Next(0,1) == 1;
+				row["userdata"] = System.Text.Encoding.UTF8;
+				row.RawSet("rawset", r.Next());
+
+				t[i] = row;
+				row.Dispose();
+			}
+			return t;
+		}
+		[LuaGlobal] public static void ConsumeBigTable(LuaTable t)
+		{
+			t.ForEachI((i, value) =>
+			{
+				var row = (LuaTable) value;
+				var field = (LuaTable) row["vector"];
+				Eat((double) field[1]); Eat((double) field.RawGet(1)); Eat((int)   field.GetValue(1)); Eat((int)   field.RawGetValue(1));
+				Eat((double) field[2]); Eat((double) field.RawGet(2)); Eat<double>(field.GetValue(2)); Eat<double>(field.RawGetValue(2));
+				Eat((string) field[3]); Eat((string) field.RawGet(3)); Eat<string>(field.GetValue(3)); Eat<string>(field.RawGetValue(3));
+				field.Dispose();
+				
+				field = (LuaTable) row["obj"];
+				Eat((double) field["a"]); Eat((double) field.RawGet("a")); Eat((int)   field.GetValue("a")); Eat((int)   field.RawGetValue("a"));
+				Eat((double) field["b"]); Eat((double) field.RawGet("b")); Eat<double>(field.GetValue("b")); Eat<double>(field.RawGetValue("b"));
+				Eat((string) field["c"]); Eat((string) field.RawGet("c")); Eat<string>(field.GetValue("c")); Eat<string>(field.RawGetValue("c"));
+				field.Dispose();
+				
+				Eat((double)               row["int"     ]); Eat((double)               row.RawGet("int"     )); Eat<double>(               row.GetValue("int"     )); Eat<double>(               row.RawGetValue("int"     ));
+				Eat((double)               row["double"  ]); Eat((double)               row.RawGet("double"  )); Eat<double>(               row.GetValue("double"  )); Eat<double>(               row.RawGetValue("double"  ));
+				Eat((string)               row["string"  ]); Eat((string)               row.RawGet("string"  )); Eat<string>(               row.GetValue("string"  )); Eat<string>(               row.RawGetValue("string"  ));
+				Eat((bool)                 row["bool"    ]); Eat((bool)                 row.RawGet("bool"    )); Eat<bool>(                 row.GetValue("bool"    )); Eat<bool>(                 row.RawGetValue("bool"    ));
+				Eat((System.Text.Encoding) row["userdata"]); Eat((System.Text.Encoding) row.RawGet("userdata")); Assert.AreEqual(LuaType.UserData, row.GetValue("userdata").Type); Assert.AreEqual(LuaType.UserData, row.RawGetValue("userdata").Type);
+				Eat((double)               row["rawset"  ]); Eat((double)               row.RawGet("rawset"  )); Eat((int)                  row.GetValue("rawset"  )); Eat((int)                  row.RawGetValue("rawset"  ));
+
+				row.Dispose();
+			});
+			t.Dispose();
+		}
+		[MethodImpl(MethodImplOptions.NoInlining)] static void Eat<T>(T value) {}
 	}
 }
