@@ -63,6 +63,43 @@ namespace LuaInterface
 			return count;
 		}
 
+		/// <summary>Removes all entries from the table.</summary>
+		public void Clear()
+		{
+			var L = Owner._L;                         StackAssert.Start(L);
+			push(L);
+			lua.pushnil(L);
+			while (lua.next(L, -2))
+			{
+				lua.pop(L,1);
+				lua.pushvalue(L, -1);
+				lua.pushnil(L);
+				lua.rawset(L, -4);
+			}
+			lua.pop(L,1);                             StackAssert.End();
+		}
+
+		/// <summary>When this is true <see cref="Count"/> is zero.</summary>
+		public bool IsEmpty
+		{
+			get
+			{
+				var L = Owner._L;                         StackAssert.Start(L);
+				push(L);
+				lua.pushnil(L);
+				if (lua.next(L, -2))
+				{
+					lua.pop(L,3);                             StackAssert.End();
+					return false;
+				}
+				else
+				{
+					lua.pop(L,1);                             StackAssert.End();
+					return true;
+				}
+			}
+		}
+
 		/// <summary>Generates a brief human readable summary of the table's contents.</summary>
 		public string Summarize() { return this.Summarize(256); }
 		/// <summary>Generates a human readable summary of the table's contents.</summary>

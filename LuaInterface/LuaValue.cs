@@ -4,7 +4,7 @@ using LuaInterface.LuaAPI;
 
 namespace LuaInterface
 {
-	/// <summary><para>Container for simple Lua values.</para><para>Though it cannot contain the value of garbage collected Lua types (see <see cref="IsSupported"/>), it works around this fact whenever possible.</para></summary>
+	/// <summary><para>Container for simple Lua values.</para><para>Though it cannot contain the value of garbage collected Lua types other than string (see <see cref="IsSupported"/>), it works around this fact whenever possible.</para></summary>
 	[StructLayout(LayoutKind.Explicit)] public struct LuaValue
 	{
 		[FieldOffset(0)] readonly bool _boolean;

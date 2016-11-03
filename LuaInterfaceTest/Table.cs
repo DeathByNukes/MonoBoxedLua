@@ -520,5 +520,39 @@ return _G,newTestTable(nil,nil),{
 			t.Dispose();
 		}
 		[MethodImpl(MethodImplOptions.NoInlining)] static void Eat<T>(T value) {}
+
+		[TestMethod] public void Clear()
+		{
+			using (var lua = new Lua())
+			{
+				recursiveClear(MakeBigTable(8192, lua));
+			}
+		}
+		static void recursiveClear(LuaTable table)
+		{
+			table.ForEachV((k,v) =>
+			{
+				var t = v as LuaTable;
+				if (t != null)
+					recursiveClear(t);
+			});
+			table.Clear();
+			Assert.AreEqual(0, table.Count());
+			table.Dispose();
+		}
+
+		[TestMethod] public void IsEmpty()
+		{
+			using (var lua = new Lua())
+			{
+				var table = lua.NewTable(1, 0);
+				Assert.IsTrue(table.IsEmpty);
+				table.RawSet(1, true);
+				Assert.IsFalse(table.IsEmpty);
+				table.Clear();
+				Assert.IsTrue(table.IsEmpty);
+				table.Dispose();
+			}
+		}
 	}
 }
