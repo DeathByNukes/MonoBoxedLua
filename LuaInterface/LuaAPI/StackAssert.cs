@@ -25,7 +25,8 @@ namespace LuaInterface.LuaAPI
 
 		static void check(int offset, Top top)
 		{
-			Debug.Assert(lua.gettop(top.Key) == top.Value + offset, "Stack is unbalanced!");
+			var current_top = lua.gettop(top.Key);
+			Debug.Assert(current_top == top.Value + offset, "Stack is unbalanced!");
 		}
 
 		static Stack<Top> t_tops { get { return t__tops ?? (t__tops = new Stack<Top>()); } }

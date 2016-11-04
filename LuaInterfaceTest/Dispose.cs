@@ -124,5 +124,17 @@ namespace LuaInterfaceTest
 				return gc;
 			});
 		}
+
+		[TestMethod] public void FinalizeLuaTable()
+		{
+			using (var lua = new Lua())
+			{
+				GcUtil.NewTest(() => lua.NewTable()).Kill();
+				Assert.AreEqual(1, lua.CleanLeaks());
+				#if DEBUG
+				Assert.AreEqual(1u, Lua.PopLeakCount());
+				#endif
+			}
+		}
 	}
 }

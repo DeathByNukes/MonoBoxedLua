@@ -38,7 +38,6 @@ namespace LuaInterface
 		~LuaBase()
 		{
 			Dispose(false);
-			Lua.leaked(Reference);
 		}
 
 		public void Dispose()
@@ -50,8 +49,16 @@ namespace LuaInterface
 		protected virtual void Dispose(bool disposing)
 		{
 			if (this.IsDisposed) return;
-			if (Reference >= LUA.MinRef && !Owner._L.IsNull)
-				luaL.unref(Owner._L, Reference);
+			var owner = Owner;
+			var L = owner._L;
+			if (Reference >= LUA.MinRef && !L.IsNull)
+			{
+				// it's not safe to do this from the finalizer thread
+				if (disposing)
+					luaL.unref(L, Reference);
+				else
+					owner.Leaked(Reference);
+			}
 			Owner = null;
 			//if (disposing)
 			//	/* dispose managed objects here */;
