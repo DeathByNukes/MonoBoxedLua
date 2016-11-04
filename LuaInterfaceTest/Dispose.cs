@@ -23,7 +23,6 @@ namespace LuaInterfaceTest
 				while (GC.GetGeneration(o) < GC.MaxGeneration)
 					GcCollect();
 				var gc = new GCTest(o);
-				unref(ref o);
 				return gc;
 			});
 			#if DEBUG
@@ -58,14 +57,6 @@ namespace LuaInterfaceTest
 			}
 		}
 
-		/// <summary>Reliably sets a variable to null, preventing dead store optimization.</summary>
-		[MethodImpl(MethodImplOptions.NoInlining)]
-		public static void unref<T>(ref T variable) where T : class
-		{
-			Assert.IsNotNull(variable);
-			variable = null;
-		}
-
 		/// <summary>Calls the provided method and returns. The method is guaranteed not to be inlined.</summary>
 		[MethodImpl(MethodImplOptions.NoInlining)]
 		public static void Execute(Action a) { a(); }
@@ -93,14 +84,12 @@ namespace LuaInterfaceTest
 				var gc = new GcUtil.GCTest(lua);
 				lua.Dispose();
 				lua.Dispose();
-				GcUtil.unref(ref lua);
 				return gc;
 			});
 		}
 		[TestMethod] public void FinalizeLua()
 		{
-			var gc = GcUtil.NewTest(() => new Lua());
-			gc.Kill();
+			GcUtil.NewTest(() => new Lua()).Kill();
 			#if DEBUG
 			Assert.AreEqual(1u, Lua.PopLeakCount());
 			#endif
@@ -109,25 +98,31 @@ namespace LuaInterfaceTest
 		[TestMethod] public void DisposeLuaTable()
 		{
 			var lua = new Lua();
-			var table = lua.NewTable();
-			var gc = new GcUtil.GCTest(table);
-			table.Dispose();
-			table.Dispose();
-			GcUtil.unref(ref table);
-			gc.Kill();
+			GcUtil.ExecuteAndKill(() =>
+			{
+				var table = lua.NewTable();
+				var gc = new GcUtil.GCTest(table);
+				table.Dispose();
+				table.Dispose();
+				return gc;
+			});
 			lua.Dispose();
 			lua.Dispose();
+		}
 
-			// dispose in the wrong order
-			lua = new Lua();
-			table = lua.NewTable();
-			gc = new GcUtil.GCTest(table);
-			lua.Dispose();
-			lua.Dispose();
-			table.Dispose();
-			table.Dispose();
-			GcUtil.unref(ref table);
-			gc.Kill();
+		[TestMethod] public void DisposeLuaTableAfterLua()
+		{
+			GcUtil.ExecuteAndKill(() =>
+			{
+				var lua = new Lua();
+				var table = lua.NewTable();
+				var gc = new GcUtil.GCTest(table);
+				lua.Dispose();
+				lua.Dispose();
+				table.Dispose();
+				table.Dispose();
+				return gc;
+			});
 		}
 	}
 }
