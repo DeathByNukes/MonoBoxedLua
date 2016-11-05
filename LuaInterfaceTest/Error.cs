@@ -194,6 +194,30 @@ namespace LuaInterfaceTest
 				Assert.AreEqual(true, (bool)lua["hit_finally"]);
 			}
 		}
+		[TestMethod] public void MetamethodCPCall()
+		{
+			using (var lua = NewTest())
+			{
+				// this test shows how to protect against metamethod errors by wrapping your usage in CPCall
+				lua["callback"] = new Action(() =>
+				{
+					try
+					{
+						using (var t = lua.GetTable("badtable"))
+						{
+							lua.CPCall(() =>
+							{
+								GC.KeepAlive(t["foo"]);
+							});
+							Assert.Fail("didn't throw");
+						}
+					}
+					catch (LuaScriptException ex) { CheckException(ex); }
+				});
+				
+				lua.DoString("callback:Invoke()");
+			}
+		}
 		[TestMethod] public void PCall()
 		{
 			using (var lua = NewTest())

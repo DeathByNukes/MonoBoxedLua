@@ -249,6 +249,20 @@ namespace LuaInterface
 			throw ExceptionFromError(oldTop);
 		}
 
+		/// <summary>Calls <paramref name="function"/> in protected mode. If a Lua error occurs inside the function, it will be caught at this point and converted to a C# exception.</summary>
+		public void CPCall(Action function)
+		{
+			if (function == null) throw new ArgumentNullException("function");
+			lua.CFunction wrapper = L =>
+			{
+				lua.settop(L, 0);
+				function();
+				return 0;
+			};
+			if (lua.cpcall(_L, wrapper, default(IntPtr)) != LUA.ERR.Success)
+				throw ExceptionFromError(-2);
+		}
+
 		#endregion
 
 		/// <summary>Performs a full garbage-collection cycle.</summary>
