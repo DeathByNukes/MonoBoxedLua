@@ -798,17 +798,10 @@ namespace LuaInterface
 			if(o is LuaValue) { ((LuaValue)o).push(L); return; }
 
 			// disallow all reflection
+			if ((o.GetType().Namespace ?? "").StartsWith("System.Reflect", StringComparison.Ordinal))
 			{
-				var type = o.GetType();
-				do
-				{
-					if ((type.Namespace ?? "").StartsWith("System.Reflection", StringComparison.Ordinal))
-					{
-						lua.pushstring(L, o.ToString());
-						return;
-					}
-					type = type.BaseType;
-				} while (type != null);
+				lua.pushstring(L, o.ToString());
+				return;
 			}
 
 			pushObject(L,o,"luaNet_metatable");

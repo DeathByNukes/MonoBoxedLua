@@ -22,16 +22,28 @@ namespace LuaInterfaceTest
 		{
 			using (var lua = new Lua())
 			{
-				lua["object"] = new object();
-				object result = lua.DoString(@"return object:GetType()")[0];
-				#if NUNIT
-				Assert.IsInstanceOf<string>(result);
-				#else
-				Assert.IsInstanceOfType(result, typeof(string));
-				#endif
 				// with access to the object returned by GetType() it is possible to use MethodInfo.Invoke on arbitrary methods
-				// therefore, ObjectTranslator.push blacklists all types in the System.Reflection namespace and all types that inherit from them, which includes System.Type
+				// therefore, ObjectTranslator.push blacklists all types in the System.Reflection namespace
 				// blacklisted types are converted to strings (ToString) and the string is pushed instead.
+				lua["object"] = new object();
+				lua.DoString(@"t = object:GetType()");
+				string[] scripts =
+				{
+					"return t.Assembly",
+					"return t.Module",
+					"return t:GetMethod('ToString')",
+					"return t:GetConstructors()", // this evaluates to the string "System.Reflection.ConstructorInfo[]"
+					"return t:GetMethod('ReferenceEquals')", // note that ReferenceEquals is a static method
+				};
+				foreach (var script in scripts)
+				{
+					var result = lua.DoString(script)[0];
+					#if NUNIT
+						Assert.IsInstanceOf<string>(result, script);
+					#else
+						Assert.IsInstanceOfType(result, typeof(string), script);
+					#endif
+				}
 			}
 		}
 	}

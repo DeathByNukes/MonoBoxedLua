@@ -150,7 +150,7 @@ namespace LuaInterface
 			if (objType.IsArray && index is double)
 			{
 				int intIndex = (int)((double)index);
-				Array aa = obj as Array;
+				var aa = (Array) obj;
 				if (intIndex >= aa.Length) {
 					return ObjectTranslator.pushError(L,"array index out of bounds: "+intIndex + " " + aa.Length);
 				}
