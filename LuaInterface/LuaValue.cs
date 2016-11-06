@@ -9,7 +9,7 @@ namespace LuaInterface
 	{
 		[StructLayout(LayoutKind.Explicit)] struct Union
 		{
-			[FieldOffset(0)] public readonly bool Boolean;         public Union(bool value)   : this() { Boolean       = value; }
+			[FieldOffset(0)] public readonly bool   Boolean;       public Union(bool value)   : this() { Boolean       = value; }
 			[FieldOffset(0)] public readonly IntPtr LightUserData; public Union(IntPtr value) : this() { LightUserData = value; }
 			[FieldOffset(0)] public readonly double Number;        public Union(double value) : this() { Number        = value; }
 		}

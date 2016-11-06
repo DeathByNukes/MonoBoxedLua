@@ -176,6 +176,29 @@ namespace LuaInterface
 			return obj;
 		}
 
+		/// <summary><see cref="RawGet(object)"/> alternative that only sets plain Lua value types and strings.</summary>
+		public void RawSetValue(LuaValue field, LuaValue value)
+		{
+			field.VerifySupport("field"); value.VerifySupport("value");
+			var L = Owner._L;                         StackAssert.Start(L);
+			push(L);
+			field.push(L);
+			value.push(L);
+			lua.rawset(L,-3);
+			lua.pop(L,1);                             StackAssert.End();
+		}
+
+		/// <summary><see cref="RawGet(int)"/> alternative that only sets plain Lua value types and strings.</summary>
+		public void RawSetValue(int field, LuaValue value)
+		{
+			value.VerifySupport("value");
+			var L = Owner._L;                         StackAssert.Start(L);
+			push(L);
+			value.push(L);
+			lua.rawseti(L, -2, field);
+			lua.pop(L,1);                             StackAssert.End();
+		}
+
 
 		/// <summary>Sets a numeric field of a table ignoring its metatable, if it exists</summary>
 		public void RawSet(int field, object value)

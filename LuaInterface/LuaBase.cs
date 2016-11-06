@@ -316,6 +316,18 @@ namespace LuaInterface
 			return obj;
 		}
 
+		/// <summary>Indexer alternative that only sets plain Lua value types and strings.</summary>
+		public void SetValue(LuaValue field, LuaValue value)
+		{
+			field.VerifySupport("field"); value.VerifySupport("value");
+			var L = Owner._L;                         StackAssert.Start(L);
+			rawpush(L);
+			field.push(L);
+			value.push(L);
+			lua.settable(L,-3);
+			lua.pop(L,1);                             StackAssert.End();
+		}
+
 		#endregion
 
 		#region Call
