@@ -53,6 +53,7 @@ namespace LuaInterface
 			execDelegateFunction = this.runFunctionDelegate;
 		}
 
+		/// <summary>[-0, +0, v] Gets the first argument via <see cref="ObjectTranslator.getRawNetObject"/>, throwing a Lua error if it isn't one.</summary>
 		object getNetObj(lua.State L)
 		{
 			Debug.Assert(L == translator.interpreter._L && luanet.infunction(L));
@@ -61,6 +62,7 @@ namespace LuaInterface
 				luaL.argerror(L, 1, lua.isnoneornil(L, 1) ? "value expected" : "CLR object expected");
 			return obj;
 		}
+		/// <summary>[-0, +0, v] Gets the first argument as type <typeparamref name="T"/> via <see cref="ObjectTranslator.getRawNetObject"/>, throwing a Lua error if it isn't one. If it is the wrong CLR type, <paramref name="extramsg"/> is used for the error message.</summary>
 		T getNetObj<T>(lua.State L, string extramsg) where T : class
 		{
 			var obj = getNetObj(L) as T;
