@@ -105,27 +105,16 @@ namespace LuaInterface
 		}
 
 
-		/// <summary>Convert C# exceptions into Lua errors. Never returns.</summary>
-		int SetPendingException(lua.State L, Exception e)
-		{
-			Debug.Assert(L == _Translator.interpreter._L);
-			Debug.Assert(e != null);
-			_Translator.throwError(L, e);
-			return 0; // never returns
-		}
-
-
 		/// <summary>Calls the method. Receives the arguments from the Lua stack and returns values in it.</summary>
 		public int call(lua.State L)
 		{
-			Debug.Assert(L == _Translator.interpreter._L);
+			Debug.Assert(L == _Translator.interpreter._L && luanet.infunction(L));
 			MethodBase methodToCall = _Method;
 			object targetObject = _Target;
 			bool failedCall = true;
 			int nReturnValues = 0;
 
-			if (!lua.checkstack(L, 5))
-				throw new LuaException("Lua stack overflow");
+			luaL.checkstack(L, 5, "MethodWrapper.call");
 
 			bool isStatic = (_BindingType & BindingFlags.Static) == BindingFlags.Static;
 
@@ -142,9 +131,7 @@ namespace LuaInterface
 
 					if (numArgsPassed == _LastCalledMethod.argTypes.Length) // No. of args match?
 					{
-						if (!lua.checkstack(L, _LastCalledMethod.outList.Length + 6))
-							throw new LuaException("Lua stack overflow");
-
+						luaL.checkstack(L, _LastCalledMethod.outList.Length + 6, "MethodWrapper.call");
 						object[] args = _LastCalledMethod.args;
 
 						try
@@ -167,16 +154,12 @@ namespace LuaInterface
 
 							failedCall = false;
 						}
-						catch (TargetInvocationException e)
-						{
-							// Failure of method invocation
-							return SetPendingException(L, e.InnerException);
-						}
+						catch (TargetInvocationException e) { return _Translator.throwError(L, e.InnerException); }
 						catch (Exception e)
 						{
 							if (_Members.Length == 1) // Is the method overloaded?
 								// No, throw error
-								return SetPendingException(L, e);
+								return _Translator.throwError(L, e);
 						}
 					}
 				}
@@ -190,10 +173,7 @@ namespace LuaInterface
 					if (!isStatic)
 					{
 						if (targetObject == null)
-						{
-							_Translator.throwError(L, String.Format("instance method '{0}' requires a non null target object", _MethodName));
-							return 0; // never returns
-						}
+							return luaL.error(L, String.Format("instance method '{0}' requires a non null target object", _MethodName));
 
 						lua.remove(L, 1); // Pops the receiver
 					}
@@ -216,12 +196,9 @@ namespace LuaInterface
 					}
 					if (!hasMatch)
 					{
-						string msg = (candidateName == null)
+						return luaL.error(L, (candidateName == null)
 							? "invalid arguments to method call"
-							: ("invalid arguments to method: " + candidateName);
-
-						_Translator.throwError(L, msg);
-						return 0; // never returns
+							: "invalid arguments to method: " + candidateName  );
 					}
 				}
 			}
@@ -248,10 +225,7 @@ namespace LuaInterface
 						failedCall = false;
 					}
 					else if (methodToCall.ContainsGenericParameters)
-					{
-						_Translator.throwError(L, "unable to invoke method on generic class as the current method is an open generic method");
-						return 0; // never returns
-					}
+						return luaL.error(L, "unable to invoke method on generic class as the current method is an open generic method");
 				}
 				else
 				{
@@ -262,31 +236,21 @@ namespace LuaInterface
 					}
 
 					if (!_Translator.matchParameters(L, methodToCall, ref _LastCalledMethod))
-					{
-						_Translator.throwError(L, "invalid arguments to method call");
-						return 0; // never returns
-					}
+						return luaL.error(L, "invalid arguments to method call");
 				}
 			}
 
 			if (failedCall)
 			{
-				if (!lua.checkstack(L, _LastCalledMethod.outList.Length + 6))
-					throw new LuaException("Lua stack overflow");
+				luaL.checkstack(L, _LastCalledMethod.outList.Length + 6, "MethodWrapper.call");
 				try
 				{
 					_Translator.pushReturnValue(L, _LastCalledMethod.cachedMethod.IsConstructor
 						? ((ConstructorInfo) _LastCalledMethod.cachedMethod).Invoke(_LastCalledMethod.args)
 						: _LastCalledMethod.cachedMethod.Invoke(isStatic ? null : targetObject, _LastCalledMethod.args)  );
 				}
-				catch (TargetInvocationException e)
-				{
-					return SetPendingException(L, e.InnerException);
-				}
-				catch (Exception e)
-				{
-					return SetPendingException(L, e);
-				}
+				catch (TargetInvocationException e) { return _Translator.throwError(L, e.InnerException); }
+				catch (                Exception e) { return _Translator.throwError(L, e); }
 			}
 
 			// Pushes out and ref return values

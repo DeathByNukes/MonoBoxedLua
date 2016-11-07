@@ -115,7 +115,7 @@ namespace LuaInterface.LuaAPI
 		/// <summary>[-0, +0, -] Returns whether the currently executing code was called by Lua.</summary>
 		public static bool infunction(lua.State L)
 		{
-			// this function is should resolve to the same thing as "L->ci != L->base_ci" in internal lua code
+			// this function should resolve to the same thing as "L->ci != L->base_ci" in internal lua code
 			var ar = new lua.Debug();
 			return lua.getstack(L, 0, ref ar); // returns unsuccessful if there is no stack
 		}

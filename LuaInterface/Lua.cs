@@ -689,7 +689,7 @@ namespace LuaInterface
 				Debug.Assert(lua.gettop(L) == n + 1);
 
 				try { callback(this, results); }
-				catch (Exception e) { this.translator.throwError(L, e); }
+				catch (Exception e) { return this.translator.throwError(L, e); }
 
 				return 0;
 			};

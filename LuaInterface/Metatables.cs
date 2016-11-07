@@ -57,7 +57,7 @@ namespace LuaInterface
 		/// <summary>__call metafunction of CLR delegates, retrieves and calls the delegate.</summary>
 		private int runFunctionDelegate(lua.State L)
 		{
-			Debug.Assert(L == translator.interpreter._L);
+			Debug.Assert(L == translator.interpreter._L && luanet.infunction(L));
 			var func = (lua.CFunction)translator.getRawNetObject(L, 1);
 			lua.remove(L, 1);
 			return func(L);
@@ -65,7 +65,7 @@ namespace LuaInterface
 		/// <summary>__gc metafunction of CLR objects.</summary>
 		private int collectObject(lua.State L)
 		{
-			Debug.Assert(L == translator.interpreter._L);
+			Debug.Assert(L == translator.interpreter._L && luanet.infunction(L));
 			int udata = luanet.rawnetobj(L, 1);
 			if (udata != -1)
 			{
@@ -77,7 +77,7 @@ namespace LuaInterface
 		/// <summary>__tostring metafunction of CLR objects.</summary>
 		private int toString(lua.State L)
 		{
-			Debug.Assert(L == translator.interpreter._L);
+			Debug.Assert(L == translator.interpreter._L && luanet.infunction(L));
 			object obj = translator.getRawNetObject(L, 1);
 			if (obj == null) return luaL.error(L, "argument is not a CLR object");
 			lua.pushstring(L, obj.ToString());
@@ -119,14 +119,10 @@ namespace LuaInterface
 		/// </summary>
 		private int getMethod(lua.State L)
 		{
-			Debug.Assert(L == translator.interpreter._L);
+			Debug.Assert(L == translator.interpreter._L && luanet.infunction(L));
 			object obj = translator.getRawNetObject(L, 1);
 			if (obj == null)
-			{
-				translator.throwError(L, "trying to index an invalid object reference");
-				lua.pushnil(L);
-				return 1;
-			}
+				return luaL.error(L, "trying to index an invalid object reference");
 
 			object index = translator.getObject(L, 2);
 			Type indexType = index.GetType(); //* not used
@@ -140,6 +136,10 @@ namespace LuaInterface
 			// ie: xmlelement['item'] <- item is a property of xmlelement
 			try
 			{
+				// todo: investigate: getMember throws lua errors. all other call sites are also CFunctions and do not use try{}.
+				// possible reasons: (1) the author didn't know that Lua errors pass through catch{}
+				//                   (2) it is passing unusual input that might generate exceptions not seen in the other use cases
+				//                   (3) it is a hasty fix for a bug
 				if (methodName != null && isMemberPresent(objType, methodName))
 					return getMember(L, objType, obj, methodName, BindingFlags.Instance | BindingFlags.IgnoreCase);
 			}
@@ -201,15 +201,11 @@ namespace LuaInterface
 		/// </summary>
 		private int getBaseMethod(lua.State L)
 		{
-			Debug.Assert(L == translator.interpreter._L);
+			Debug.Assert(L == translator.interpreter._L && luanet.infunction(L));
 			object obj = translator.getRawNetObject(L, 1);
 			if (obj == null)
-			{
-				translator.throwError(L, "trying to index an invalid object reference");
-				lua.pushnil(L);
-				lua.pushboolean(L, false);
-				return 2;
-			}
+				return luaL.error(L, "trying to index an invalid object reference");
+
 			string methodName = lua.tostring(L, 2);
 			if (methodName == null)
 			{
@@ -317,11 +313,7 @@ namespace LuaInterface
 						else
 							lua.pushnil(L);
 					}
-					catch (TargetInvocationException e)  // Convert this exception into a Lua error
-					{
-						ThrowError(L, e);
-						lua.pushnil(L);
-					}
+					catch (TargetInvocationException e) { return translator.throwError(L, e.InnerException); }
 				}
 				else if (member.MemberType == MemberTypes.Event)
 				{
@@ -362,20 +354,16 @@ namespace LuaInterface
 				else
 				{
 					// If we reach this point we found a static method, but can't use it in this context because the user passed in an instance
-					translator.throwError(L, "can't pass instance to static method " + methodName);
-
-					lua.pushnil(L);
+					return luaL.error(L, "can't pass instance to static method " + methodName);
 				}
 			}
 			else
 			{
-				// kevinh - we want to throw an exception because meerly returning 'nil' in this case
+				// kevinh - we want to throw an exception because merely returning 'nil' in this case
 				// is not sufficient.  valid data members may return nil and therefore there must be some
 				// way to know the member just doesn't exist.
 
-				translator.throwError(L, "unknown member name " + methodName);
-
-				lua.pushnil(L);
+				return luaL.error(L, "unknown member name " + methodName);
 			}
 
 			// push false because we are NOT returning a function (see luaIndexFunction)
@@ -409,13 +397,11 @@ namespace LuaInterface
 		/// </summary>
 		private int setFieldOrProperty(lua.State L)
 		{
-			Debug.Assert(L == translator.interpreter._L);
+			Debug.Assert(L == translator.interpreter._L && luanet.infunction(L));
 			object target = translator.getRawNetObject(L, 1);
 			if (target == null)
-			{
-				translator.throwError(L, "trying to index and invalid object reference");
-				return 0;
-			}
+				return luaL.error(L, "trying to index and invalid object reference");
+
 			Type type = target.GetType();
 
 			// First try to look up the parameter as a property name
@@ -440,29 +426,25 @@ namespace LuaInterface
 				{
 					// Try to see if we have a this[] accessor
 					MethodInfo setter = type.GetMethod("set_Item");
-					if (setter != null)
-					{
-						ParameterInfo[] args = setter.GetParameters();
-						Type valueType = args[1].ParameterType;
+					if (setter == null)
+						return luaL.error(L, detailMessage); // Pass the original message from trySetMember because it is probably best
 
-						// The new val ue the user specified
-						object val = translator.getAsType(L, 3, valueType);
+					ParameterInfo[] args = setter.GetParameters();
+					Type valueType = args[1].ParameterType;
 
-						Type indexType = args[0].ParameterType;
-						object index = translator.getAsType(L, 2, indexType);
+					// The new val ue the user specified
+					object val = translator.getAsType(L, 3, valueType);
 
-						object[] methodArgs = new object[2];
+					Type indexType = args[0].ParameterType;
+					object index = translator.getAsType(L, 2, indexType);
 
-						// Just call the indexer - if out of bounds an exception will happen
-						methodArgs[0] = index;
-						methodArgs[1] = val;
+					object[] methodArgs = new object[2];
 
-						setter.Invoke(target, methodArgs);
-					}
-					else
-					{
-						translator.throwError(L, detailMessage); // Pass the original message from trySetMember because it is probably best
-					}
+					// Just call the indexer - if out of bounds an exception will happen
+					methodArgs[0] = index;
+					methodArgs[1] = val;
+
+					setter.Invoke(target, methodArgs);
 				}
 			}
 			catch (SEHException)
@@ -470,10 +452,7 @@ namespace LuaInterface
 				// If we are seeing a C++ exception - this must actually be for Lua's private use.  Let it handle it
 				throw;
 			}
-			catch (Exception e)
-			{
-				ThrowError(L, e);
-			}
+			catch (Exception e) { ThrowError(L, e); }
 			return 0;
 		}
 
@@ -528,10 +507,7 @@ namespace LuaInterface
 				{
 					field.SetValue(target, val);
 				}
-				catch (Exception e)
-				{
-					ThrowError(L, e);
-				}
+				catch (Exception e) { ThrowError(L, e); }
 				// We did a call
 				return true;
 			}
@@ -543,10 +519,7 @@ namespace LuaInterface
 				{
 					property.SetValue(target, val, null);
 				}
-				catch (Exception e)
-				{
-					ThrowError(L, e);
-				}
+				catch (Exception e) { ThrowError(L, e); }
 				// We did a call
 				return true;
 			}
@@ -564,19 +537,19 @@ namespace LuaInterface
 			bool success = trySetMember(L, targetType, target, bindingType, out detail);
 
 			if (!success)
-				translator.throwError(L, detail);
+				return luaL.error(L, detail);
 
 			return 0;
 		}
 
-		/// <summary>Convert a C# exception into a Lua error</summary>
-		/// We try to look into the exception to give the most meaningful description
+		/// <summary><para>Convert a C# exception into a Lua error. Never returns.</para><para>We try to look into the exception to give the most meaningful description</para></summary>
 		void ThrowError(lua.State L, Exception e)
 		{
 			Debug.Assert(L == translator.interpreter._L);
+			Debug.Assert(e != null);
+
 			// If we got inside a reflection show what really happened
 			var te = e as TargetInvocationException;
-
 			if (te != null)
 				e = te.InnerException;
 
@@ -586,16 +559,13 @@ namespace LuaInterface
 		/// <summary>__index metafunction of type references, works on static members.</summary>
 		private int getClassMethod(lua.State L)
 		{
-			Debug.Assert(L == translator.interpreter._L);
+			Debug.Assert(L == translator.interpreter._L && luanet.infunction(L));
 			IReflect klass;
 			object obj = translator.getRawNetObject(L, 1);
-			if (obj == null || !(obj is IReflect))
-			{
-				translator.throwError(L, "trying to index an invalid type reference");
-				lua.pushnil(L);
-				return 1;
-			}
-			else klass = (IReflect)obj;
+			if (!(obj is IReflect))
+				return luaL.error(L, "trying to index an invalid type reference");
+
+			klass = (IReflect)obj;
 			if (lua.isnumber(L, 2))
 			{
 				int size = (int)lua.tonumber(L, 2);
@@ -616,15 +586,13 @@ namespace LuaInterface
 		/// <summary>__newindex function of type references, works on static members.</summary>
 		private int setClassFieldOrProperty(lua.State L)
 		{
-			Debug.Assert(L == translator.interpreter._L);
+			Debug.Assert(L == translator.interpreter._L && luanet.infunction(L));
 			IReflect target;
 			object obj = translator.getRawNetObject(L, 1);
-			if (obj == null || !(obj is IReflect))
-			{
-				translator.throwError(L, "trying to index an invalid type reference");
-				return 0;
-			}
-			else target = (IReflect)obj;
+			if (!(obj is IReflect))
+				return luaL.error(L, "trying to index an invalid type reference");
+
+			target = (IReflect)obj;
 			return setMember(L, target, null, BindingFlags.FlattenHierarchy | BindingFlags.Static | BindingFlags.IgnoreCase);
 		}
 		/// <summary>
@@ -635,16 +603,13 @@ namespace LuaInterface
 		/// </summary>
 		private int callConstructor(lua.State L)
 		{
-			Debug.Assert(L == translator.interpreter._L);
+			Debug.Assert(L == translator.interpreter._L && luanet.infunction(L));
 			var validConstructor = new MethodCache();
 			IReflect klass;
 			object obj = translator.getRawNetObject(L, 1);
-			if (obj == null || !(obj is IReflect))
-			{
-				translator.throwError(L, "trying to call constructor on an invalid type reference");
-				lua.pushnil(L);
-				return 1;
-			}
+			if (!(obj is IReflect))
+				return luaL.error(L, "trying to call constructor on an invalid type reference");
+
 			else klass = (IReflect)obj;
 			lua.remove(L, 1);
 			ConstructorInfo[] constructors = klass.UnderlyingSystemType.GetConstructors();
@@ -657,26 +622,17 @@ namespace LuaInterface
 					{
 						translator.push(L, constructor.Invoke(validConstructor.args));
 					}
-					catch (TargetInvocationException e)
-					{
-						ThrowError(L, e);
-						lua.pushnil(L);
-					}
-					catch
-					{
-						lua.pushnil(L);
-					}
+					catch (TargetInvocationException e) { return translator.throwError(L, e.InnerException); }
+					catch { lua.pushnil(L); }
 					return 1;
 				}
 			}
 
 			string constructorName = (constructors.Length == 0) ? "unknown" : constructors[0].Name;
 
-			translator.throwError(L, String.Format("{0} does not contain constructor({1}) argument match",
+			return luaL.error(L, String.Format("{0} does not contain constructor({1}) argument match",
 				klass.UnderlyingSystemType,
 				constructorName));
-			lua.pushnil(L);
-			return 1;
 		}
 
 		private static bool IsInteger(double x) {
