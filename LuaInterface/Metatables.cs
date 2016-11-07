@@ -35,7 +35,6 @@ namespace LuaInterface
 	return index";
 
 		private readonly ObjectTranslator translator;
-		private readonly Hashtable memberCache = new Hashtable();
 		internal readonly lua.CFunction gcFunction, indexFunction, newindexFunction,
 			baseIndexFunction, classIndexFunction, classNewindexFunction,
 			execDelegateFunction, callConstructorFunction, toStringFunction;
@@ -228,7 +227,7 @@ namespace LuaInterface
 		/// <summary>Does this method exist as either an instance or static?</summary>
 		bool isMemberPresent(IReflect objType, string methodName)
 		{
-			object cachedMember = checkMemberCache(memberCache, objType, methodName);
+			object cachedMember = checkMemberCache(objType, methodName);
 
 			if (cachedMember != null)
 				return true;
@@ -248,7 +247,7 @@ namespace LuaInterface
 			Debug.Assert(L == translator.interpreter._L);
 			bool implicitStatic = false;
 			MemberInfo member = null;
-			object cachedMember = checkMemberCache(memberCache, objType, methodName);
+			object cachedMember = checkMemberCache(objType, methodName);
 			//object cachedMember=null;
 			if (cachedMember is lua.CFunction)
 			{
@@ -285,7 +284,7 @@ namespace LuaInterface
 				if (member.MemberType == MemberTypes.Field)
 				{
 					FieldInfo field = (FieldInfo)member;
-					if (cachedMember == null) setMemberCache(memberCache, objType, methodName, member);
+					if (cachedMember == null) setMemberCache(objType, methodName, member);
 					try
 					{
 						translator.push(L, field.GetValue(obj));
@@ -298,7 +297,7 @@ namespace LuaInterface
 				else if (member.MemberType == MemberTypes.Property)
 				{
 					PropertyInfo property = (PropertyInfo)member;
-					if (cachedMember == null) setMemberCache(memberCache, objType, methodName, member);
+					if (cachedMember == null) setMemberCache(objType, methodName, member);
 					try
 					{
 						translator.push(L, property.GetValue(obj, null));
@@ -318,7 +317,7 @@ namespace LuaInterface
 				else if (member.MemberType == MemberTypes.Event)
 				{
 					EventInfo eventInfo = (EventInfo)member;
-					if (cachedMember == null) setMemberCache(memberCache, objType, methodName, member);
+					if (cachedMember == null) setMemberCache(objType, methodName, member);
 					translator.push(L, new RegisterEventHandler(translator.pendingEvents, obj, eventInfo));
 				}
 				else if (!implicitStatic)
@@ -328,7 +327,7 @@ namespace LuaInterface
 						// kevinh - added support for finding nested types
 
 						// cache us
-						if (cachedMember == null) setMemberCache(memberCache, objType, methodName, member);
+						if (cachedMember == null) setMemberCache(objType, methodName, member);
 
 						// Find the name of our class
 						string name = member.Name;
@@ -345,7 +344,7 @@ namespace LuaInterface
 						// Member type must be 'method'
 						var wrapper = new lua.CFunction((new LuaMethodWrapper(translator, objType, methodName, bindingType)).call);
 
-						if (cachedMember == null) setMemberCache(memberCache, objType, methodName, wrapper);
+						if (cachedMember == null) setMemberCache(objType, methodName, wrapper);
 						translator.pushFunction(L, wrapper);
 						lua.pushboolean(L, true);
 						return 2;
@@ -370,26 +369,31 @@ namespace LuaInterface
 			lua.pushboolean(L, false);
 			return 2;
 		}
+
+		private readonly Dictionary<IReflect, Dictionary<string, object>> memberCache = new Dictionary<IReflect, Dictionary<string, object>>();
+
 		/// <summary>Checks if a MemberInfo object is cached, returning it or null.</summary>
-		private static object checkMemberCache(Hashtable memberCache, IReflect objType, string memberName)
+		private object checkMemberCache(IReflect objType, string memberName)
 		{
-			var members = (Hashtable)memberCache[objType];
-			if (members != null)
-				return members[memberName];
+			Dictionary<string, object> members;
+			object member;
+			if (memberCache.TryGetValue(objType, out members)
+			&& members.TryGetValue(memberName, out member))
+				return member;
 			else
 				return null;
 		}
 		/// <summary>Stores a MemberInfo object in the member cache.</summary>
-		private static void setMemberCache(Hashtable memberCache, IReflect objType, string memberName, object member)
+		private void setMemberCache(IReflect objType, string memberName, object member)
 		{
-			var members = (Hashtable)memberCache[objType];
-			if (members == null)
-			{
-				members = new Hashtable();
-				memberCache[objType] = members;
-			}
+			var memberCache = this.memberCache;
+			Dictionary<string, object> members;
+			if (!memberCache.TryGetValue(objType, out members))
+				memberCache[objType] = members = new Dictionary<string, object>();
+
 			members[memberName] = member;
 		}
+
 		/// <summary>
 		/// __newindex metafunction of CLR objects.
 		/// Receives the object, the member name and the value to be stored as arguments.
@@ -482,7 +486,7 @@ namespace LuaInterface
 			}
 
 			// Find our member via reflection or the cache
-			MemberInfo member = (MemberInfo)checkMemberCache(memberCache, targetType, fieldName);
+			MemberInfo member = (MemberInfo)checkMemberCache(targetType, fieldName);
 			if (member == null)
 			{
 				//CP: Removed NonPublic binding search and made case insensitive
@@ -490,7 +494,7 @@ namespace LuaInterface
 				if (members.Length > 0)
 				{
 					member = members[0];
-					setMemberCache(memberCache, targetType, fieldName, member);
+					setMemberCache(targetType, fieldName, member);
 				}
 				else
 				{
@@ -670,7 +674,7 @@ namespace LuaInterface
 
 		/// <summary>
 		/// Matches a method against its arguments in the Lua stack.
-		/// Returns if the match was succesful.
+		/// Returns if the match was successful.
 		/// It it was also returns the information necessary to invoke the method.
 		/// </summary>
 		internal bool matchParameters(lua.State L, MethodBase method, ref MethodCache methodCache)
