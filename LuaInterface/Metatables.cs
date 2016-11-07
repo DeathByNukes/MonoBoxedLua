@@ -85,33 +85,6 @@ namespace LuaInterface
 
 
 		/// <summary>
-		/// Debug tool to dump the lua stack
-		/// </summary>
-		/// FIXME, move somewhere else
-		public static void dumpStack(ObjectTranslator translator, lua.State L)
-		{
-			Debug.Assert(L == translator.interpreter._L);
-			int depth = lua.gettop(L);
-
-			Debug.WriteLine("lua stack depth: " + depth);
-			for (int i = 1; i <= depth; i++)
-			{
-				var type = lua.type(L, i);
-				// we dump stacks when deep in calls, calling typename while the stack is in flux can fail sometimes, so manually check for key types
-				string typestr = (type == LUA.T.TABLE) ? "table" : lua.typename(L, type);
-
-				string strrep = lua.tostring(L, i);
-				if (type == LUA.T.USERDATA)
-				{
-					object obj = translator.getRawNetObject(L, i);
-					strrep = obj.ToString();
-				}
-
-				Debug.Print("{0}: ({1}) {2}", i, typestr, strrep);
-			}
-		}
-
-		/// <summary>
 		/// Called by the __index metafunction of CLR objects in case the method is not cached or it is a field/property/event.
 		/// Receives the object and the member name as arguments and returns either the value of the member or a delegate to call it.
 		/// If the member does not exist returns nil.
