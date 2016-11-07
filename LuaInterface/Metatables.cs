@@ -53,11 +53,27 @@ namespace LuaInterface
 			execDelegateFunction = this.runFunctionDelegate;
 		}
 
+		object getNetObj(lua.State L)
+		{
+			Debug.Assert(L == translator.interpreter._L && luanet.infunction(L));
+			var obj = translator.getRawNetObject(L, 1);
+			if (obj == null)
+				luaL.argerror(L, 1, lua.isnoneornil(L, 1) ? "value expected" : "CLR object expected");
+			return obj;
+		}
+		T getNetObj<T>(lua.State L, string extramsg) where T : class
+		{
+			var obj = getNetObj(L) as T;
+			if (obj == null)
+				luaL.argerror(L, 1, extramsg);
+			return obj;
+		}
+
 		/// <summary>__call metafunction of CLR delegates, retrieves and calls the delegate.</summary>
 		private int runFunctionDelegate(lua.State L)
 		{
 			Debug.Assert(L == translator.interpreter._L && luanet.infunction(L));
-			var func = (lua.CFunction)translator.getRawNetObject(L, 1);
+			var func = getNetObj<lua.CFunction>(L, "lua_CFunction expected");
 			lua.remove(L, 1);
 			return func(L);
 		}
@@ -77,9 +93,11 @@ namespace LuaInterface
 		private int toString(lua.State L)
 		{
 			Debug.Assert(L == translator.interpreter._L && luanet.infunction(L));
-			object obj = translator.getRawNetObject(L, 1);
-			if (obj == null) return luaL.error(L, "argument is not a CLR object");
-			lua.pushstring(L, obj.ToString());
+			var obj = getNetObj(L);
+			string s;
+			try { s = obj.ToString(); }
+			catch (Exception ex) { return translator.throwError(L, ex); }
+			lua.pushstring(L, s ?? "");
 			return 1;
 		}
 
@@ -92,12 +110,10 @@ namespace LuaInterface
 		private int getMethod(lua.State L)
 		{
 			Debug.Assert(L == translator.interpreter._L && luanet.infunction(L));
-			object obj = translator.getRawNetObject(L, 1);
-			if (obj == null)
-				return luaL.error(L, "trying to index an invalid object reference");
+			object obj = getNetObj(L);
 
 			object index = translator.getObject(L, 2);
-			Type indexType = index.GetType(); //* not used
+			//Type indexType = index.GetType();
 
 			string methodName = index as string;        // will be null if not a string arg
 			Type objType = obj.GetType();
@@ -174,9 +190,7 @@ namespace LuaInterface
 		private int getBaseMethod(lua.State L)
 		{
 			Debug.Assert(L == translator.interpreter._L && luanet.infunction(L));
-			object obj = translator.getRawNetObject(L, 1);
-			if (obj == null)
-				return luaL.error(L, "trying to index an invalid object reference");
+			object obj = getNetObj(L);
 
 			string methodName = lua.tostring(L, 2);
 			if (methodName == null)
@@ -375,9 +389,7 @@ namespace LuaInterface
 		private int setFieldOrProperty(lua.State L)
 		{
 			Debug.Assert(L == translator.interpreter._L && luanet.infunction(L));
-			object target = translator.getRawNetObject(L, 1);
-			if (target == null)
-				return luaL.error(L, "trying to index and invalid object reference");
+			object target = getNetObj(L);
 
 			Type type = target.GetType();
 
@@ -537,12 +549,8 @@ namespace LuaInterface
 		private int getClassMethod(lua.State L)
 		{
 			Debug.Assert(L == translator.interpreter._L && luanet.infunction(L));
-			IReflect klass;
-			object obj = translator.getRawNetObject(L, 1);
-			if (!(obj is IReflect))
-				return luaL.error(L, "trying to index an invalid type reference");
+			var klass = getNetObj<IReflect>(L, "type reference expected");
 
-			klass = (IReflect)obj;
 			if (lua.isnumber(L, 2))
 			{
 				int size = (int)lua.tonumber(L, 2);
@@ -564,12 +572,8 @@ namespace LuaInterface
 		private int setClassFieldOrProperty(lua.State L)
 		{
 			Debug.Assert(L == translator.interpreter._L && luanet.infunction(L));
-			IReflect target;
-			object obj = translator.getRawNetObject(L, 1);
-			if (!(obj is IReflect))
-				return luaL.error(L, "trying to index an invalid type reference");
+			IReflect target = getNetObj<IReflect>(L, "type reference expected");
 
-			target = (IReflect)obj;
 			return setMember(L, target, null, BindingFlags.FlattenHierarchy | BindingFlags.Static | BindingFlags.IgnoreCase);
 		}
 		/// <summary>
@@ -582,12 +586,7 @@ namespace LuaInterface
 		{
 			Debug.Assert(L == translator.interpreter._L && luanet.infunction(L));
 			var validConstructor = new MethodCache();
-			IReflect klass;
-			object obj = translator.getRawNetObject(L, 1);
-			if (!(obj is IReflect))
-				return luaL.error(L, "trying to call constructor on an invalid type reference");
-
-			else klass = (IReflect)obj;
+			var klass = getNetObj<IReflect>(L, "type reference expected");
 			lua.remove(L, 1);
 			ConstructorInfo[] constructors = klass.UnderlyingSystemType.GetConstructors();
 			foreach (ConstructorInfo constructor in constructors)

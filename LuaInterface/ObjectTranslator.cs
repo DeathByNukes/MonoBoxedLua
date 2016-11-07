@@ -161,8 +161,8 @@ namespace LuaInterface
 			Debug.Assert(L == interpreter._L);
 			Debug.Assert(ex != null);
 			// Determine the position in the script where the exception was triggered
-			// Stack frame #1 is our C# wrapper, so not very interesting to the user
-			// Stack frame #2 must be the lua code that called us, so that's what we want to use
+			// Stack frame #0 is our C# wrapper, so not very interesting to the user
+			// Stack frame #1 must be the lua code that called us, so that's what we want to use
 			string errLocation = luanet.where(L, 1);
 
 			// Wrap generic .NET exception as an InnerException and store the error location
