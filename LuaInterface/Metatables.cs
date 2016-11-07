@@ -428,7 +428,7 @@ namespace LuaInterface
 			// We didn't find a property name, now see if we can use a [] style this accessor to set array contents
 			try
 			{
-				if (type.IsArray && lua.isnumber(L, 2))
+				if (type.IsArray && lua.type(L, 2) == LUA.T.NUMBER)
 				{
 					int index = (int)lua.tonumber(L, 2);
 
