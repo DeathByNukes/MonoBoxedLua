@@ -132,27 +132,56 @@ namespace LuaInterface.LuaAPI
 			these functions for other stack values.
 		*/
 
-		/// <summary>[-0, +0, v] Checks whether the function argument narg is a userdata of the type tname (see <see cref="luaL.newmetatable"/>).</summary>
-		[DllImport(DLL,CallingConvention=CC,EntryPoint="luaL_checkudata")] public static extern IntPtr checkudata(lua.State L, int narg, string meta);
+		/// <summary>[-0, +0, v] Raises an error with the following message, where <c>func</c> is retrieved from the call stack: <para>bad argument #<paramref name="narg"/> to <c>func</c> (<paramref name="extramsg"/>)</para></summary>
+		[DllImport(DLL,CallingConvention=CC,EntryPoint="luaL_argerror")] public static extern int argerror(lua.State L, int narg, string extramsg);
+		/// <summary>[-0, +0, v] Generates an error with a message like the following: <para><c>location</c>: bad argument <paramref name="narg"/> to '<c>func</c>' (<paramref name="tname"/> expected, got <c>rt</c>)</para>where <c>location</c> is produced by luaL_where, <c>func</c> is the name of the current function, and <c>rt</c> is the type name of the actual argument.</summary>
+		[DllImport(DLL,CallingConvention=CC,EntryPoint="luaL_typerror")] public static extern int typerror(lua.State L, int narg, string tname);
+		/// <summary>[-0, +0, v] Checks whether <paramref name="cond"/> is true. If not, raises an error with the following message, where <c>func</c> is retrieved from the call stack:<para>bad argument #<paramref name="narg"/> to <c>func</c> (<paramref name="extramsg"/>)</para></summary>
+		[MethodImpl(INLINE)] public static void argcheck(lua.State L, bool cond, int narg, string extramsg) { if (!cond) luaL.argerror(L, narg, extramsg); }
+
+		/// <summary>[-0, +0, v] Checks whether the function argument <paramref name="narg"/> has type <paramref name="t"/>.</summary>
+		[DllImport(DLL,CallingConvention=CC,EntryPoint="luaL_checktype")] public static extern void checktype(lua.State L, int narg, LUA.T t);
+		/// <summary>[-0, +0, v] Checks whether the function argument <paramref name="narg"/> is a userdata of the type <paramref name="tname"/> (see <see cref="luaL.newmetatable"/>).</summary>
+		[DllImport(DLL,CallingConvention=CC,EntryPoint="luaL_checkudata")] public static extern IntPtr checkudata(lua.State L, int narg, string tname);
+		/// <summary>[-0, +0, v] Checks whether the function has an argument of any type (including nil) at position <paramref name="narg"/>.</summary>
+		[DllImport(DLL,CallingConvention=CC,EntryPoint="luaL_checkany")] public static extern void checkany(lua.State L, int narg);
+		/// <summary><para>[-0, +0, v] Checks whether the function argument <paramref name="narg"/> is a string and returns this string; fills <paramref name="l"/> with the string's length.</para><para>This function uses lua_tolstring to get its result, so all conversions and caveats of that function apply here.</para></summary>
+		[DllImport(DLL,CallingConvention=CC,EntryPoint="luaL_checklstring")] public static extern char* checklstring(lua.State L, int narg, out size_t l);
+
+		/// <summary>[-0, +0, v] Checks whether the function argument <paramref name="narg"/> is a number and returns this number.</summary>
+		[DllImport(DLL,CallingConvention=CC,EntryPoint="luaL_checknumber")] public static extern double checknumber(lua.State L, int narg);
+		/// <summary>[-0, +0, v] If the function argument <paramref name="narg"/> is a number, returns this number. If this argument is absent or is nil, returns <paramref name="d"/>. Otherwise, raises an error.</summary>
+		[DllImport(DLL,CallingConvention=CC,EntryPoint="luaL_optnumber")] public static extern double optnumber(lua.State L, int narg, double d);
+
+		/// <summary><para>[-0, +0, v] Checks whether the function argument <paramref name="narg"/> is a string and returns this string.</para><para>This function uses lua_tolstring to get its result, so all conversions and caveats of that function apply here.</para></summary>
+		public static string checkstring(lua.State L, int narg)
+		{
+			size_t strlen;
+			var str = luaL.checklstring(L, narg, out strlen);
+			return Marshal.PtrToStringAnsi((IntPtr)str, strlen.ToInt32());
+		}
+		/// <summary>[-0, +0, v] If the function argument <paramref name="narg"/> is a string, returns this string. If this argument is absent or is nil, returns <paramref name="d"/>. Otherwise, raises an error.</summary>
+		public static string optstring(lua.State L, int narg, string d)
+		{
+			return lua.isnoneornil(L, narg)
+				? d
+				: luaL.checkstring(L, narg)  ;
+		}
+
 		// omitted:
-		//   luaL_checkany (function argument checking unnecessary)
-		//   luaL_checkint
-		//   luaL_checkinteger
-		//   luaL_checklong
-		//   luaL_checklstring
-		//   luaL_checknumber
-		//   luaL_checkoption
-		//   luaL_checkstring
-		//   luaL_checktype
+		//   luaL_checkint     (use luaL_checknumber + cast)
+		//   luaL_checkinteger (use luaL_checknumber + cast)
+		//   luaL_checklong    (use luaL_checknumber + cast)
+		//   luaL_optint       (use luaL_optnumber + cast)
+		//   luaL_optinteger   (use luaL_optnumber + cast)
+		//   luaL_optlong      (use luaL_optnumber + cast)
+		//   luaL_optlstring   (use luaL_optstring)
 		//
 		//   luaL_add*       (use System.String concatenation or similar)
-		//   luaL_argcheck   (function argument checking unnecessary)
-		//   luaL_argerror   (function argument checking unnecessary)
 		//   luaL_buffinit   (use System.String concatenation or similar)
 		//   luaL_prepbuffer (use System.String concatenation or similar)
 		//   luaL_pushresult (use System.String concatenation or similar)
 		//   luaL_gsub       (use System.String concatenation or similar)
 		//   luaL_register   (all libs already opened, use require in scripts for external libs)
-		//   luaL_typerror   (function argument checking unnecessary)
 	}
 }
