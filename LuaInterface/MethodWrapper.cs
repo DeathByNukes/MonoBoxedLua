@@ -72,14 +72,12 @@ namespace LuaInterface
 		private readonly BindingFlags _BindingType;
 
 		private MethodCache _LastCalledMethod = new MethodCache();
-		private IReflect _TargetType;
 
 		/// <summary>Constructs the wrapper for a known MethodBase instance</summary>
 		public LuaMethodWrapper(ObjectTranslator translator, object target, IReflect targetType, MethodBase method)
 		{
 			_Translator = translator;
 			_Target = target;
-			_TargetType = targetType;
 			if (targetType != null)
 				_ExtractTarget = translator.typeChecker.getExtractor(targetType);
 			_Method = method;
@@ -92,7 +90,6 @@ namespace LuaInterface
 		{
 			_Translator = translator;
 			_MethodName = methodName;
-			_TargetType = targetType;
 
 			if (targetType != null)
 				_ExtractTarget = translator.typeChecker.getExtractor(targetType);
@@ -142,7 +139,7 @@ namespace LuaInterface
 								object luaParamValue = type.extractValue(L, i + 1 + numStackToSkip);
 
 								args[type.index] = _LastCalledMethod.argTypes[i].isParamsArray
-									? _Translator.tableToArray(luaParamValue, type.paramsArrayType)
+									? MetaFunctions.TableToArray(luaParamValue,type.paramsArrayType)
 									: luaParamValue;
 
 								if (args[type.index] == null && !lua.isnil(L, i + 1 + numStackToSkip))
@@ -333,7 +330,7 @@ namespace LuaInterface
 		public Delegate Add(LuaFunction function)
 		{
 #if __NOGEN__
-			//translator.throwError(L,"Delegates not implemented");
+			//throw new NotSupportedException(L,"Delegates not implemented");
 			return null;
 #else
 			//CP: Fix by Ben Bryant for event handling with one parameter

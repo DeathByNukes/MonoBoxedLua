@@ -467,7 +467,7 @@ namespace LuaInterface
 		/// Shallow-copies the table to a new dictionary.
 		/// Warning: The dictionary may contain <see cref="IDisposable"/> values, all of which must be disposed.
 		/// </summary>
-		/// <seealso cref="LuaHelpers.DisposeAll(System.Collections.Generic.IEnumerable{object})"/>
+		/// <seealso cref="LuaHelpers.DisposeAll(System.Collections.IEnumerable)"/>
 		public Dictionary<string, object> ToSDict() { return (Dictionary<string, object>) ToSDict(null); }
 
 		/// <summary>
@@ -476,7 +476,7 @@ namespace LuaInterface
 		/// </summary>
 		/// <param name="dict">If not null, the table data will be assigned to that dictionary.</param>
 		/// <returns>A new IDictionary or <paramref name="dict"/>.</returns>
-		/// <seealso cref="LuaHelpers.DisposeAll(System.Collections.Generic.IEnumerable{object})"/>
+		/// <seealso cref="LuaHelpers.DisposeAll(System.Collections.IEnumerable)"/>
 		public IDictionary<string, object> ToSDict(IDictionary<string, object> dict)
 		{
 			if (dict == null)
@@ -493,7 +493,7 @@ namespace LuaInterface
 		/// Shallow-copies the table to a new dictionary.
 		/// Warning: The dictionary may contain <see cref="IDisposable"/> values, all of which must be disposed.
 		/// </summary>
-		/// <seealso cref="LuaHelpers.DisposeAll(System.Collections.Generic.IEnumerable{object})"/>
+		/// <seealso cref="LuaHelpers.DisposeAll(System.Collections.IEnumerable)"/>
 		public Dictionary<string, LuaValue> ToSVDict() { return (Dictionary<string, LuaValue>) ToSVDict(null); }
 
 		/// <summary>
@@ -502,7 +502,7 @@ namespace LuaInterface
 		/// </summary>
 		/// <param name="dict">If not null, the table data will be assigned to that dictionary.</param>
 		/// <returns>A new IDictionary or <paramref name="dict"/>.</returns>
-		/// <seealso cref="LuaHelpers.DisposeAll(System.Collections.Generic.IEnumerable{object})"/>
+		/// <seealso cref="LuaHelpers.DisposeAll(System.Collections.IEnumerable)"/>
 		public IDictionary<string, LuaValue> ToSVDict(IDictionary<string, LuaValue> dict)
 		{
 			if (dict == null)
@@ -557,7 +557,7 @@ namespace LuaInterface
 		/// Shallow-copies the table's integer keyed entries to a new list.
 		/// Warning: The list may contain <see cref="IDisposable"/> entries, all of which must be disposed.
 		/// </summary>
-		/// <seealso cref="LuaHelpers.DisposeAll(System.Collections.Generic.IEnumerable{object})"/>
+		/// <seealso cref="LuaHelpers.DisposeAll(System.Collections.IEnumerable)"/>
 		public List<object> ToList() { return (List<object>) ToList(null); }
 
 		/// <summary>
@@ -566,7 +566,7 @@ namespace LuaInterface
 		/// </summary>
 		/// <param name="list">If not null, the table data will be assigned to that list.</param>
 		/// <returns>A new IList or <paramref name="list"/>.</returns>
-		/// <seealso cref="LuaHelpers.DisposeAll(System.Collections.Generic.IEnumerable{object})"/>
+		/// <seealso cref="LuaHelpers.DisposeAll(System.Collections.IEnumerable)"/>
 		public IList<object> ToList(IList<object> list)
 		{
 			if (list == null)
@@ -583,7 +583,7 @@ namespace LuaInterface
 		/// Shallow-copies the table's integer keyed entries to a new list.
 		/// Warning: The list may contain <see cref="IDisposable"/> entries, all of which must be disposed.
 		/// </summary>
-		/// <seealso cref="LuaHelpers.DisposeAll(System.Collections.Generic.IEnumerable{object})"/>
+		/// <seealso cref="LuaHelpers.DisposeAll(System.Collections.IEnumerable)"/>
 		public List<LuaValue> ToVList() { return (List<LuaValue>) ToVList(null); }
 
 		/// <summary>
@@ -592,7 +592,7 @@ namespace LuaInterface
 		/// </summary>
 		/// <param name="list">If not null, the table data will be assigned to that list.</param>
 		/// <returns>A new IList or <paramref name="list"/>.</returns>
-		/// <seealso cref="LuaHelpers.DisposeAll(System.Collections.Generic.IEnumerable{object})"/>
+		/// <seealso cref="LuaHelpers.DisposeAll(System.Collections.IEnumerable)"/>
 		public IList<LuaValue> ToVList(IList<LuaValue> list)
 		{
 			if (list == null)

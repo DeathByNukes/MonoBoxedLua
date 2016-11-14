@@ -61,7 +61,9 @@ namespace LuaInterface
 			 // Check for existing LuaInterface marker
 			lua.pushstring(L, _LuaInterfaceMarker);
 			lua.rawget(L, LUA.REGISTRYINDEX);
-			if(luanet.popboolean(L))
+			bool found_marker = lua.toboolean(L,-1);
+			lua.pop(L,1);
+			if (found_marker)
 				throw new LuaException("There is already a LuaInterface.Lua instance associated with this Lua state");
 
 			_StatePassed = true;
@@ -491,8 +493,7 @@ namespace LuaInterface
 		public Delegate GetFunction(Type delegateType,string fullPath)
 		{
 #if __NOGEN__
-			translator.throwError(L,"function delegates not implemented");
-			return null;
+			throw new NotSupportedException("function delegates not implemented");
 #else
 			return CodeGeneration.Instance.GetDelegate(delegateType, this.GetFunction(fullPath));
 #endif
