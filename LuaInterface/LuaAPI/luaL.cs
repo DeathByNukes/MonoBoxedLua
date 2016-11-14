@@ -87,6 +87,7 @@ namespace LuaInterface.LuaAPI
 		public static int error(lua.State L, string message)
 		{
 			// re-implemented to avoid headaches with native variable arguments and Lua's format strings
+			// luaL_error doesn't check the stack internally and it uses more stack than we do; it relies on EXTRA_STACK space.
 			lua.pushstring(L, luanet.where(L, 1) + message);
 			return lua.error(L);
 		}

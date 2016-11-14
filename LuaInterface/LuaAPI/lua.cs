@@ -37,7 +37,7 @@ namespace LuaInterface.LuaAPI
 	public static partial class lua
 	{
 		/// <summary>
-		/// <para>When a C function is created, it is possible to associate some values with it, thus creating a C closure; these values are called upvalues and are accessible to the function whenever it is called (see <see cref="lua.pushcclosure"/>).</para>
+		/// <para>[-0, +0, -] When a C function is created, it is possible to associate some values with it, thus creating a C closure; these values are called upvalues and are accessible to the function whenever it is called (see <see cref="lua.pushcclosure"/>).</para>
 		/// <para>Whenever a C function is called, its upvalues are located at specific pseudo-indices. These pseudo-indices are produced by <see cref="lua.upvalueindex"/>. The first value associated with a function is at position lua.upvalueindex(1), and so on. Any access to lua.upvalueindex(n), where n is greater than the number of upvalues of the current function (but not greater than 256), produces an acceptable (but invalid) index.</para>
 		/// </summary>
 		[MethodImpl(INLINE)] public static int upvalueindex(int i) { return LUA.GLOBALSINDEX - i; }

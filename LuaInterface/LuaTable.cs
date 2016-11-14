@@ -23,6 +23,7 @@ namespace LuaInterface
 		public LuaTable NewReference()
 		{
 			var L = Owner._L;
+			luanet.checkstack(L, 1, "LuaTable.NewReference");
 			rawpush(L);
 			try { return new LuaTable(L, Owner); } catch (InvalidCastException) { Dispose(); throw; }
 		}
@@ -38,6 +39,7 @@ namespace LuaInterface
 			get
 			{
 				var L = Owner._L;
+				luanet.checkstack(L, 1, "LuaTable.LongLength");
 				push(L);
 				var len = lua.objlen(L, -1);
 				lua.pop(L,1);
@@ -50,7 +52,8 @@ namespace LuaInterface
 		/// <summary>Counts the number of entries in the table.</summary>
 		public ulong LongCount()
 		{
-			var L = Owner._L;                         StackAssert.Start(L);
+			var L = Owner._L;
+			luanet.checkstack(L, 3, "LuaTable.LongCount"); StackAssert.Start(L);
 			ulong count = 0;
 			push(L);
 			lua.pushnil(L);
@@ -59,14 +62,15 @@ namespace LuaInterface
 				++count;
 				lua.pop(L,1);
 			}
-			lua.pop(L,1);                             StackAssert.End();
+			lua.pop(L,1);                                  StackAssert.End();
 			return count;
 		}
 
 		/// <summary>Removes all entries from the table.</summary>
 		public void Clear()
 		{
-			var L = Owner._L;                         StackAssert.Start(L);
+			var L = Owner._L;
+			luanet.checkstack(L, 4, "LuaTable.Clear"); StackAssert.Start(L);
 			push(L);
 			lua.pushnil(L);
 			while (lua.next(L, -2))
@@ -76,7 +80,7 @@ namespace LuaInterface
 				lua.pushnil(L);
 				lua.rawset(L, -4);
 			}
-			lua.pop(L,1);                             StackAssert.End();
+			lua.pop(L,1);                              StackAssert.End();
 		}
 
 		/// <summary>When this is true <see cref="Count"/> is zero.</summary>
@@ -84,17 +88,18 @@ namespace LuaInterface
 		{
 			get
 			{
-				var L = Owner._L;                         StackAssert.Start(L);
+				var L = Owner._L;
+				luanet.checkstack(L, 3, "LuaTable.IsEmpty"); StackAssert.Start(L);
 				push(L);
 				lua.pushnil(L);
 				if (lua.next(L, -2))
 				{
-					lua.pop(L,3);                             StackAssert.End();
+					lua.pop(L,3);                                StackAssert.End();
 					return false;
 				}
 				else
 				{
-					lua.pop(L,1);                             StackAssert.End();
+					lua.pop(L,1);                                StackAssert.End();
 					return true;
 				}
 			}
@@ -107,6 +112,7 @@ namespace LuaInterface
 		public string Summarize(int strings_limit)
 		{
 			var L = Owner._L;
+			luanet.checkstack(L, 3, "LuaTable.Summarize");
 			push(L);
 			var ret = luanet.summarizetable(L, -1, strings_limit);
 			lua.pop(L,1);
@@ -120,35 +126,38 @@ namespace LuaInterface
 		/// <summary>Gets a numeric field of a table ignoring its metatable, if it exists</summary>
 		public object RawGet(int field)
 		{
-			var L = Owner._L;                         StackAssert.Start(L);
+			var L = Owner._L;
+			luanet.checkstack(L, 2, "LuaTable.RawGet"); StackAssert.Start(L);
 			push(L);
 			lua.rawgeti(L, -1, field);
 			var obj = Owner.translator.getObject(L, -1);
-			lua.pop(L,2);                             StackAssert.End();
+			lua.pop(L,2);                               StackAssert.End();
 			return obj;
 		}
 
 		/// <summary>Gets a string field of a table ignoring its metatable, if it exists</summary>
 		public object RawGet(string field)
 		{
-			var L = Owner._L;                         StackAssert.Start(L);
+			var L = Owner._L;
+			luanet.checkstack(L, 2, "LuaTable.RawGet"); StackAssert.Start(L);
 			push(L);
 			lua.pushstring(L, field);
 			lua.rawget(L, -2);
 			var obj = Owner.translator.getObject(L, -1);
-			lua.pop(L,2);                             StackAssert.End();
+			lua.pop(L,2);                               StackAssert.End();
 			return obj;
 		}
 
 		/// <summary>Gets a field of a table ignoring its metatable, if it exists</summary>
 		public object RawGet(object field)
 		{
-			var L = Owner._L;                         StackAssert.Start(L);
+			var L = Owner._L;
+			luanet.checkstack(L, 2, "LuaTable.RawGet"); StackAssert.Start(L);
 			push(L);
 			Owner.translator.push(L, field);
 			lua.rawget(L, -2);
 			var obj = Owner.translator.getObject(L, -1);
-			lua.pop(L,2);                             StackAssert.End();
+			lua.pop(L,2);                               StackAssert.End();
 			return obj;
 		}
 
@@ -156,23 +165,25 @@ namespace LuaInterface
 		public LuaValue RawGetValue(LuaValue field)
 		{
 			field.VerifySupport("field");
-			var L = Owner._L;                         StackAssert.Start(L);
+			var L = Owner._L;
+			luanet.checkstack(L, 2, "LuaTable.RawGetValue"); StackAssert.Start(L);
 			push(L);
 			field.push(L);
 			lua.rawget(L, -2);
 			var obj = LuaValue.read(L, -1, false);
-			lua.pop(L,2);                             StackAssert.End();
+			lua.pop(L,2);                                    StackAssert.End();
 			return obj;
 		}
 
 		/// <summary><see cref="RawGet(int)"/> alternative that only fetches plain Lua value types and strings.</summary>
 		public LuaValue RawGetValue(int field)
 		{
-			var L = Owner._L;                         StackAssert.Start(L);
+			var L = Owner._L;
+			luanet.checkstack(L, 2, "LuaTable.RawGetValue"); StackAssert.Start(L);
 			push(L);
 			lua.rawgeti(L, -1, field);
 			var obj = LuaValue.read(L, -1, false);
-			lua.pop(L,2);                             StackAssert.End();
+			lua.pop(L,2);                                    StackAssert.End();
 			return obj;
 		}
 
@@ -180,56 +191,61 @@ namespace LuaInterface
 		public void RawSetValue(LuaValue field, LuaValue value)
 		{
 			field.VerifySupport("field"); value.VerifySupport("value");
-			var L = Owner._L;                         StackAssert.Start(L);
+			var L = Owner._L;
+			luanet.checkstack(L, 3, "LuaTable.RawSetValue"); StackAssert.Start(L);
 			push(L);
 			field.push(L);
 			value.push(L);
 			lua.rawset(L,-3);
-			lua.pop(L,1);                             StackAssert.End();
+			lua.pop(L,1);                                    StackAssert.End();
 		}
 
 		/// <summary><see cref="RawGet(int)"/> alternative that only sets plain Lua value types and strings.</summary>
 		public void RawSetValue(int field, LuaValue value)
 		{
 			value.VerifySupport("value");
-			var L = Owner._L;                         StackAssert.Start(L);
+			var L = Owner._L;
+			luanet.checkstack(L, 2, "LuaTable.RawSetValue"); StackAssert.Start(L);
 			push(L);
 			value.push(L);
 			lua.rawseti(L, -2, field);
-			lua.pop(L,1);                             StackAssert.End();
+			lua.pop(L,1);                                    StackAssert.End();
 		}
 
 
 		/// <summary>Sets a numeric field of a table ignoring its metatable, if it exists</summary>
 		public void RawSet(int field, object value)
 		{
-			var L = Owner._L;                         StackAssert.Start(L);
+			var L = Owner._L;
+			luanet.checkstack(L, 2, "LuaTable.RawSet"); StackAssert.Start(L);
 			push(L);
 			Owner.translator.push(L, value);
 			lua.rawseti(L, -2, field);
-			lua.pop(L,1);                            StackAssert.End();
+			lua.pop(L,1);                               StackAssert.End();
 		}
 
 		/// <summary>Sets a string field of a table ignoring its metatable, if it exists</summary>
 		public void RawSet(string field, object value)
 		{
-			var L = Owner._L;                         StackAssert.Start(L);
+			var L = Owner._L;
+			luanet.checkstack(L, 3, "LuaTable.RawSet"); StackAssert.Start(L);
 			push(L);
 			lua.pushstring(L, field);
 			Owner.translator.push(L, value);
 			lua.rawset(L, -3);
-			lua.pop(L,1);                             StackAssert.End();
+			lua.pop(L,1);                               StackAssert.End();
 		}
 
 		/// <summary>Sets a field of a table ignoring its metatable, if it exists</summary>
 		public void RawSet(object field, object value)
 		{
-			var L = Owner._L;                         StackAssert.Start(L);
+			var L = Owner._L;
+			luanet.checkstack(L, 3, "LuaTable.RawSet"); StackAssert.Start(L);
 			push(L);
 			Owner.translator.push(L, field);
 			Owner.translator.push(L, value);
 			lua.rawset(L, -3);
-			lua.pop(L,1);                             StackAssert.End();
+			lua.pop(L,1);                               StackAssert.End();
 		}
 
 		/// <summary>Looks up the field, ignoring metatables, and checks for a nil result.</summary>
@@ -240,12 +256,13 @@ namespace LuaInterface
 		/// <summary>Looks up the field, ignoring metatables, and gets its Lua type.</summary>
 		public LuaType RawFieldType(object field)
 		{
-			var L = Owner._L;                         StackAssert.Start(L);
+			var L = Owner._L;
+			luanet.checkstack(L, 2, "LuaTable.RawFieldType"); StackAssert.Start(L);
 			push(L);
 			Owner.translator.push(L, field);
 			lua.rawget(L,-2);
 			var type = lua.type(L, -1);
-			lua.pop(L,2);                             StackAssert.End();
+			lua.pop(L,2);                                     StackAssert.End();
 			return (LuaType) type;
 		}
 
@@ -264,6 +281,7 @@ namespace LuaInterface
 		public void ForEach(Action<object, object> body)
 		{
 			var L = Owner._L; var translator = Owner.translator;
+			luanet.checkstack(L, 3, "LuaTable.ForEach");
 			int oldTop = lua.gettop(L);
 			push(L);
 			try
@@ -286,6 +304,7 @@ namespace LuaInterface
 		public void ForEachI(Action<int, object> body)
 		{
 			var L = Owner._L; var translator = Owner.translator;
+			luanet.checkstack(L, 2, "LuaTable.ForEachI");
 			int oldTop = lua.gettop(L);
 			push(L);
 			try
@@ -310,6 +329,7 @@ namespace LuaInterface
 		public void ForEachIV(Action<int, LuaValue> body)
 		{
 			var L = Owner._L;
+			luanet.checkstack(L, 2, "LuaTable.ForEachIV");
 			int oldTop = lua.gettop(L);
 			push(L);
 			try
@@ -336,6 +356,7 @@ namespace LuaInterface
 		public void ForEachS(Action<string, object> body)
 		{
 			var L = Owner._L; var translator = Owner.translator;
+			luanet.checkstack(L, 3, "LuaTable.ForEachS");
 			int oldTop = lua.gettop(L);
 			push(L);
 			try
@@ -356,6 +377,7 @@ namespace LuaInterface
 		public void ForEachSV(Action<string, LuaValue> body)
 		{
 			var L = Owner._L;
+			luanet.checkstack(L, 3, "LuaTable.ForEachSV");
 			int oldTop = lua.gettop(L);
 			push(L);
 			try
@@ -376,6 +398,7 @@ namespace LuaInterface
 		public void ForEachV(Action<LuaValue, object> body)
 		{
 			var L = Owner._L; var translator = Owner.translator;
+			luanet.checkstack(L, 3, "LuaTable.ForEachV");
 			int oldTop = lua.gettop(L);
 			push(L);
 			try
@@ -395,6 +418,7 @@ namespace LuaInterface
 		public void ForEachVV(Action<LuaValue, LuaValue> body)
 		{
 			var L = Owner._L;
+			luanet.checkstack(L, 3, "LuaTable.ForEachVV");
 			int oldTop = lua.gettop(L);
 			push(L);
 			try

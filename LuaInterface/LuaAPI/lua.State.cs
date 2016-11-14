@@ -17,7 +17,7 @@ namespace LuaInterface.LuaAPI
 			private readonly void* _L;
 			#pragma warning restore 649
 
-			public static State Null { [MethodImpl(INLINE)] get{ return new State(); } }
+			public static State Null { [MethodImpl(INLINE)] get{ return default(State); } }
 			public bool IsNull       { [MethodImpl(INLINE)] get{ return _L == null; } }
 			/// <exception cref="NullReferenceException"></exception>
 			public void NullCheck() { if (_L == null) throw new NullReferenceException("Attempted to use a null lua.State."); }
@@ -62,6 +62,7 @@ namespace LuaInterface.LuaAPI
 					int i;
 					for (i = 1; i <= lua.gettop(this); ++i)
 						yield return new StackIndex(this, i);
+					if (empty_slots)
 					for (; i <= LUA.MINSTACK; ++i)
 						yield return new StackIndex(this, i);
 				}

@@ -56,6 +56,7 @@ namespace LuaInterface
 		public Lua(lua.State L)
 		{
 			if (L.IsNull) throw new ArgumentNullException("L");
+			luanet.checkstack(L, LUA.MINSTACK, "new Lua(lua.State)");
 
 			 // Check for existing LuaInterface marker
 			lua.pushstring(L, _LuaInterfaceMarker);
@@ -129,6 +130,7 @@ namespace LuaInterface
 			if (chunk == null) throw new ArgumentNullException("chunk");
 			Debug.Assert(chunk.IndexOf('\0') == -1, "must not contain null characters");
 			var L = _L;
+			luanet.checkstack(L, 1, "Lua.LoadString");
 			if (luaL.loadstring(L, chunk) == LUA.ERR.Success)
 				return new LuaFunction(L, this);
 			else
@@ -140,6 +142,7 @@ namespace LuaInterface
 			if (chunk == null || name == null) throw new ArgumentNullException(chunk == null ? "chunk" : "name");
 			Debug.Assert(chunk.IndexOf('\0') == -1, "must not contain null characters");
 			var L = _L;
+			luanet.checkstack(L, 1, "Lua.LoadString");
 			if (luaL.loadbuffer(L, chunk, name) == LUA.ERR.Success)
 				return new LuaFunction(L, this);
 			else
@@ -151,6 +154,7 @@ namespace LuaInterface
 		{
 			if (fileName == null) throw new ArgumentNullException("fileName");
 			var L = _L;
+			luanet.checkstack(L, 1, "Lua.LoadFile");
 			if (luaL.loadfile(L, fileName) == LUA.ERR.Success)
 				return new LuaFunction(L, this);
 			else
@@ -165,6 +169,7 @@ namespace LuaInterface
 			if (chunk.Array == null) throw new ArgumentNullException("chunk");
 			// ArraySegment validates the offset and length when it is first constructed
 			var L = _L;
+			luanet.checkstack(L, 1, "Lua.LoadBuffer");
 			LUA.ERR status;
 			fixed (byte* array = chunk.Array)
 				status = luaL.loadbuffer(L, new IntPtr(array + chunk.Offset), chunk.Count, name);
@@ -188,6 +193,7 @@ namespace LuaInterface
 		public object[] DoString(string chunk, string chunkName)
 		{
 			var L = _L;
+			luanet.checkstack(L, 1, "Lua.DoString");
 			int oldTop = lua.gettop(L);
 			if (luaL.loadbuffer(L, chunk, chunkName) == LUA.ERR.Success)
 				if (lua.pcall(L, 0, LUA.MULTRET, 0) == LUA.ERR.Success)
@@ -239,6 +245,7 @@ namespace LuaInterface
 		public object[] DoFile(string fileName)
 		{
 			var L = _L;
+			luanet.checkstack(L, 2, "Lua.DoFile");
 			int oldTop=lua.gettop(L);
 			lua.pushcfunction(L,tracebackFunction); // not removed by pcall
 			if (luaL.loadfile(L,fileName) == LUA.ERR.Success)
@@ -415,27 +422,30 @@ namespace LuaInterface
 		/// <summary>Gets a numeric global variable</summary>
 		public double GetNumber(string fullPath)
 		{
-			var L = _L;                         StackAssert.Start(L);
+			var L = _L;
+			luanet.checkstack(L, 2, "Lua.GetNumber"); StackAssert.Start(L);
 			luanet.getnestedfield(L, LUA.GLOBALSINDEX, fullPath);
 			CheckType(L, fullPath, LUA.T.NUMBER);
 			var ret = lua.tonumber(L,-1);
-			lua.pop(L,1);                       StackAssert.End();
+			lua.pop(L,1);                             StackAssert.End();
 			return ret;
 		}
 		/// <summary>Gets a string global variable</summary>
 		public string GetString(string fullPath)
 		{
-			var L = _L;                         StackAssert.Start(L);
+			var L = _L;
+			luanet.checkstack(L, 2, "Lua.GetString"); StackAssert.Start(L);
 			luanet.getnestedfield(L, LUA.GLOBALSINDEX, fullPath);
 			CheckType(L, fullPath, LUA.T.STRING);
 			var ret = lua.tostring(L,-1);
-			lua.pop(L,1);                       StackAssert.End();
+			lua.pop(L,1);                             StackAssert.End();
 			return ret;
 		}
 		/// <summary>Gets a table global variable</summary>
 		public LuaTable GetTable(string fullPath)
 		{
 			var L = _L;
+			luanet.checkstack(L, 2, "Lua.GetTable");
 			luanet.getnestedfield(L, LUA.GLOBALSINDEX, fullPath);
 			var type = lua.type(L,-1);
 			if (type == LUA.T.NIL)
@@ -457,6 +467,7 @@ namespace LuaInterface
 		public LuaFunction GetFunction(string fullPath)
 		{
 			var L = _L;                         StackAssert.Start(L);
+			luanet.checkstack(L, 2, "Lua.GetFunction");
 			luanet.getnestedfield(L, LUA.GLOBALSINDEX, fullPath);
 			switch (lua.type(L,-1))
 			{
@@ -488,12 +499,12 @@ namespace LuaInterface
 		}
 
 
-		/// <summary>[-(0|1), +0, v]</summary>
+		/// <summary>[-(0|1), +0, -]</summary><exception cref="InvalidCastException"></exception>
 		static void CheckType(lua.State L, string fullPath, LUA.T type)
 		{
 			CheckType(L, fullPath, lua.type(L,-1), type);
 		}
-		/// <summary>[-(0|1), +0, v]</summary>
+		/// <summary>[-(0|1), +0, -]</summary><exception cref="InvalidCastException"></exception>
 		static void CheckType(lua.State L, string fullPath, LUA.T actual_type, LUA.T type)
 		{
 			// the old behavior didn't support conversions and threw InvalidCastException
@@ -517,10 +528,11 @@ namespace LuaInterface
 		/// <summary>[-0, +0, e] Navigates a table in the top of the stack, returning the value of the specified field</summary>
 		internal object getNestedObject(int index, IEnumerable<string> fields)
 		{
-			var L = _L;                         StackAssert.Start(L);
+			var L = _L;
+			luanet.checkstack(L, 2, "Lua.getNestedObject"); StackAssert.Start(L);
 			luanet.getnestedfield(L, index, fields);
 			var ret = translator.getObject(L,-1);
-			lua.pop(L,1);                       StackAssert.End();
+			lua.pop(L,1);                                   StackAssert.End();
 			return ret;
 		}
 
@@ -532,11 +544,12 @@ namespace LuaInterface
 		/// <summary>[-0, +0, e] Navigates a table to set the value of one of its fields</summary>
 		internal void setNestedObject(int index, IEnumerable<string> pathWithoutField, string field, object val)
 		{
-			var L = _L;                         StackAssert.Start(L);
+			var L = _L;
+			luanet.checkstack(L, 2, "Lua.setNestedObject"); StackAssert.Start(L);
 			luanet.getnestedfield(L, index, pathWithoutField);
 			translator.push(L,val);
 			lua.setfield(L, -2, field);
-			lua.pop(L,1);                       StackAssert.End();
+			lua.pop(L,1);                                   StackAssert.End();
 		}
 
 
@@ -550,12 +563,13 @@ namespace LuaInterface
 		/// </summary>
 		public void NewTable(string fullPath, int narr, int nrec)
 		{
-			var L = _L;                         StackAssert.Start(L);
+			var L = _L;
+			luanet.checkstack(L, 2, "Lua.NewTable"); StackAssert.Start(L);
 			string[] path = fullPath.Split('.');
 			luanet.getnestedfield(L, LUA.GLOBALSINDEX, path.Take(path.Length-1));
 			lua.createtable(L, narr, nrec);
 			lua.setfield(L, -2, path[path.Length-1]);
-			lua.pop(L,1);                       StackAssert.End();
+			lua.pop(L,1);                            StackAssert.End();
 		}
 
 		/// <summary>
@@ -571,6 +585,7 @@ namespace LuaInterface
 		public LuaTable NewTable(int narr, int nrec)
 		{
 			var L = _L;
+			luanet.checkstack(L, 1, "Lua.NewTable");
 			lua.createtable(L, narr, nrec);
 			return new LuaTable(L, this) {IsOrphaned = true};
 		}
@@ -585,6 +600,7 @@ namespace LuaInterface
 		public LuaUserData NewUserData(UIntPtr size, LuaTable metatable)
 		{
 			var L = _L;
+			luanet.checkstack(L, 2, "Lua.NewUserData");
 			var oldTop = lua.gettop(L);
 			try
 			{
@@ -761,7 +777,7 @@ namespace LuaInterface
 			}
 			finally { Monitor.Exit(refs); }
 		}
-		List<int> _leaked_refs = new List<int>(); // System.Collections.Concurrent isn't available in .NET 3.5
+		readonly List<int> _leaked_refs = new List<int>(); // System.Collections.Concurrent isn't available in .NET 3.5
 
 
 		#region LeakCount

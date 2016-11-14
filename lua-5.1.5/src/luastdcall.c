@@ -22,12 +22,14 @@ BOOL APIENTRY DllMain(HANDLE module, DWORD reason, LPVOID reserved) { return TRU
 static int tag = 0;
 
 
+// obsolete
 static int stdcall_closure(lua_State *L) {
   lua_stdcallCFunction fn = (lua_stdcallCFunction)lua_touserdata(L, lua_upvalueindex(1));
   return fn(L);
 }
 
 
+// obsolete
 LUA_DLLEXPORT void lua_pushstdcallcfunction(lua_State *L,lua_stdcallCFunction fn) {
   lua_pushlightuserdata(L, fn);
   lua_pushcclosure(L, stdcall_closure, 1);
@@ -35,6 +37,7 @@ LUA_DLLEXPORT void lua_pushstdcallcfunction(lua_State *L,lua_stdcallCFunction fn
 
 
 
+// [-0, +0, -, requires checkstack(3)]
 LUA_DLLEXPORT int luaL_checkmetatable(lua_State *L,int index) {
   int retVal=0;
   if(lua_getmetatable(L,index)!=0) {
@@ -46,11 +49,13 @@ LUA_DLLEXPORT int luaL_checkmetatable(lua_State *L,int index) {
   return retVal;
 }
 
+// [-0, +0, -]
 LUA_DLLEXPORT void *luanet_gettag() {
   return &tag;
 }
 
 
+// [-0, +0, -, requires checkstack(2)]
 // Starting with 5.1 the auxlib version of checkudata throws an exception if the type isn't right
 // Instead, we want to run our own version that checks the type and just returns null for failure
 void *checkudata(lua_State *L, int ud, const char *tname)
@@ -78,6 +83,7 @@ void *checkudata(lua_State *L, int ud, const char *tname)
 }
 
 
+// [-0, +0, -, requires checkstack(3)]
 LUA_DLLEXPORT int luanet_tonetobject(lua_State *L,int index) {
   int *udata;
   if(lua_type(L,index)==LUA_TUSERDATA) {
@@ -95,17 +101,20 @@ LUA_DLLEXPORT int luanet_tonetobject(lua_State *L,int index) {
   return -1;
 }
 
+// [-0, +1, m]
 LUA_DLLEXPORT void luanet_newudata(lua_State *L,int val) {
   int* pointer=(int*)lua_newuserdata(L,sizeof(int));
   *pointer=val;
 }
 
+// [-0, +0, -, requires checkstack(2)]
 LUA_DLLEXPORT int luanet_checkudata(lua_State *L,int index,const char *meta) {
   int *udata=(int*)checkudata(L,index,meta);
   if(udata!=NULL) return *udata;
   return -1;
 }
 
+// [-0, +0, -]
 LUA_DLLEXPORT int luanet_rawnetobj(lua_State *L,int index) {
   int *udata=lua_touserdata(L,index);
   if(udata!=NULL) return *udata;

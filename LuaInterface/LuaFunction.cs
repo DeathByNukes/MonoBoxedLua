@@ -36,6 +36,7 @@ namespace LuaInterface
 			if (Reference == LUA.NOREF)
 				goto IS_CFUNCTION;
 			var L = Owner._L;
+			luanet.checkstack(L, 1, "LuaFunction.Dump");
 			int oldTop = lua.gettop(L);
 			push(L);
 			int err;
@@ -70,6 +71,7 @@ namespace LuaInterface
 		{
 			if (Reference == LUA.NOREF) return new LuaFunction(function, Owner);
 			var L = Owner._L;
+			luanet.checkstack(L, 1, "LuaFunction.NewReference");
 			rawpush(L);
 			try { return new LuaFunction(L, Owner); } catch (InvalidCastException) { Dispose(); throw; }
 		}

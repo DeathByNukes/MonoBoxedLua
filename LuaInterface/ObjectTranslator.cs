@@ -31,6 +31,7 @@ namespace LuaInterface
 		{
 			this.interpreter=interpreter;
 			var L = interpreter._L;
+			luanet.checkstack(L, 3, "new ObjectTranslator");
 			typeChecker=new CheckType(this);
 			metaFunctions=new MetaFunctions(this);
 			assemblies=new List<Assembly>();
@@ -53,31 +54,29 @@ namespace LuaInterface
 			setGlobalFunctions(L);
 		}
 
-		/// <summary>Sets up the list of objects in the Lua side</summary>
+		/// <summary>[requires checkstack(3)] Sets up the list of objects in the Lua side</summary>
 		private static void createLuaObjectList(lua.State L)
 		{
 			StackAssert.Start(L);
-			lua.pushstring(L,"luaNet_objects");
 			lua.newtable(L);
 			lua.newtable(L);
-			lua.pushstring(L,"__mode");
 			lua.pushstring(L,"v");
-			lua.settable(L,-3);
+			lua.setfield(L,-2,"__mode");
 			lua.setmetatable(L,-2);
-			lua.settable(L, LUA.REGISTRYINDEX);
+			lua.setfield(L, LUA.REGISTRYINDEX, "luaNet_objects");
 			StackAssert.End();
 		}
-		/// <summary>Registers the indexing function of CLR objects passed to Lua</summary>
+		/// <summary>[requires checkstack(2)] Registers the indexing function of CLR objects passed to Lua</summary>
 		private static void createIndexingMetaFunction(lua.State L)
 		{
 			StackAssert.Start(L);
 			lua.pushstring(L,"luaNet_indexfunction");
-			luaL.dostring(L,MetaFunctions.luaIndexFunction);
+			luaL.dostring(L,MetaFunctions.luaIndexFunction); // -0, +1
 			//lua.pushcfunction(L,indexFunction);
 			lua.rawset(L, LUA.REGISTRYINDEX);
 			StackAssert.End();
 		}
-		/// <summary>Creates the metatable for superclasses (the base field of registered tables)</summary>
+		/// <summary>[requires checkstack(3)] Creates the metatable for superclasses (the base field of registered tables)</summary>
 		private void createBaseClassMetatable(lua.State L)
 		{
 			Debug.Assert(L == interpreter._L); StackAssert.Start(L);
@@ -96,7 +95,7 @@ namespace LuaInterface
 			lua.settable(L,-3);
 			lua.pop(L,1);                      StackAssert.End();
 		}
-		/// <summary>Creates the metatable for type references</summary>
+		/// <summary>[requires checkstack(3)] Creates the metatable for type references</summary>
 		private void createClassMetatable(lua.State L)
 		{
 			Debug.Assert(L == interpreter._L); StackAssert.Start(L);
@@ -118,7 +117,7 @@ namespace LuaInterface
 			lua.settable(L,-3);
 			lua.pop(L,1);                      StackAssert.End();
 		}
-		/// <summary>Registers the global functions used by LuaInterface</summary>
+		/// <summary>[requires checkstack(1)] Registers the global functions used by LuaInterface</summary>
 		private void setGlobalFunctions(lua.State L)
 		{
 			Debug.Assert(L == interpreter._L); StackAssert.Start(L);
@@ -142,7 +141,7 @@ namespace LuaInterface
 			lua.setglobal(L,"enum");           StackAssert.End();
 		}
 
-		/// <summary>Creates the metatable for delegates</summary>
+		/// <summary>[requires checkstack(3)] Creates the metatable for delegates</summary>
 		private void createFunctionMetatable(lua.State L)
 		{
 			Debug.Assert(L == interpreter._L); StackAssert.Start(L);
@@ -155,11 +154,12 @@ namespace LuaInterface
 			lua.settable(L,-3);
 			lua.pop(L,1);                      StackAssert.End();
 		}
-		/// <summary>Passes errors (argument e) to the Lua interpreter. This function throws a Lua exception, and therefore never returns.</summary>
+		/// <summary>[-0, +0, v] Passes errors (argument e) to the Lua interpreter. This function throws a Lua exception, and therefore never returns.</summary>
 		internal int throwError(lua.State L, Exception ex)
 		{
 			Debug.Assert(L == interpreter._L);
 			Debug.Assert(ex != null);
+			luaL.checkstack(L, 1, "ObjectTranslator.throwError");
 			// Determine the position in the script where the exception was triggered
 			// Stack frame #0 is our C# wrapper, so not very interesting to the user
 			// Stack frame #1 must be the lua code that called us, so that's what we want to use
@@ -168,6 +168,7 @@ namespace LuaInterface
 			// Wrap generic .NET exception as an InnerException and store the error location
 			ex = new LuaScriptException(ex, errLocation);
 
+			// don't need to check the stack, same pattern as luaL_error
 			push(L, ex);
 			return lua.error(L);
 		}
@@ -361,6 +362,7 @@ namespace LuaInterface
 		private Type typeOf(lua.State L, int idx)
 		{
 			Debug.Assert(L == interpreter._L);
+			luaL.checkstack(L, 2, "ObjectTranslator.typeOf");
 			int id=luanet.checkudata(L,idx,"luaNet_class");
 			if (id == -1) return null;
 
@@ -434,14 +436,15 @@ namespace LuaInterface
 		/// <summary>[-0, +1, m] Pushes a CLR object into the Lua stack as an userdata with the provided metatable</summary>
 		internal void pushObject(lua.State L, object o, string metatable)
 		{
-			Debug.Assert(L == interpreter._L); StackAssert.Start(L);
+			Debug.Assert(L == interpreter._L);
 			// Pushes nil
 			if(o==null)
 			{
 				lua.pushnil(L);
-				StackAssert.End(1);
 				return;
 			}
+			luaL.checkstack(L, 2, "ObjectTranslator.pushObject");
+			StackAssert.Start(L);
 
 			// Object already in the list of Lua objects? Push the stored reference.
 			int id;
@@ -476,7 +479,9 @@ namespace LuaInterface
 		/// <summary>[-0, +1, m] Pushes a new object into the Lua stack with the provided metatable</summary>
 		private void pushNewObject(lua.State L,object o,int id,string metatable)
 		{
-			Debug.Assert(L == interpreter._L); StackAssert.Start(L);
+			Debug.Assert(L == interpreter._L);
+			luaL.checkstack(L, 4, "ObjectTranslator.pushNewObject");
+			StackAssert.Start(L);
 
 			luanet.newudata(L,id);
 
@@ -636,6 +641,7 @@ namespace LuaInterface
 		internal object getNetObject(lua.State L,int index)
 		{
 			Debug.Assert(L == interpreter._L);
+			luaL.checkstack(L, 3, "ObjectTranslator.getNetObject");
 			int id=luanet.tonetobject(L,index);
 			if(id!=-1)
 				return objects[id];
@@ -657,7 +663,7 @@ namespace LuaInterface
 			return popValues(L, oldTop, null);
 		}
 		/// <summary>
-		/// Gets the values from the provided index to the top of the stack and returns them in an array,
+		/// [-(top-oldTop), +0, m] Gets the values from the provided index to the top of the stack and returns them in an array,
 		/// casting them to the provided types.
 		/// </summary>
 		internal object[] popValues(lua.State L,int oldTop,Type[] popTypes)

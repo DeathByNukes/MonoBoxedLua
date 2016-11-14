@@ -136,7 +136,7 @@ namespace LuaInterface
 			else if (typeof(Delegate).IsAssignableFrom(paramType) && luatype == LUA.T.FUNCTION)
 			{
 #if __NOGEN__
-				translator.throwError(L,"Delegates not implemented");
+				luaL.error(L,"Delegates not implemented");
 #else
 				return new ExtractValue(new DelegateGenerator(translator, paramType).extractGenerated);
 #endif
@@ -144,7 +144,7 @@ namespace LuaInterface
 			else if (paramType.IsInterface && luatype == LUA.T.TABLE)
 			{
 #if __NOGEN__
-				translator.throwError(L,"Interfaces not implemented");
+				luaL.error(L,"Interfaces not implemented");
 #else
 				return new ExtractValue(new ClassGenerator(translator, paramType).extractGenerated);
 #endif
@@ -156,6 +156,7 @@ namespace LuaInterface
 			}
 			else if (luatype == LUA.T.TABLE)
 			{
+				luaL.checkstack(L, 1, "CheckType.checkType");
 				if (luaL.getmetafield(L, index, "__index"))
 				{
 					object obj = translator.getNetObject(L, -1);
@@ -265,6 +266,7 @@ namespace LuaInterface
 			Debug.Assert(L == translator.interpreter._L);
 			if(lua.type(L,index)==LUA.T.TABLE)
 			{
+				luaL.checkstack(L, 1, "CheckType.getAsObject");
 				if(luaL.getmetafield(L,index,"__index"))
 				{
 					if(luanet.checkmetatable(L,-1))
@@ -287,6 +289,7 @@ namespace LuaInterface
 			object obj=translator.getNetObject(L,index);
 			if(obj==null && lua.type(L,index)==LUA.T.TABLE)
 			{
+				luaL.checkstack(L, 1, "CheckType.getAsNetObject");
 				if(luaL.getmetafield(L,index,"__index"))
 				{
 					if(luanet.checkmetatable(L,-1))

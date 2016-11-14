@@ -79,6 +79,7 @@ namespace LuaInterface.LuaAPI
 		public IEnumerator<StackIndexChild> GetEnumerator()
 		{
 			_log("GetEnumerator()");
+			luanet.checkstack(L, 2, "StackIndex.GetEnumerator");
 			L.NullCheck();
 			var results = new List<StackIndexChild>();
 			int index = luanet.absoluteindex(L, Index);
@@ -127,7 +128,8 @@ namespace LuaInterface.LuaAPI
 		public void push()
 		{
 			_keys[_keys.Length-1].VerifySupport();
-			var L = Parent.L;                            StackAssert.Start(L);
+			var L = Parent.L;
+			luanet.checkstack(L, 2, "StackIndexChild.push"); StackAssert.Start(L);
 			Dbg.Assert(_keys.All(k=>k.IsSupported));
 			var keys = _keys;
 
@@ -147,11 +149,11 @@ namespace LuaInterface.LuaAPI
 			lua.insert(L, -2);
 			var ex = luanet.pcall(L, 1, 1);
 			if (ex != null)
-			{	                                         StackAssert.End();
+			{	                                             StackAssert.End();
 				Trace.TraceError("push failed: "+ex.Message);
 				throw ex;
 			}
-			GC.KeepAlive(tryBlock);                      StackAssert.End(1);
+			GC.KeepAlive(tryBlock);                          StackAssert.End(1);
 		}
 
 		public LUA.T Type { get
@@ -197,10 +199,11 @@ namespace LuaInterface.LuaAPI
 		public IEnumerator<StackIndexChild> GetEnumerator()
 		{
 			_log("GetEnumerator()");
+			var L = Parent.L;
+			luanet.checkstack(L, 3, "StackIndexChild.GetEnumerator");
 			var results = new List<StackIndexChild>();
 			this.push();
 			Dbg.Assert(_keys.All(k=>k.IsSupported));
-			var L = Parent.L;
 			if (lua.type(L, -1) == LUA.T.TABLE)
 			{	                                             StackAssert.Start(L);
 				lua.pushnil(L);
@@ -221,7 +224,7 @@ namespace LuaInterface.LuaAPI
 			_log("Length");
 			this.push();
 			var L = Parent.L;
-			var len = lua.isnumber(L, -1) ? default(UIntPtr) : lua.objlen(L, -1);
+			var len = lua.type(L, -1) == LUA.T.NUMBER ? default(UIntPtr) : lua.objlen(L, -1);
 			lua.pop(L, 1);
 			return (ulong) len;
 		}}

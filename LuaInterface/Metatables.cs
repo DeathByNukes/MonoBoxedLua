@@ -15,24 +15,23 @@ namespace LuaInterface
 	/// </remarks>
 	class MetaFunctions
 	{
-		/// <summary>__index metafunction for CLR objects. Implemented in Lua.</summary>
-		internal const string luaIndexFunction =
-	@"
-		local function index(obj,name)
-		local meta=getmetatable(obj)
-		local cached=meta.cache[name]
-		if cached then
-		   return cached
-		else
-		   local value,isFunc = get_object_member(obj,name)
-		   if value==nil and type(isFunc)=='string' then error(isFunc,2) end
-		   if isFunc then
-			meta.cache[name]=value
-		   end
-		   return value
-		 end
-	end
-	return index";
+		/// <summary>__index metafunction for CLR objects. Implemented in Lua. Chunk returns a single value.</summary>
+		internal const string luaIndexFunction = @"
+			return function(obj,name)
+				local meta=getmetatable(obj)
+				local cached=meta.cache[name]
+				if cached then
+					return cached
+				else
+					local value,isFunc = get_object_member(obj,name)
+					if value==nil and type(isFunc)=='string' then error(isFunc,2) end
+					if isFunc then
+						meta.cache[name]=value
+					end
+					return value
+				end
+			end
+		";
 
 		private readonly ObjectTranslator translator;
 		internal readonly lua.CFunction gcFunction, indexFunction, newindexFunction,
