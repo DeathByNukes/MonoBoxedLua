@@ -17,9 +17,8 @@ namespace LuaInterface.LuaAPI
 		/// <summary>.NET 4.5 AggressiveInlining. Should be auto discarded on older build targets or otherwise ignored.</summary>
 		const MethodImplOptions INLINE = (MethodImplOptions) 0x0100;
 
-		//CP: Removed NonPublic binding search and made case insensitive
 		/// <summary>Flags for Lua access to the CLR.</summary>
-		public const BindingFlags LuaBindingFlags = BindingFlags.Public | BindingFlags.IgnoreCase/*| BindingFlags.NonPublic*/;
+		public const BindingFlags LuaBindingFlags = BindingFlags.Public /*| BindingFlags.IgnoreCase/*| BindingFlags.NonPublic*/;
 
 		/// <summary>[-0, +0, -, requires checkstack(3)] Checks if the object at <paramref name="index"/> has a metatable containing a field with a light userdata key matching <see cref="luanet.gettag"/>.</summary>
 		[DllImport(DLL,CallingConvention=CC,EntryPoint="luaL_checkmetatable")] public static extern bool   checkmetatable(lua.State L, int index);
