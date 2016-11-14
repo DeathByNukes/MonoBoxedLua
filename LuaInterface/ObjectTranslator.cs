@@ -18,7 +18,13 @@ namespace LuaInterface
 		// object # to object (FIXME - it should be possible to get object address as an object #)
 		public readonly Dictionary<int, object> objects = new Dictionary<int, object>();
 		// object to object #
-		public readonly Dictionary<object, int> objectsBackMap = new Dictionary<object, int>();
+		public readonly Dictionary<object, int> objectsBackMap = new Dictionary<object, int>(new ReferenceComparer<object>());
+		class ReferenceComparer<T> : IEqualityComparer<T> where T : class
+		{
+			public bool Equals(T x, T y) { return (object)x == (object)y; }
+			public int GetHashCode(T obj) { return System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(obj); }
+		}
+
 		internal Lua interpreter;
 		private MetaFunctions metaFunctions;
 		private List<Assembly> assemblies;
