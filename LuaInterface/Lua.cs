@@ -675,6 +675,30 @@ namespace LuaInterface
 			return new LuaFunction(new LuaMethodWrapper(translator, function.Target, method.DeclaringType, method).call, this);
 		}
 
+		/// <summary>Creates a type proxy object just like Lua import_type.</summary>
+		public LuaUserData ImportType(Type type)
+		{
+			if (type == null) throw new ArgumentNullException("type");
+			var L = _L;
+			luanet.checkstack(L, 1, "Lua.ImportType");
+			translator.pushType(L, type);
+			return new LuaUserData(L, this);
+		}
+		/// <summary>Creates a type proxy object just like Lua import_type, assigning it to a global variable named after the type.</summary>
+		public void RegisterType(Type type)
+		{
+			if (type == null) throw new ArgumentNullException("type");
+			Debug.Assert(type.Name.IndexOf('.') == -1);
+			RegisterType(type.Name, type);
+		}
+		/// <summary>Creates a type proxy object just like Lua import_type, assigning it to the specified global variable.</summary>
+		public void RegisterType(string path, Type type)
+		{
+			if (path == null) throw new ArgumentNullException("path");
+			using (var type_ref = ImportType(type))
+				this[path] = type_ref;
+		}
+
 
 		/// <summary>Generates a Lua function which matches the behavior of Lua's standard print function but sends the strings to a specified delegate instead of stdout.
 		/// <example><code>
