@@ -226,8 +226,7 @@ namespace LuaInterface
 			if (cachedMember != null)
 				return true;
 
-			//CP: Removed NonPublic binding search
-			MemberInfo[] members = objType.GetMember(methodName, BindingFlags.Static | BindingFlags.Instance | BindingFlags.Public | BindingFlags.IgnoreCase/* | BindingFlags.NonPublic*/);
+			MemberInfo[] members = objType.GetMember(methodName, BindingFlags.Static | BindingFlags.Instance | luanet.LuaBindingFlags);
 			return (members.Length > 0);
 		}
 
@@ -257,16 +256,14 @@ namespace LuaInterface
 			}
 			else
 			{
-				//CP: Removed NonPublic binding search
-				MemberInfo[] members = objType.GetMember(methodName, bindingType | BindingFlags.Public | BindingFlags.IgnoreCase/*| BindingFlags.NonPublic*/);
+				MemberInfo[] members = objType.GetMember(methodName, bindingType | luanet.LuaBindingFlags);
 				if (members.Length > 0)
 					member = members[0];
 				else
 				{
 					// If we can't find any suitable instance members, try to find them as statics - but we only want to allow implicit static
 					// lookups for fields/properties/events -kevinh
-					//CP: Removed NonPublic binding search and made case insensitive
-					members = objType.GetMember(methodName, bindingType | BindingFlags.Static | BindingFlags.Public | BindingFlags.IgnoreCase/*| BindingFlags.NonPublic*/);
+					members = objType.GetMember(methodName, bindingType | BindingFlags.Static | luanet.LuaBindingFlags);
 
 					if (members.Length > 0)
 					{
@@ -461,8 +458,7 @@ namespace LuaInterface
 			MemberInfo member = checkMemberCache(targetType, fieldName) as MemberInfo;
 			if (member == null)
 			{
-				//CP: Removed NonPublic binding search and made case insensitive
-				MemberInfo[] members = targetType.GetMember(fieldName, bindingType | BindingFlags.Public | BindingFlags.IgnoreCase/*| BindingFlags.NonPublic*/);
+				MemberInfo[] members = targetType.GetMember(fieldName, bindingType | luanet.LuaBindingFlags);
 				if (members.Length > 0)
 				{
 					member = members[0];

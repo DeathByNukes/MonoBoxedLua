@@ -328,9 +328,8 @@ namespace LuaInterface
 				signature[i] = FindType(luaL.checkstring(L,i+3));
 			try
 			{
-				//CP: Added ignore case
-				var method = klass.GetMethod(methodName,BindingFlags.Public | BindingFlags.Static |
-					BindingFlags.Instance | BindingFlags.FlattenHierarchy | BindingFlags.IgnoreCase, null, signature, null);
+				var method = klass.GetMethod(methodName,BindingFlags.Static | BindingFlags.Instance |
+					BindingFlags.FlattenHierarchy | luanet.LuaBindingFlags, null, signature, null);
 				pushFunction(L,new lua.CFunction((new LuaMethodWrapper(this,target,klass,method)).call));
 			}
 			catch (Exception e) { return throwError(L,e); }

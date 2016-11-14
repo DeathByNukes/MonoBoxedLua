@@ -96,9 +96,8 @@ namespace LuaInterface
 
 			_BindingType = bindingType;
 
-			//CP: Removed NonPublic binding search and added IgnoreCase
 			// bug: targetType may be null? todo: inspect code that uses _Members and this constructor
-			_Members = targetType.UnderlyingSystemType.GetMember(methodName, MemberTypes.Method, bindingType | BindingFlags.Public | BindingFlags.IgnoreCase/*|BindingFlags.NonPublic*/);
+			_Members = targetType.UnderlyingSystemType.GetMember(methodName, MemberTypes.Method, bindingType | luanet.LuaBindingFlags);
 		}
 
 
