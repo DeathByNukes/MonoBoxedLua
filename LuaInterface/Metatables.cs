@@ -240,7 +240,6 @@ namespace LuaInterface
 		{
 			Debug.Assert(L == translator.interpreter._L);
 			Debug.Assert(objType != null && methodName != null);
-			bool implicitStatic = false;
 			MemberInfo member = null;
 			object cachedMember = checkMemberCache(objType, methodName);
 			if (cachedMember != null)
@@ -257,20 +256,8 @@ namespace LuaInterface
 			else
 			{
 				MemberInfo[] members = objType.GetMember(methodName, bindingType | luanet.LuaBindingFlags);
-				if (members.Length > 0)
-					member = members[0];
-				else
-				{
-					// If we can't find any suitable instance members, try to find them as statics - but we only want to allow implicit static
-					// lookups for fields/properties/events -kevinh
-					members = objType.GetMember(methodName, bindingType | BindingFlags.Static | luanet.LuaBindingFlags);
-
-					if (members.Length > 0)
-					{
-						member = members[0];
-						implicitStatic = true;
-					}
-				}
+				if (members.Length != 0)
+					member = members[0]; // todo
 			}
 			if (member == null)
 			{
@@ -310,9 +297,6 @@ namespace LuaInterface
 				break;
 
 			case MemberTypes.NestedType:
-				if (implicitStatic)
-					return luaL.error(L, "can't pass instance to static field " + methodName);
-
 				var nestedType = (Type) member;
 				if (translator.FindType(nestedType))
 					translator.pushType(L, nestedType);
@@ -321,9 +305,6 @@ namespace LuaInterface
 				break;
 
 			default: // Member type must be 'method'
-				if (implicitStatic)
-					return luaL.error(L, "can't pass instance to static method " + methodName);
-
 				var wrapper = new lua.CFunction((new LuaMethodWrapper(translator, objType, methodName, bindingType)).call);
 
 				if (cachedMember == null) setMemberCache(objType, methodName, wrapper);
