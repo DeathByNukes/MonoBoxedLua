@@ -27,21 +27,21 @@ namespace LuaInterfaceTest
 				// blacklisted types are converted to strings (ToString) and the string is pushed instead.
 				lua["object"] = new object();
 				lua.DoString(@"t = object:GetType()");
-				string[] scripts =
+				string[] expressions =
 				{
-					"return t.Assembly",
-					"return t.Module",
-					"return t:GetMethod('ToString')",
-					"return t:GetConstructors()", // this evaluates to the string "System.Reflection.ConstructorInfo[]"
-					"return t:GetMethod('ReferenceEquals')", // note that ReferenceEquals is a static method
+					"t.Assembly",
+					"t.Module",
+					"t:GetMethod('ToString')",
+					"t:GetConstructors()", // this evaluates to the string "System.Reflection.ConstructorInfo[]"
+					"t:GetMethod('ReferenceEquals')", // note that ReferenceEquals is a static method
 				};
-				foreach (var script in scripts)
+				foreach (var expr in expressions)
 				{
-					var result = lua.DoString(script)[0];
+					var result = lua.Eval(expr);
 					#if NUNIT
 						Assert.IsInstanceOf<string>(result, script);
 					#else
-						Assert.IsInstanceOfType(result, typeof(string), script);
+						Assert.IsInstanceOfType(result, typeof(string), expr);
 					#endif
 				}
 			}

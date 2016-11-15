@@ -40,22 +40,15 @@ namespace LuaInterfaceTest
 			public        readonly bool InstanceField = true;
 		}
 
-		static object SingleResult(object[] results)
+		static void TestAllowed(Lua lua, string expr)
 		{
-			if (results == null) return null;
-			Assert.AreEqual(1, results.Length);
-			return results[0];
+			Assert.AreEqual(true, lua.Eval(expr));
 		}
-
-		static void TestAllowed(Lua lua, string chunk)
-		{
-			Assert.AreEqual(true, SingleResult(lua.DoString(chunk)));
-		}
-		static void TestNotAllowed(Lua lua, string chunk, string err)
+		static void TestNotAllowed(Lua lua, string expr, string err)
 		{
 			try
 			{
-				TestAllowed(lua, chunk);
+				TestAllowed(lua, expr);
 				Assert.Fail(err);
 			}
 			catch (LuaScriptException) {}
@@ -69,22 +62,22 @@ namespace LuaInterfaceTest
 				lua.RegisterType(typeof(TestClass));
 
 				// method
-				TestAllowed   (lua, "return test_instance:InstanceMethod()");
-				TestNotAllowed(lua, "return test_instance:StaticMethod()", "Accessed static method from instance.");
-				TestAllowed   (lua, "return TestClass.StaticMethod()");
-				TestNotAllowed(lua, "return test_instance:StaticMethod()", "Accessed static method from instance via cache.");
+				TestAllowed   (lua, "test_instance:InstanceMethod()");
+				TestNotAllowed(lua, "test_instance:StaticMethod()", "Accessed static method from instance.");
+				TestAllowed   (lua, "TestClass.StaticMethod()");
+				TestNotAllowed(lua, "test_instance:StaticMethod()", "Accessed static method from instance via cache.");
 
 				// property
-				TestAllowed   (lua, "return test_instance.InstanceProperty");
-				TestNotAllowed(lua, "return test_instance.StaticProperty", "Accessed static property from instance.");
-				TestAllowed   (lua, "return TestClass.StaticProperty");
-				TestNotAllowed(lua, "return test_instance.StaticProperty", "Accessed static property from instance via cache.");
+				TestAllowed   (lua, "test_instance.InstanceProperty");
+				TestNotAllowed(lua, "test_instance.StaticProperty", "Accessed static property from instance.");
+				TestAllowed   (lua, "TestClass.StaticProperty");
+				TestNotAllowed(lua, "test_instance.StaticProperty", "Accessed static property from instance via cache.");
 
 				// field
-				TestAllowed   (lua, "return test_instance.InstanceField");
-				TestNotAllowed(lua, "return test_instance.StaticField", "Accessed field method from instance.");
-				TestAllowed   (lua, "return TestClass.StaticField");
-				TestNotAllowed(lua, "return test_instance.StaticField", "Accessed field method from instance via cache.");
+				TestAllowed   (lua, "test_instance.InstanceField");
+				TestNotAllowed(lua, "test_instance.StaticField", "Accessed field method from instance.");
+				TestAllowed   (lua, "TestClass.StaticField");
+				TestNotAllowed(lua, "test_instance.StaticField", "Accessed field method from instance via cache.");
 			}
 		}
 
@@ -95,11 +88,11 @@ namespace LuaInterfaceTest
 				lua["test_instance"] = new TestClass();
 				lua.RegisterType(typeof(TestClass));
 
-				TestNotAllowed(lua, "return TestClass['.cctor'] ~= nil", "Got static constructor from type reference.");
-				TestNotAllowed(lua, "return test_instance['.cctor'] ~= nil", "Got static constructor from instance.");
+				TestNotAllowed(lua, "TestClass['.cctor'] ~= nil", "Got static constructor from type reference.");
+				TestNotAllowed(lua, "test_instance['.cctor'] ~= nil", "Got static constructor from instance.");
 
-				TestNotAllowed(lua, "return TestClass['.ctor'] ~= nil", "Got constructor from type reference.");
-				TestNotAllowed(lua, "return test_instance['.ctor'] ~= nil", "Got constructor from instance.");
+				TestNotAllowed(lua, "TestClass['.ctor'] ~= nil", "Got constructor from type reference.");
+				TestNotAllowed(lua, "test_instance['.ctor'] ~= nil", "Got constructor from instance.");
 			}
 		}
 
@@ -112,10 +105,11 @@ namespace LuaInterfaceTest
 				lua["a"] = TestEnum.A;
 				lua.RegisterType(typeof(TestEnum));
 
-				Assert.AreEqual(typeof(TestEnum), SingleResult(lua.DoString("return a")).GetType());
-				Assert.AreEqual(TestEnum.A, SingleResult(lua.DoString("return a")));
-				Assert.AreEqual(TestEnum.A, SingleResult(lua.DoString("return TestEnum.A")));
-				Assert.AreEqual(TestEnum.C, SingleResult(lua.DoString("return TestEnum.C")));
+				Assert.AreEqual(typeof(TestEnum), lua.Eval("a").GetType());
+				Assert.AreEqual(TestEnum.A, lua.Eval("a"));
+				Assert.AreEqual(TestEnum.A, lua.Eval("TestEnum.A"));
+				Assert.AreEqual(TestEnum.B, lua.Eval("...", TestEnum.B));
+				Assert.AreEqual(TestEnum.C, lua.Eval("TestEnum.C"));
 			}
 		}
 	}

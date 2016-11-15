@@ -182,6 +182,29 @@ namespace LuaInterface
 		}
 
 
+		/// <summary>Excutes a Lua expression and returns its first return value.</summary>
+		public object Eval(string expression) { return Eval(expression, (object[])null); }
+		/// <summary>Excutes a Lua expression and returns its first return value. Use <c>...</c> in the expression to refer to the argument(s).</summary>
+		public object Eval(string expression, params object[] args)
+		{
+			expression = "return "+expression;
+			var L = _L;
+			int arg_count = args == null ? 0 : args.Length;
+			luanet.checkstack(L, arg_count+1, "Lua.Eval");
+			if (luaL.loadstring(L, expression) == LUA.ERR.Success)
+			{
+				for (int i = 0; i < arg_count; ++i)
+					translator.push(L, args[i]);
+				if (lua.pcall(L, arg_count, 1, 0) == LUA.ERR.Success)
+				{
+					var ret = translator.getObject(L, -1);
+					lua.pop(L, 1);
+					return ret;
+				}
+			}
+			throw ExceptionFromError(-2); // pop 1
+		}
+
 		/// <summary>Excutes a Lua chunk and returns all the chunk's return values in an array</summary>
 		public object[] DoString(string chunk)
 		{
