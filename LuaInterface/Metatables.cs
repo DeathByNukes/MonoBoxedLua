@@ -231,15 +231,21 @@ namespace LuaInterface
 		}
 
 		/// <summary>
-		/// Pushes the value of a member or a delegate to call it, depending on the type of the member.
+		/// Returns to Lua the value of a member or a delegate to call it, depending on the type of the member.
 		/// Works with static or instance members. Uses reflection to find members,
-		/// and stores the reflected MemberInfo object in a cache (indexed by the type of the object and the name of the member).
+		/// and stores the reflected MemberInfo object in a cache (indexed by <paramref name="objType"/> and <paramref name="methodName"/>).
 		/// </summary>
 		/// <exception cref="ArgumentNullException"><paramref name="objType"/> and <paramref name="methodName"/></exception>
 		private int getMember(lua.State L, IReflect objType, object obj, string methodName, BindingFlags bindingType)
 		{
 			Debug.Assert(L == translator.interpreter._L);
 			Debug.Assert(objType != null && methodName != null);
+
+			Debug.Assert((obj == null) == (objType is ProxyType));
+			Debug.Assert((obj == null) != (objType is Type));
+			Debug.Assert((obj == null) == ((bindingType & BindingFlags.Static) == BindingFlags.Static));
+			Debug.Assert((obj == null) != ((bindingType & BindingFlags.Instance) == BindingFlags.Instance));
+
 			MemberInfo member = null;
 			object cachedMember = checkMemberCache(objType, methodName);
 			if (cachedMember != null)
@@ -257,60 +263,55 @@ namespace LuaInterface
 			{
 				MemberInfo[] members = objType.GetMember(methodName, bindingType | luanet.LuaBindingFlags);
 				if (members.Length != 0)
-					member = members[0]; // todo
+					member = members[0];
 			}
-			if (member == null)
+			
+			object value = null;
+
+			switch (member == null ? MemberTypes.All : member.MemberType)
 			{
+			default: // not found or found a constructor
 				// kevinh - we want to throw an exception because merely returning 'nil' in this case
 				// is not sufficient.  valid data members may return nil and therefore there must be some
 				// way to know the member just doesn't exist.
+				return luaL.error(L, string.Format("'{0}' does not contain a definition for '{1}'", objType.UnderlyingSystemType.FullName, methodName));
 
-				return luaL.error(L, "unknown member name " + methodName);
-			}
-			switch (member.MemberType)
-			{
-			case MemberTypes.Field:
-				FieldInfo field = (FieldInfo) member;
-				try { translator.push(L, field.GetValue(obj)); }
-				catch { lua.pushnil(L); }
-				break;
-
-			case MemberTypes.Property:
-				PropertyInfo property = (PropertyInfo) member;
-
-				try { translator.push(L, property.GetValue(obj, null)); }
-				catch (ArgumentException)
-				{
-					// If we can't find the getter in our class, recurse up to the base class and see if they can help.
-					var type = objType as Type;
-					if (type != null && (type = type.BaseType) != null)
-						return getMember(L, type, obj, methodName, bindingType);
-					else
-						lua.pushnil(L);
-				}
-				catch (TargetInvocationException e) { return translator.throwError(L, e.InnerException); }
-				break;
-
-			case MemberTypes.Event:
-				EventInfo eventInfo = (EventInfo) member;
-				translator.push(L, new RegisterEventHandler(translator.pendingEvents, obj, eventInfo));
-				break;
-
-			case MemberTypes.NestedType:
-				var nestedType = (Type) member;
-				if (translator.FindType(nestedType))
-					translator.pushType(L, nestedType);
-				else
-					lua.pushnil(L);
-				break;
-
-			default: // Member type must be 'method'
+			case MemberTypes.Method:
 				var wrapper = new lua.CFunction((new LuaMethodWrapper(translator, objType, methodName, bindingType)).call);
 
 				if (cachedMember == null) setMemberCache(objType, methodName, wrapper);
 				translator.pushFunction(L, wrapper);
 				lua.pushboolean(L, true);
 				return 2;
+
+			case MemberTypes.Field:
+				var field = (FieldInfo) member;
+				try { value = field.GetValue(obj); }
+				catch { goto default; }
+				translator.push(L, value);
+				break;
+
+			case MemberTypes.Property:
+				// todo: support indexed properties
+				var property = (PropertyInfo) member;
+				try { value = property.GetValue(obj, null); }
+				catch (TargetInvocationException e) { return translator.throwError(L, e.InnerException); }
+				catch { goto default; }
+				translator.push(L, value);
+				break;
+
+			case MemberTypes.Event:
+				var eventInfo = (EventInfo) member;
+				translator.push(L, new RegisterEventHandler(translator.pendingEvents, obj, eventInfo));
+				break;
+
+			case MemberTypes.NestedType:
+				var nestedType = (Type) member;
+				if (translator.FindType(nestedType)) // don't hand out class references unless loaded/whitelisted
+					translator.pushType(L, nestedType);
+				else
+					lua.pushnil(L);
+				break;
 			}
 			
 			if (cachedMember == null) setMemberCache(objType, methodName, member);

@@ -26,6 +26,10 @@ namespace LuaInterfaceTest
 
 		class TestClass
 		{
+			public TestClass() {}
+			public TestClass(bool test) {}
+			static TestClass() {}
+
 			public static bool   StaticMethod() { return true; }
 			public        bool InstanceMethod() { return true; }
 
@@ -81,6 +85,21 @@ namespace LuaInterfaceTest
 				TestNotAllowed(lua, "return test_instance.StaticField", "Accessed field method from instance.");
 				TestAllowed   (lua, "return TestClass.StaticField");
 				TestNotAllowed(lua, "return test_instance.StaticField", "Accessed field method from instance via cache.");
+			}
+		}
+
+		[TestMethod] public void Constructor()
+		{
+			using (var lua = new Lua())
+			{
+				lua["test_instance"] = new TestClass();
+				lua.RegisterType(typeof(TestClass));
+
+				TestNotAllowed(lua, "return TestClass['.cctor'] ~= nil", "Got static constructor from type reference.");
+				TestNotAllowed(lua, "return test_instance['.cctor'] ~= nil", "Got static constructor from instance.");
+
+				TestNotAllowed(lua, "return TestClass['.ctor'] ~= nil", "Got constructor from type reference.");
+				TestNotAllowed(lua, "return test_instance['.ctor'] ~= nil", "Got constructor from instance.");
 			}
 		}
 	}
