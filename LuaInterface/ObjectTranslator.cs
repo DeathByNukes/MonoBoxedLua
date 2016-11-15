@@ -699,7 +699,7 @@ namespace LuaInterface
 				return;
 			}
 			var conv = o as IConvertible;
-			if (conv != null)
+			if (conv != null && conv is Enum == false)
 			switch (conv.GetTypeCode())
 			{
 			case TypeCode.Boolean: lua.pushboolean(L, (bool)   conv);       return;

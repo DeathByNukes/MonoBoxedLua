@@ -102,5 +102,21 @@ namespace LuaInterfaceTest
 				TestNotAllowed(lua, "return test_instance['.ctor'] ~= nil", "Got constructor from instance.");
 			}
 		}
+
+		enum TestEnum { A, B, C }
+
+		[TestMethod] public void Enum()
+		{
+			using (var lua = new Lua())
+			{
+				lua["a"] = TestEnum.A;
+				lua.RegisterType(typeof(TestEnum));
+
+				Assert.AreEqual(typeof(TestEnum), SingleResult(lua.DoString("return a")).GetType());
+				Assert.AreEqual(TestEnum.A, SingleResult(lua.DoString("return a")));
+				Assert.AreEqual(TestEnum.A, SingleResult(lua.DoString("return TestEnum.A")));
+				Assert.AreEqual(TestEnum.C, SingleResult(lua.DoString("return TestEnum.C")));
+			}
+		}
 	}
 }
