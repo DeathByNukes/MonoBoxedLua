@@ -4,30 +4,27 @@ using System.Reflection;
 
 namespace LuaInterface
 {
-	public class ProxyType : IReflect
+	/// <summary>Represents the static type references passed to Lua.</summary>
+	public sealed class ProxyType : IReflect, IEquatable<ProxyType>
 	{
+		readonly Type proxy;
 
-		Type proxy;
-
+		/// <exception cref="ArgumentNullException"></exception>
 		public ProxyType(Type proxy)
 		{
+			if (proxy == null) throw new ArgumentNullException("proxy");
 			this.proxy = proxy;
 		}
 
 		/// <summary>Provide human readable short hand for this proxy object</summary>
 		public override string ToString()
 		{
-			return "ProxyType(" + UnderlyingSystemType + ")";
+			return "ProxyType(" + proxy.Name + ")";
 		}
 
+		#region forward IReflect implementation to proxy
 
-		public Type UnderlyingSystemType
-		{
-			get
-			{
-				return proxy;
-			}
-		}
+		public Type UnderlyingSystemType { get { return proxy; } }
 
 		public FieldInfo GetField(string name, BindingFlags bindingAttr)
 		{
@@ -84,5 +81,23 @@ namespace LuaInterface
 			return proxy.InvokeMember(name, invokeAttr, binder, target, args, modifiers, culture, namedParameters);
 		}
 
+		#endregion
+
+		#region equality
+
+		public bool Equals(ProxyType other)
+		{
+			if ((object) other == null) return false;
+			return this.proxy == other.proxy;
+		}
+
+		public override bool Equals(object obj) { return this.Equals(obj as ProxyType); }
+
+		public override int GetHashCode() { return proxy.GetHashCode() ^ 1; }
+
+		public static bool operator ==(ProxyType left, ProxyType right) { return Equals(left, right); }
+		public static bool operator !=(ProxyType left, ProxyType right) { return !Equals(left, right); }
+
+		#endregion
 	}
 }
