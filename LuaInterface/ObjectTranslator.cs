@@ -53,7 +53,6 @@ namespace LuaInterface
 			enumFromIntFunction = this.enumFromInt;
 
 			createLuaObjectList(L);
-			createIndexingMetaFunction(L);
 			createBaseClassMetatable(L);
 			createClassMetatable(L);
 			createFunctionMetatable(L);
@@ -70,16 +69,6 @@ namespace LuaInterface
 			lua.setfield(L,-2,"__mode");
 			lua.setmetatable(L,-2);
 			lua.setfield(L, LUA.REGISTRYINDEX, "luaNet_objects");
-			StackAssert.End();
-		}
-		/// <summary>[requires checkstack(2)] Registers the indexing function of CLR objects passed to Lua</summary>
-		private static void createIndexingMetaFunction(lua.State L)
-		{
-			StackAssert.Start(L);
-			lua.pushstring(L,"luaNet_indexfunction");
-			luaL.dostring(L,MetaFunctions.luaIndexFunction); // -0, +1
-			//lua.pushcfunction(L,indexFunction);
-			lua.rawset(L, LUA.REGISTRYINDEX);
 			StackAssert.End();
 		}
 		/// <summary>[requires checkstack(3)] Creates the metatable for superclasses (the base field of registered tables)</summary>
@@ -127,8 +116,6 @@ namespace LuaInterface
 		private void setGlobalFunctions(lua.State L)
 		{
 			Debug.Assert(L == interpreter._L); StackAssert.Start(L);
-			lua.pushcfunction(L,metaFunctions.indexFunction);
-			lua.setglobal(L,"get_object_member");
 			/*lua.pushcfunction(L,importTypeFunction);
 			lua.setglobal(L,"import_type");
 			lua.pushcfunction(L,loadAssemblyFunction);
@@ -484,8 +471,7 @@ namespace LuaInterface
 				lua.rawset(L,-3);
 
 				lua.pushstring(L,"__index");
-				lua.pushstring(L,"luaNet_indexfunction");
-				lua.rawget(L, LUA.REGISTRYINDEX);
+				lua.pushcfunction(L,metaFunctions.indexFunction);
 				lua.rawset(L,-3);
 
 				lua.pushstring(L,"__gc");

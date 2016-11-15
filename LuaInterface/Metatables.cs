@@ -15,24 +15,6 @@ namespace LuaInterface
 	/// </remarks>
 	class MetaFunctions
 	{
-		/// <summary>__index metafunction for CLR objects. Implemented in Lua. Chunk returns a single value.</summary>
-		internal const string luaIndexFunction = @"
-			return function(obj,name)
-				local meta=getmetatable(obj)
-				local cached=meta.cache[name]
-				if cached then
-					return cached
-				else
-					local value,isFunc = get_object_member(obj,name)
-					if value==nil and type(isFunc)=='string' then error(isFunc,2) end
-					if isFunc then
-						meta.cache[name]=value
-					end
-					return value
-				end
-			end
-		";
-
 		private readonly ObjectTranslator translator;
 		internal readonly lua.CFunction gcFunction, indexFunction, newindexFunction,
 			baseIndexFunction, classIndexFunction, classNewindexFunction,
@@ -43,7 +25,7 @@ namespace LuaInterface
 			this.translator = translator;
 			gcFunction = this.collectObject;
 			toStringFunction = this.toString;
-			indexFunction = this.getMethod;
+			indexFunction = this.index;
 			newindexFunction = this.setFieldOrProperty;
 			baseIndexFunction = this.getBaseMethod;
 			callConstructorFunction = this.callConstructor;
@@ -100,6 +82,37 @@ namespace LuaInterface
 			return 1;
 		}
 
+		/// <summary>__index metafunction of CLR objects. Checks metatable.cache for previously used functions before calling getMethod to look up the member.</summary>
+		private int index(lua.State L)
+		{
+			if (lua.gettop(L) != 2)
+				return luaL.error(L, "__index requires 2 arguments");
+			// __index(o,k)
+			if (!luaL.getmetafield(L, 1, "cache"))
+				return luaL.typerror(L, 1, "CLR object");
+			lua.pushvalue(L, 2);
+			lua.gettable(L, 3); // metatable(o).cache[k]
+			if (!lua.isnil(L, -1))
+				return 1;
+
+			lua.settop(L, 3);
+			if (getMethod(L) != 2)
+				return luaL.error(L, "unexpected getMethod return values");
+
+			if (lua.type(L, -1) == LUA.T.STRING)
+				return luaL.error(L, lua.tostring(L, -1));
+			bool is_function = lua.toboolean(L, -1);
+			lua.pop(L, 1);
+
+			Debug.Assert(lua.gettop(L) <= LUA.MINSTACK-2);
+			if (is_function)
+			{
+				lua.pushvalue(L, 2);
+				lua.pushvalue(L, -2);
+				lua.settable(L, 3); // metatable(o).cache[k] = getMethod(L)
+			}
+			return 1;
+		}
 
 		/// <summary>
 		/// Implementation of get_object_member. Called by the __index metafunction of CLR objects in case the method is not cached or it is a field/property/event.
