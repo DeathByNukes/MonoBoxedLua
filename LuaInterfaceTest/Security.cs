@@ -1,4 +1,5 @@
-﻿using LuaInterface;
+﻿using System;
+using LuaInterface;
 
 namespace LuaInterfaceTest
 {
@@ -44,6 +45,36 @@ namespace LuaInterfaceTest
 						Assert.IsInstanceOfType(result, typeof(string), expr);
 					#endif
 				}
+			}
+		}
+
+		[TestMethod] public void LoadAssembly()
+		{
+			using (var lua = new Lua())
+			{
+				foreach (var assembly in new [] {"mscorlib", "System", "LuaInterface"})
+				try
+				{
+					lua.Eval("load_assembly(...)", assembly);
+					Assert.Fail("Succeeded in loading assembly: "+assembly);
+				}
+				catch (LuaScriptException) {}
+			}
+		}
+		[TestMethod] public void ImportType()
+		{
+			using (var lua = new Lua())
+			{
+				foreach (var assembly in new [] {"mscorlib", "System", "LuaInterface"})
+				try
+				{
+					lua.Eval("load_assembly(...)", assembly);
+				}
+				catch (LuaScriptException) {}
+
+				Assert.IsNull(lua.Eval("import_type('System.Diagnostics.Process')"));
+				Assert.IsNull(lua.Eval("import_type('System.IO.File')"));
+				Assert.IsNull(lua.Eval("import_type('LuaInterface.Lua')"));
 			}
 		}
 	}

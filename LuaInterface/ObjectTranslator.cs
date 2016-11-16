@@ -116,9 +116,9 @@ namespace LuaInterface
 		private void setGlobalFunctions(lua.State L)
 		{
 			Debug.Assert(L == interpreter._L); StackAssert.Start(L);
-			/*lua.pushcfunction(L,importTypeFunction);
+			lua.pushcfunction(L,importTypeFunction);
 			lua.setglobal(L,"import_type");
-			lua.pushcfunction(L,loadAssemblyFunction);
+			/*lua.pushcfunction(L,loadAssemblyFunction);
 			lua.setglobal(L,"load_assembly");
 			lua.pushcfunction(L,registerTableFunction);
 			lua.setglobal(L,"make_object");
