@@ -106,5 +106,13 @@ namespace LuaInterfaceTest
 				//lua.DoString("Process.Start('calc.exe')"); // pwned
 			}
 		}
+		[TestMethod] public void Metatable()
+		{
+			using (var lua = new Lua())
+			{
+				lua["o"] = new object();
+				Assert.AreNotEqual("table", lua.Eval("type(getmetatable(o))"));
+			}
+		}
 	}
 }

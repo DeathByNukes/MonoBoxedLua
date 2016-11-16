@@ -74,6 +74,7 @@ namespace LuaInterface
 		{
 			Debug.Assert(L == interpreter._L); StackAssert.Start(L);
 			luaL.newmetatable(L,"luaNet_searchbase");
+			lua.pushboolean(L, false);                           lua.setfield(L,-2,"__metatable");
 			lua.pushcfunction(L,metaFunctions.gcFunction);       lua.setfield(L,-2,"__gc");
 			lua.pushcfunction(L,metaFunctions.toStringFunction); lua.setfield(L,-2,"__tostring");
 			lua.pushcfunction(L,metaFunctions.baseIndexFunction);lua.setfield(L,-2,"__index");
@@ -85,6 +86,7 @@ namespace LuaInterface
 		{
 			Debug.Assert(L == interpreter._L); StackAssert.Start(L);
 			luaL.newmetatable(L,"luaNet_class");
+			lua.pushboolean(L, false);                                  lua.setfield(L,-2,"__metatable");
 			lua.pushcfunction(L,metaFunctions.gcFunction);              lua.setfield(L,-2,"__gc");
 			lua.pushcfunction(L,metaFunctions.toStringFunction);        lua.setfield(L,-2,"__tostring");
 			lua.pushcfunction(L,metaFunctions.classIndexFunction);      lua.setfield(L,-2,"__index");
@@ -112,6 +114,7 @@ namespace LuaInterface
 		{
 			Debug.Assert(L == interpreter._L); StackAssert.Start(L);
 			luaL.newmetatable(L,"luaNet_function");
+			lua.pushboolean(L, false);                               lua.setfield(L,-2,"__metatable");
 			lua.pushcfunction(L,metaFunctions.gcFunction);           lua.setfield(L,-2,"__gc");
 			lua.pushcfunction(L,metaFunctions.execDelegateFunction); lua.setfield(L,-2,"__call");
 			lua.pop(L,1);                      StackAssert.End();
@@ -445,6 +448,7 @@ namespace LuaInterface
 			// Gets or creates the metatable for the object's type
 			else if (luaL.newmetatable(L,o.GetType().AssemblyQualifiedName))
 			{
+				lua.pushboolean(L, false);                           lua.setfield(L,-2,"__metatable");
 				lua.newtable(L);                                     lua.setfield(L,-2,"cache");
 				lua.pushcfunction(L,metaFunctions.indexFunction);    lua.setfield(L,-2,"__index");
 				lua.pushcfunction(L,metaFunctions.gcFunction);       lua.setfield(L,-2,"__gc");
