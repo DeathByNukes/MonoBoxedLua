@@ -818,6 +818,7 @@ namespace LuaInterface
 		/// <summary><para>Frees the Lua references held by <see cref="LuaBase"/> objects that weren't properly disposed but got cleaned up by the .NET garbage collector.</para><para>Returns the number of leaks that were cleaned up.</para><para>It is not necessary to call this if you are about to dispose the entire <see cref="Lua"/> instance.</para></summary>
 		public int CleanLeaks()
 		{
+			if (!_has_leaked_refs) return 0;
 			var refs = _leaked_refs;
 			lock (refs)
 			{
@@ -826,6 +827,7 @@ namespace LuaInterface
 					luaL.unref(L, r);
 				var count = refs.Count;
 				refs.Clear();
+				_has_leaked_refs = false;
 				return count;
 			}
 		}
@@ -841,11 +843,13 @@ namespace LuaInterface
 			try
 			{
 				refs.Add(reference);
+				_has_leaked_refs = true;
 				Lua.leaked();
 			}
 			finally { Monitor.Exit(refs); }
 		}
 		readonly List<int> _leaked_refs = new List<int>(); // System.Collections.Concurrent isn't available in .NET 3.5
+		bool _has_leaked_refs;
 
 
 		#region LeakCount
