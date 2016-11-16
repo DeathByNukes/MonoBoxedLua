@@ -697,6 +697,21 @@ namespace LuaInterface
 			var method = function.Method;
 			return new LuaFunction(new LuaMethodWrapper(translator, function.Target, method.DeclaringType, method).call, this);
 		}
+		
+		/// <summary><para>Loads all types in the assembly just like the Lua function load_assembly.</para><para>Lua scripts can access static members and constructors of loaded types via the import_type function.</para></summary>
+		public void LoadAssembly(Assembly assembly)
+		{
+			if (assembly == null) throw new ArgumentNullException("assembly");
+			translator.LoadAssembly(assembly);
+		}
+		/// <summary><para>Loads the type and all types nested inside of it.</para><para>Lua scripts can access static members and constructors of loaded types via the import_type function.</para></summary>
+		public void LoadType(Type type) { LoadType(type, true); }
+		/// <summary><para>Loads the type. If <paramref name="and_nested"/> is true, nested types inside the type will also be loaded.</para><para>Lua scripts can access static members and constructors of loaded types via the import_type function.</para></summary>
+		public void LoadType(Type type, bool and_nested)
+		{
+			if (type == null) throw new ArgumentNullException("type");
+			translator.LoadType(type, and_nested);
+		}
 
 		/// <summary>Creates a type proxy object just like Lua import_type.</summary>
 		public LuaUserData ImportType(Type type)

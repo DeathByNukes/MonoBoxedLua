@@ -27,7 +27,6 @@ namespace LuaInterface
 
 		internal Lua interpreter;
 		private MetaFunctions metaFunctions;
-		private List<Assembly> assemblies;
 		private lua.CFunction registerTableFunction,unregisterTableFunction,getMethodSigFunction,
 			getConstructorSigFunction,importTypeFunction,loadAssemblyFunction, ctypeFunction, enumFromIntFunction;
 
@@ -38,19 +37,18 @@ namespace LuaInterface
 			this.interpreter=interpreter;
 			var L = interpreter._L;
 			luanet.checkstack(L, 3, "new ObjectTranslator");
-			typeChecker=new CheckType(this);
-			metaFunctions=new MetaFunctions(this);
-			assemblies=new List<Assembly>();
+			typeChecker = new CheckType(this);
+			metaFunctions = new MetaFunctions(this);
 
-			importTypeFunction = this.importType;
-			loadAssemblyFunction = this.loadAssembly;
-			registerTableFunction = this.registerTable;
-			unregisterTableFunction = this.unregisterTable;
-			getMethodSigFunction = this.getMethodSignature;
+			importTypeFunction        = this.importType;
+			loadAssemblyFunction      = this.loadAssembly;
+			registerTableFunction     = this.registerTable;
+			unregisterTableFunction   = this.unregisterTable;
+			getMethodSigFunction      = this.getMethodSignature;
 			getConstructorSigFunction = this.getConstructorSignature;
 
-			ctypeFunction = this.ctype;
-			enumFromIntFunction = this.enumFromInt;
+			ctypeFunction             = this.ctype;
+			enumFromIntFunction       = this.enumFromInt;
 
 			createLuaObjectList(L);
 			createBaseClassMetatable(L);
@@ -165,6 +163,10 @@ namespace LuaInterface
 			push(L, ex);
 			return lua.error(L);
 		}
+
+		private readonly List<Assembly> loaded_assemblies = new List<Assembly>();
+		private readonly Dictionary<string, Type> loaded_types = new Dictionary<string, Type>();
+
 		/// <summary>Implementation of load_assembly. Throws an error if the assembly is not found.</summary>
 		private int loadAssembly(lua.State L)
 		{
@@ -184,30 +186,47 @@ namespace LuaInterface
 				if (assembly == null)
 					assembly = Assembly.Load(AssemblyName.GetAssemblyName(assemblyName));
 
-				if (assembly != null && !assemblies.Contains(assembly))
-					assemblies.Add(assembly);
+				if (assembly != null)
+					LoadAssembly(assembly);
 			}
 			catch (Exception e) { return throwError(L,e); }
 
 			return 0;
 		}
+		internal void LoadAssembly(Assembly assembly)
+		{
+			Debug.Assert(assembly != null);
+			if (!loaded_assemblies.Contains(assembly))
+				loaded_assemblies.Add(assembly);
+		}
+		internal void LoadType(Type t, bool and_nested)
+		{
+			Debug.Assert(t != null);
+			loaded_types.Add(t.FullName, t);
+			if (!and_nested) return;
+			foreach (var nested in t.GetNestedTypes(luanet.LuaBindingFlags | BindingFlags.FlattenHierarchy))
+				LoadType(nested, true);
+		}
 
 		internal bool FindType(Type t)
 		{
 			Debug.Assert(t != null);
-			return assemblies.Contains(t.Assembly);
+			if (loaded_assemblies.Contains(t.Assembly))
+				return true;
+			Type found;
+			if (!loaded_types.TryGetValue(t.FullName, out found))
+				return false;
+			return t == found;
 		}
 		internal Type FindType(string className)
 		{
-			foreach (Assembly assembly in assemblies)
-			{
-				Type klass = assembly.GetType(className);
-				if(klass!=null)
-				{
-					return klass;
-				}
-			}
-			return null;
+			Type t;
+			foreach (var assembly in loaded_assemblies)
+				if ((t = assembly.GetType(className)) != null)
+					return t;
+
+			loaded_types.TryGetValue(className, out t); // null if not found
+			return t;
 		}
 
 		/// <summary>Implementation of import_type. Returns nil if the type is not found.</summary>
@@ -614,7 +633,7 @@ namespace LuaInterface
 			Debug.Assert(L == interpreter._L);
 			luaL.checkstack(L, 3, "ObjectTranslator.getNetObject");
 			int id = luanet.tonetobject(L,index);
-			if(id != -1)
+			if (id != -1)
 				return objects[id];
 			else
 				return null;
@@ -624,8 +643,10 @@ namespace LuaInterface
 		{
 			Debug.Assert(L == interpreter._L);
 			int id = luanet.rawnetobj(L,index);
-			if (id == -1) return null;
-			return objects[id];
+			if (id != -1)
+				return objects[id];
+			else
+				return null;
 		}
 
 		/// <summary>Gets the values from the provided index to the top of the stack and returns them in an array.</summary>

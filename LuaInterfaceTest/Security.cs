@@ -77,5 +77,34 @@ namespace LuaInterfaceTest
 				Assert.IsNull(lua.Eval("import_type('LuaInterface.Lua')"));
 			}
 		}
+		[TestMethod] public void LoadType()
+		{
+			using (var lua = new Lua())
+			{
+				lua.LoadType(typeof(System.DateTime));
+
+				lua.DoString("DateTime = import_type 'System.DateTime'");
+				Assert.AreEqual(new DateTime(12), lua.Eval("DateTime(12)"));
+				Assert.AreEqual((double) new DateTime[12].Length, lua.Eval("DateTime[12].Length"));
+				Assert.AreEqual(new DateTime(12).Subtract(new DateTime(6)), lua.Eval("DateTime(12):Subtract(DateTime(6))"));
+
+				Assert.IsNull(lua.Eval("import_type('System.TimeSpan')"));
+
+				Assert.IsNull(lua.Eval("import_type('System.Diagnostics.Process')"));
+				Assert.IsNull(lua.Eval("import_type('System.IO.File')"));
+				Assert.IsNull(lua.Eval("import_type('LuaInterface.Lua')"));
+			}
+		}
+		[TestMethod] public void Elevate()
+		{
+			using (var lua = new Lua())
+			{
+				// this is an example of what you should NOT do for untrusted scripts
+				lua.LoadAssembly(typeof(System.Uri).Assembly); // loads System.dll
+				lua.DoString("Process = import_type 'System.Diagnostics.Process'"); // is also in System.dll
+				Assert.IsNotNull(lua["Process"]);
+				//lua.DoString("Process.Start('calc.exe')"); // pwned
+			}
+		}
 	}
 }
