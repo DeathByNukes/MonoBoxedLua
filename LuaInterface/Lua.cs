@@ -183,9 +183,13 @@ namespace LuaInterface
 
 
 		/// <summary>Excutes a Lua expression and returns its first return value.</summary>
-		public object Eval(string expression) { return Eval(expression, (object[])null); }
+		public object Eval(string expression) { return Eval<object>(expression, (object[])null); }
 		/// <summary>Excutes a Lua expression and returns its first return value. Use <c>...</c> in the expression to refer to the argument(s).</summary>
-		public object Eval(string expression, params object[] args)
+		public object Eval(string expression, params object[] args) { return Eval<object>(expression, args); }
+		/// <summary>Excutes a Lua expression and returns its first return value converted to <typeparamref name="T"/>.</summary>
+		public T Eval<T>(string expression) { return Eval<T>(expression, (object[])null); }
+		/// <summary>Excutes a Lua expression and returns its first return value converted to <typeparamref name="T"/>. Use <c>...</c> in the expression to refer to the argument(s).</summary>
+		public T Eval<T>(string expression, params object[] args)
 		{
 			expression = "return "+expression;
 			var L = _L;
@@ -197,7 +201,8 @@ namespace LuaInterface
 					translator.push(L, args[i]);
 				if (lua.pcall(L, arg_count, 1, 0) == LUA.ERR.Success)
 				{
-					var ret = translator.getObject(L, -1);
+					var extractor = translator.typeChecker.checkType(L, -1, typeof(T));
+					T ret = extractor == null ? default(T) : (T)extractor(L, -1);
 					lua.pop(L, 1);
 					return ret;
 				}

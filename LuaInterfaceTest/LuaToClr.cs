@@ -103,7 +103,7 @@ namespace LuaInterfaceTest
 				Assert.AreEqual(TestEnum.A, lua.Eval("a"));
 				Assert.AreEqual(TestEnum.A, lua.Eval("TestEnum.A"));
 				Assert.AreEqual(TestEnum.B, lua.Eval("...", TestEnum.B));
-				Assert.AreEqual(TestEnum.C, lua.Eval("TestEnum.C"));
+				Assert.AreEqual(TestEnum.C, lua.Eval<TestEnum>("TestEnum.C"));
 			}
 		}
 	}
