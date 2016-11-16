@@ -16,34 +16,40 @@ namespace LuaInterface
 		readonly ObjectTranslator translator;
 
 		readonly ExtractValue extractNetObject;
-		readonly Dictionary<RuntimeTypeHandle, ExtractValue> extractValues;
+		readonly Dictionary<RuntimeTypeHandle, Caster> _casters;
+		struct Caster
+		{
+			public readonly CheckValue   CheckValue;
+			public readonly ExtractValue ExtractValue;
+			public Caster(CheckValue c, ExtractValue e) { CheckValue = c; ExtractValue = e; }
+		}
 
 		public CheckType(ObjectTranslator translator)
 		{
 			this.translator = translator;
 			// rationale for TypeHandle: http://stackoverflow.com/a/126507
-			extractValues = new Dictionary<RuntimeTypeHandle, ExtractValue>
+			_casters = new Dictionary<RuntimeTypeHandle, Caster>(18)
 			{
-				{typeof(object)     .TypeHandle, getAsObject},
-				{typeof(sbyte)      .TypeHandle, getAsSbyte},
-				{typeof(byte)       .TypeHandle, getAsByte},
-				{typeof(short)      .TypeHandle, getAsShort},
-				{typeof(ushort)     .TypeHandle, getAsUshort},
-				{typeof(int)        .TypeHandle, getAsInt},
-				{typeof(uint)       .TypeHandle, getAsUint},
-				{typeof(long)       .TypeHandle, getAsLong},
-				{typeof(ulong)      .TypeHandle, getAsUlong},
-				{typeof(double)     .TypeHandle, getAsDouble},
-				{typeof(char)       .TypeHandle, getAsChar},
-				{typeof(float)      .TypeHandle, getAsFloat},
-				{typeof(decimal)    .TypeHandle, getAsDecimal},
-				{typeof(bool)       .TypeHandle, getAsBoolean},
-				{typeof(string)     .TypeHandle, getAsString},
-				{typeof(LuaFunction).TypeHandle, translator.getFunction},
-				{typeof(LuaTable)   .TypeHandle, translator.getTable},
-				{typeof(LuaUserData).TypeHandle, translator.getUserData}
+				{typeof(object     ).TypeHandle, new Caster(isObject  , asObject  )},
+				{typeof(sbyte      ).TypeHandle, new Caster(isSbyte   , asSbyte   )},
+				{typeof(byte       ).TypeHandle, new Caster(isByte    , asByte    )},
+				{typeof(short      ).TypeHandle, new Caster(isShort   , asShort   )},
+				{typeof(ushort     ).TypeHandle, new Caster(isUshort  , asUshort  )},
+				{typeof(int        ).TypeHandle, new Caster(isInt     , asInt     )},
+				{typeof(uint       ).TypeHandle, new Caster(isUint    , asUint    )},
+				{typeof(long       ).TypeHandle, new Caster(isLong    , asLong    )},
+				{typeof(ulong      ).TypeHandle, new Caster(isUlong   , asUlong   )},
+				{typeof(double     ).TypeHandle, new Caster(isDouble  , asDouble  )},
+				{typeof(char       ).TypeHandle, new Caster(isChar    , asChar    )},
+				{typeof(float      ).TypeHandle, new Caster(isFloat   , asFloat   )},
+				{typeof(decimal    ).TypeHandle, new Caster(isDecimal , asDecimal )},
+				{typeof(bool       ).TypeHandle, new Caster(isBoolean , asBoolean )},
+				{typeof(string     ).TypeHandle, new Caster(isString  , asString  )},
+				{typeof(LuaFunction).TypeHandle, new Caster(isFunction, asFunction)},
+				{typeof(LuaTable   ).TypeHandle, new Caster(isTable   , asTable   )},
+				{typeof(LuaUserData).TypeHandle, new Caster(isUserData, asUserData)},
 			};
-			extractNetObject = getAsNetObject;
+			extractNetObject = asNetObject;
 		}
 
 		internal ExtractValue getExtractor(IReflect paramType)
@@ -54,219 +60,100 @@ namespace LuaInterface
 		{
 			if(paramType.IsByRef) paramType=paramType.GetElementType();
 
-			ExtractValue value;
-			return extractValues.TryGetValue(paramType.TypeHandle, out value)
-				? value : extractNetObject;
+			Caster caster;
+			return _casters.TryGetValue(paramType.TypeHandle, out caster)
+				? caster.ExtractValue : extractNetObject;
 		}
 
 		/// <summary>Checks if the value at the specified Lua stack index matches paramType, returning a conversion function if it does and null otherwise.</summary>
 		internal ExtractValue checkType(lua.State L,int index,Type paramType)
 		{
 			Debug.Assert(L == translator.interpreter._L);
-			var luatype = lua.type(L, index);
 
-			if(paramType.IsByRef) paramType=paramType.GetElementType();
+			if (paramType.IsByRef) paramType = paramType.GetElementType();
 
 			Type underlyingType = Nullable.GetUnderlyingType(paramType);
 			if (underlyingType != null)
+				paramType = underlyingType; // Silently convert nullable types to their non null requics
+
+			Caster caster;
+			if (_casters.TryGetValue(paramType.TypeHandle, out caster))
 			{
-				paramType = underlyingType;     // Silently convert nullable types to their non null requics
+				return caster.CheckValue(L, index)
+					? caster.ExtractValue : null;
 			}
 
-			var paramTypeHandle = paramType.TypeHandle;
+			switch (lua.type(L, index))
+			{
+			case LUA.T.FUNCTION:
+				if (typeof(Delegate).IsAssignableFrom(paramType))
+				{
+					#if __NOGEN__
+						luaL.error(L,"Delegates not implemented");
+					#else
+						return new ExtractValue(new DelegateGenerator(translator, paramType).extractGenerated);
+					#endif
+				}
+				break;
 
-			if (paramType == typeof(object))
-				return extractValues[paramTypeHandle];
-
-			/*
-			//CP: Added support for generic parameters
-			if (paramType.IsGenericParameter)
-			{
-				if (luatype == LUA.T.BOOLEAN)
-					return extractValues[typeof(bool).TypeHandle];
-				else if (luatype == LUA.T.STRING)
-					return extractValues[typeof(string).TypeHandle];
-				else if (luatype == LUA.T.TABLE)
-					return extractValues[typeof(LuaTable).TypeHandle];
-				else if (luatype == LUA.T.USERDATA)
-					return extractValues[typeof(object).TypeHandle];
-				else if (luatype == LUA.T.FUNCTION)
-					return extractValues[typeof(LuaFunction).TypeHandle];
-				else if (luatype == LUA.T.NUMBER)
-					return extractValues[typeof(double).TypeHandle];
-				//else // suppress CS0642
-					;//an unsupported type was encountered
-			}
-			*/
-
-			if (lua.isnumber(L, index))
-				return extractValues[paramTypeHandle];
-
-			if (paramType == typeof(bool))
-			{
-				if (luatype == LUA.T.BOOLEAN)
-					return extractValues[paramTypeHandle];
-			}
-			else if (paramType == typeof(string))
-			{
-				if (lua.isstring(L, index))
-					return extractValues[paramTypeHandle];
-				else if (luatype == LUA.T.NIL)
-					return extractNetObject; // kevinh - silently convert nil to a null string pointer
-			}
-			else if (paramType == typeof(LuaTable))
-			{
-				if (luatype == LUA.T.TABLE)
-					return extractValues[paramTypeHandle];
-				else if (luatype == LUA.T.NIL)
-					return extractNetObject; // tkopal - silently convert nil to a null table
-			}
-			else if (paramType == typeof(LuaUserData))
-			{
-				if (luatype == LUA.T.USERDATA)
-					return extractValues[paramTypeHandle];
-			}
-			else if (paramType == typeof(LuaFunction))
-			{
-				if (luatype == LUA.T.FUNCTION)
-					return extractValues[paramTypeHandle];
-				else if (luatype == LUA.T.NIL)
-					return extractNetObject; // elisee - silently convert nil to a null string pointer
-			}
-			else if (typeof(Delegate).IsAssignableFrom(paramType) && luatype == LUA.T.FUNCTION)
-			{
-#if __NOGEN__
-				luaL.error(L,"Delegates not implemented");
-#else
-				return new ExtractValue(new DelegateGenerator(translator, paramType).extractGenerated);
-#endif
-			}
-			else if (paramType.IsInterface && luatype == LUA.T.TABLE)
-			{
-#if __NOGEN__
-				luaL.error(L,"Interfaces not implemented");
-#else
-				return new ExtractValue(new ClassGenerator(translator, paramType).extractGenerated);
-#endif
-			}
-			else if ((paramType.IsInterface || paramType.IsClass) && luatype == LUA.T.NIL)
-			{
-				// kevinh - allow nil to be silently converted to null - extractNetObject will return null when the item ain't found
-				return extractNetObject;
-			}
-			else if (luatype == LUA.T.TABLE)
-			{
+			case LUA.T.TABLE:
+				if (paramType.IsInterface)
+				{
+					#if __NOGEN__
+						luaL.error(L,"Interfaces not implemented");
+					#else
+						return new ExtractValue(new ClassGenerator(translator, paramType).extractGenerated);
+					#endif
+				}
 				luaL.checkstack(L, 1, "CheckType.checkType");
 				if (luaL.getmetafield(L, index, "__index"))
 				{
-					object obj = translator.getNetObject(L, -1);
+					object indexer = translator.getNetObject(L, -1);
 					lua.pop(L,1);
-					if (obj != null && paramType.IsAssignableFrom(obj.GetType()))
+					if (indexer != null && paramType.IsAssignableFrom(indexer.GetType()))
 						return extractNetObject;
 				}
-				else
-					return null;
-			}
-			else
-			{
+				break;
+
+			case LUA.T.NIL:
+				if (paramType.IsClass || paramType.IsInterface)
+					return extractNetObject;
+				break;
+
+			case LUA.T.USERDATA:
 				object obj = translator.getNetObject(L, index);
 				if (obj != null && paramType.IsAssignableFrom(obj.GetType()))
 					return extractNetObject;
+				break;
 			}
-
 			return null;
 		}
 
 		// The following functions return the value in the specified Lua stack index as the desired type if it can, or null otherwise.
-		private static object getAsSbyte(lua.State L,int index)
-		{
-			sbyte retVal=(sbyte)lua.tonumber(L,index);
-			if(retVal==0 && !lua.isnumber(L,index)) return null;
-			return retVal;
-		}
-		private static object getAsByte(lua.State L,int index)
-		{
-			byte retVal=(byte)lua.tonumber(L,index);
-			if(retVal==0 && !lua.isnumber(L,index)) return null;
-			return retVal;
-		}
-		private static object getAsShort(lua.State L,int index)
-		{
-			short retVal=(short)lua.tonumber(L,index);
-			if(retVal==0 && !lua.isnumber(L,index)) return null;
-			return retVal;
-		}
-		private static object getAsUshort(lua.State L,int index)
-		{
-			ushort retVal=(ushort)lua.tonumber(L,index);
-			if(retVal==0 && !lua.isnumber(L,index)) return null;
-			return retVal;
-		}
-		private static object getAsInt(lua.State L,int index)
-		{
-			int retVal=(int)lua.tonumber(L,index);
-			if(retVal==0 && !lua.isnumber(L,index)) return null;
-			return retVal;
-		}
-		private static object getAsUint(lua.State L,int index)
-		{
-			uint retVal=(uint)lua.tonumber(L,index);
-			if(retVal==0 && !lua.isnumber(L,index)) return null;
-			return retVal;
-		}
-		private static object getAsLong(lua.State L,int index)
-		{
-			long retVal=(long)lua.tonumber(L,index);
-			if(retVal==0 && !lua.isnumber(L,index)) return null;
-			return retVal;
-		}
-		private static object getAsUlong(lua.State L,int index)
-		{
-			ulong retVal=(ulong)lua.tonumber(L,index);
-			if(retVal==0 && !lua.isnumber(L,index)) return null;
-			return retVal;
-		}
-		private static object getAsDouble(lua.State L,int index)
-		{
-			double retVal=lua.tonumber(L,index);
-			if(retVal==0 && !lua.isnumber(L,index)) return null;
-			return retVal;
-		}
-		private static object getAsChar(lua.State L,int index)
-		{
-			char retVal=(char)lua.tonumber(L,index);
-			if(retVal==0 && !lua.isnumber(L,index)) return null;
-			return retVal;
-		}
-		private static object getAsFloat(lua.State L,int index)
-		{
-			float retVal=(float)lua.tonumber(L,index);
-			if(retVal==0 && !lua.isnumber(L,index)) return null;
-			return retVal;
-		}
-		private static object getAsDecimal(lua.State L,int index)
-		{
-			decimal retVal=(decimal)lua.tonumber(L,index);
-			if(retVal==0 && !lua.isnumber(L,index)) return null;
-			return retVal;
-		}
-		private static object getAsBoolean(lua.State L,int index)
-		{
-			return lua.toboolean(L,index);
-		}
-		private static object getAsString(lua.State L,int index)
-		{
-			string retVal=lua.tostring(L,index);
-			if(retVal=="" && !lua.isstring(L,index)) return null;
-			return retVal;
-		}
+		static object asSbyte   (lua.State L,int index) { double num; return luanet.trygetnumber(L, index, out num) ? (object)(sbyte  ) num : null; } 
+		static object asByte    (lua.State L,int index) { double num; return luanet.trygetnumber(L, index, out num) ? (object)(byte   ) num : null; }
+		static object asShort   (lua.State L,int index) { double num; return luanet.trygetnumber(L, index, out num) ? (object)(short  ) num : null; }
+		static object asUshort  (lua.State L,int index) { double num; return luanet.trygetnumber(L, index, out num) ? (object)(ushort ) num : null; }
+		static object asInt     (lua.State L,int index) { double num; return luanet.trygetnumber(L, index, out num) ? (object)(int    ) num : null; }
+		static object asUint    (lua.State L,int index) { double num; return luanet.trygetnumber(L, index, out num) ? (object)(uint   ) num : null; }
+		static object asLong    (lua.State L,int index) { double num; return luanet.trygetnumber(L, index, out num) ? (object)(long   ) num : null; }
+		static object asUlong   (lua.State L,int index) { double num; return luanet.trygetnumber(L, index, out num) ? (object)(ulong  ) num : null; }
+		static object asDouble  (lua.State L,int index) { double num; return luanet.trygetnumber(L, index, out num) ? (object)          num : null; }
+		static object asChar    (lua.State L,int index) { double num; return luanet.trygetnumber(L, index, out num) ? (object)(char   ) num : null; }
+		static object asFloat   (lua.State L,int index) { double num; return luanet.trygetnumber(L, index, out num) ? (object)(float  ) num : null; }
+		static object asDecimal (lua.State L,int index) { double num; return luanet.trygetnumber(L, index, out num) ? (object)(decimal) num : null; }
+		static object asBoolean (lua.State L,int index) { return lua.toboolean(L,index); }
+		static object asString  (lua.State L,int index) { return lua.tostring (L,index); }
+		       object asFunction(lua.State L,int index) { return lua.type(L, index) == LUA.T.FUNCTION ? translator.getFunction(L, index) : null; }
+		       object asTable   (lua.State L,int index) { return lua.type(L, index) == LUA.T.TABLE    ? translator.getTable   (L, index) : null; }
+		       object asUserData(lua.State L,int index) { return lua.type(L, index) == LUA.T.USERDATA ? translator.getUserData(L, index) : null; }
 
-		public object getAsObject(lua.State L,int index)
+		public object asObject(lua.State L,int index)
 		{
 			Debug.Assert(L == translator.interpreter._L);
 			if(lua.type(L,index)==LUA.T.TABLE)
 			{
-				luaL.checkstack(L, 1, "CheckType.getAsObject");
+				luaL.checkstack(L, 1, "CheckType.asObject");
 				if(luaL.getmetafield(L,index,"__index"))
 				{
 					if(luanet.checkmetatable(L,-1))
@@ -283,13 +170,13 @@ namespace LuaInterface
 			object obj=translator.getObject(L,index);
 			return obj;
 		}
-		public object getAsNetObject(lua.State L,int index)
+		public object asNetObject(lua.State L,int index)
 		{
 			Debug.Assert(L == translator.interpreter._L);
 			object obj=translator.getNetObject(L,index);
 			if(obj==null && lua.type(L,index)==LUA.T.TABLE)
 			{
-				luaL.checkstack(L, 1, "CheckType.getAsNetObject");
+				luaL.checkstack(L, 1, "CheckType.asNetObject");
 				if(luaL.getmetafield(L,index,"__index"))
 				{
 					if(luanet.checkmetatable(L,-1))
@@ -305,6 +192,67 @@ namespace LuaInterface
 				}
 			}
 			return obj;
+		}
+
+		// The following functions check the value in the specified Lua stack index and return true if it is the desired type
+		static bool isSbyte  (lua.State L,int index) { double num; return luanet.trygetnumber(L, index, out num) && num >= sbyte .MinValue && num <= sbyte .MaxValue  ; }
+		static bool isByte   (lua.State L,int index) { double num; return luanet.trygetnumber(L, index, out num) && num >= byte  .MinValue && num <= byte  .MaxValue  ; }
+		static bool isShort  (lua.State L,int index) { double num; return luanet.trygetnumber(L, index, out num) && num >= short .MinValue && num <= short .MaxValue  ; }
+		static bool isUshort (lua.State L,int index) { double num; return luanet.trygetnumber(L, index, out num) && num >= ushort.MinValue && num <= ushort.MaxValue  ; }
+		static bool isInt    (lua.State L,int index) { double num; return luanet.trygetnumber(L, index, out num) && num >= int   .MinValue && num <= int   .MaxValue  ; }
+		static bool isUint   (lua.State L,int index) { double num; return luanet.trygetnumber(L, index, out num) && num >= uint  .MinValue && num <= uint  .MaxValue  ; }
+		static bool isLong   (lua.State L,int index) { double num; return luanet.trygetnumber(L, index, out num) && num >= long  .MinValue && num <= long  .MaxValue  ; }
+		static bool isUlong  (lua.State L,int index) { double num; return luanet.trygetnumber(L, index, out num) && num >= ulong .MinValue && num <= ulong .MaxValue  ; }
+		static bool isDouble (lua.State L,int index) { double num; return luanet.trygetnumber(L, index, out num) && num >= double.MinValue && num <= double.MaxValue  ; }
+		static bool isChar   (lua.State L,int index) { double num; return luanet.trygetnumber(L, index, out num) && num >= char  .MinValue && num <= char  .MaxValue  ; }
+		static bool isFloat  (lua.State L,int index) { double num; return luanet.trygetnumber(L, index, out num) && num >= float .MinValue && num <= float .MaxValue  ; }
+		static bool isDecimal(lua.State L,int index) { double num; return luanet.trygetnumber(L, index, out num) && num >= (double) decimal.MinValue && num <= (double) decimal.MaxValue  ; }
+		static bool isBoolean(lua.State L,int index) { return lua.isboolean(L,index); }
+		static bool isObject (lua.State L,int index) { return true; }
+
+		static bool isString(lua.State L,int index)
+		{
+			switch (lua.type(L, index))
+			{
+			case LUA.T.NIL:
+			case LUA.T.STRING:
+				return true;
+			default:
+				return false;
+			}
+		}
+		static bool isFunction(lua.State L,int index)
+		{
+			switch (lua.type(L, index))
+			{
+			case LUA.T.NIL:
+			case LUA.T.FUNCTION:
+				return true;
+			default:
+				return false;
+			}
+		}
+		static bool isTable(lua.State L,int index)
+		{
+			switch (lua.type(L, index))
+			{
+			case LUA.T.NIL:
+			case LUA.T.TABLE:
+				return true;
+			default:
+				return false;
+			}
+		}
+		static bool isUserData(lua.State L,int index)
+		{
+			switch (lua.type(L, index))
+			{
+			case LUA.T.NIL:
+			case LUA.T.USERDATA:
+				return true;
+			default:
+				return false;
+			}
 		}
 	}
 }

@@ -110,6 +110,13 @@ namespace LuaInterface.LuaAPI
 			return i < 0 ? 0 : i;
 		}
 
+		/// <summary>[-0, +0, -] Converts the Lua value at the given acceptable index to the C type lua_Number. The Lua value must be a number or a string convertible to a number; otherwise, false is returned and <paramref name="value"/> is zero.</summary>
+		public static bool trygetnumber(lua.State L, int index, out double value)
+		{
+			var num = value = lua.tonumber(L, index);
+			return num != 0 || lua.isnumber(L, index);
+		}
+
 		/// <summary>[-0, +0, -] Returns whether the currently executing code was called by Lua.</summary>
 		public static bool infunction(lua.State L)
 		{

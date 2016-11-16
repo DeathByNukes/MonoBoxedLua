@@ -56,6 +56,9 @@ namespace LuaInterface
 	/// <summary>Argument extraction with type-conversion function</summary>
 	delegate object ExtractValue(lua.State L, int index);
 
+	/// <summary>Argument checking function, returns true if the type can be extracted</summary>
+	delegate bool CheckValue(lua.State L, int index);
+
 	/// <summary>Wrapper class for methods/constructors accessed from Lua.</summary>
 	/// <remarks>
 	/// Author: Fabio Mascarenhas
