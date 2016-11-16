@@ -13,7 +13,7 @@ namespace LuaInterface
 	/// </remarks>
 	public class ObjectTranslator
 	{
-		internal CheckType typeChecker;
+		internal readonly CheckType typeChecker;
 
 		// object # to object (FIXME - it should be possible to get object address as an object #)
 		public readonly Dictionary<int, object> objects = new Dictionary<int, object>();
@@ -25,12 +25,12 @@ namespace LuaInterface
 			public int GetHashCode(T obj) { return System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(obj); }
 		}
 
-		internal Lua interpreter;
-		private MetaFunctions metaFunctions;
-		private lua.CFunction registerTableFunction,unregisterTableFunction,getMethodSigFunction,
+		internal readonly Lua interpreter;
+		private readonly MetaFunctions metaFunctions;
+		private readonly lua.CFunction registerTableFunction,unregisterTableFunction,getMethodSigFunction,
 			getConstructorSigFunction,importTypeFunction,loadAssemblyFunction, ctypeFunction, enumFromIntFunction;
 
-		internal EventHandlerContainer pendingEvents = new EventHandlerContainer();
+		internal readonly EventHandlerContainer pendingEvents = new EventHandlerContainer();
 
 		public ObjectTranslator(Lua interpreter)
 		{
@@ -69,80 +69,51 @@ namespace LuaInterface
 			lua.setfield(L, LUA.REGISTRYINDEX, "luaNet_objects");
 			StackAssert.End();
 		}
-		/// <summary>[requires checkstack(3)] Creates the metatable for superclasses (the base field of registered tables)</summary>
+		/// <summary>[requires checkstack(2)] Creates the metatable for superclasses (the base field of registered tables)</summary>
 		private void createBaseClassMetatable(lua.State L)
 		{
 			Debug.Assert(L == interpreter._L); StackAssert.Start(L);
 			luaL.newmetatable(L,"luaNet_searchbase");
-			lua.pushstring(L,"__gc");
-			lua.pushcfunction(L,metaFunctions.gcFunction);
-			lua.settable(L,-3);
-			lua.pushstring(L,"__tostring");
-			lua.pushcfunction(L,metaFunctions.toStringFunction);
-			lua.settable(L,-3);
-			lua.pushstring(L,"__index");
-			lua.pushcfunction(L,metaFunctions.baseIndexFunction);
-			lua.settable(L,-3);
-			lua.pushstring(L,"__newindex");
-			lua.pushcfunction(L,metaFunctions.newindexFunction);
-			lua.settable(L,-3);
+			lua.pushcfunction(L,metaFunctions.gcFunction);       lua.setfield(L,-2,"__gc");
+			lua.pushcfunction(L,metaFunctions.toStringFunction); lua.setfield(L,-2,"__tostring");
+			lua.pushcfunction(L,metaFunctions.baseIndexFunction);lua.setfield(L,-2,"__index");
+			lua.pushcfunction(L,metaFunctions.newindexFunction); lua.setfield(L,-2,"__newindex");
 			lua.pop(L,1);                      StackAssert.End();
 		}
-		/// <summary>[requires checkstack(3)] Creates the metatable for type references</summary>
+		/// <summary>[requires checkstack(2)] Creates the metatable for type references</summary>
 		private void createClassMetatable(lua.State L)
 		{
 			Debug.Assert(L == interpreter._L); StackAssert.Start(L);
 			luaL.newmetatable(L,"luaNet_class");
-			lua.pushstring(L,"__gc");
-			lua.pushcfunction(L,metaFunctions.gcFunction);
-			lua.settable(L,-3);
-			lua.pushstring(L,"__tostring");
-			lua.pushcfunction(L,metaFunctions.toStringFunction);
-			lua.settable(L,-3);
-			lua.pushstring(L,"__index");
-			lua.pushcfunction(L,metaFunctions.classIndexFunction);
-			lua.settable(L,-3);
-			lua.pushstring(L,"__newindex");
-			lua.pushcfunction(L,metaFunctions.classNewindexFunction);
-			lua.settable(L,-3);
-			lua.pushstring(L,"__call");
-			lua.pushcfunction(L,metaFunctions.callConstructorFunction);
-			lua.settable(L,-3);
+			lua.pushcfunction(L,metaFunctions.gcFunction);              lua.setfield(L,-2,"__gc");
+			lua.pushcfunction(L,metaFunctions.toStringFunction);        lua.setfield(L,-2,"__tostring");
+			lua.pushcfunction(L,metaFunctions.classIndexFunction);      lua.setfield(L,-2,"__index");
+			lua.pushcfunction(L,metaFunctions.classNewindexFunction);   lua.setfield(L,-2,"__newindex");
+			lua.pushcfunction(L,metaFunctions.callConstructorFunction); lua.setfield(L,-2,"__call");
 			lua.pop(L,1);                      StackAssert.End();
 		}
 		/// <summary>[requires checkstack(1)] Registers the global functions used by LuaInterface</summary>
 		private void setGlobalFunctions(lua.State L)
 		{
 			Debug.Assert(L == interpreter._L); StackAssert.Start(L);
-			lua.pushcfunction(L,importTypeFunction);
-			lua.setglobal(L,"import_type");
-			/*lua.pushcfunction(L,loadAssemblyFunction);
-			lua.setglobal(L,"load_assembly");
-			lua.pushcfunction(L,registerTableFunction);
-			lua.setglobal(L,"make_object");
-			lua.pushcfunction(L,unregisterTableFunction);
-			lua.setglobal(L,"free_object");*/
-			lua.pushcfunction(L,getMethodSigFunction);
-			lua.setglobal(L,"get_method_bysig");
-			lua.pushcfunction(L,getConstructorSigFunction);
-			lua.setglobal(L,"get_constructor_bysig");
-			lua.pushcfunction(L,ctypeFunction);
-			lua.setglobal(L,"ctype");
-			lua.pushcfunction(L,enumFromIntFunction);
-			lua.setglobal(L,"enum");           StackAssert.End();
+			lua.pushcfunction(L,importTypeFunction);        lua.setglobal(L,"import_type");
+			//lua.pushcfunction(L,loadAssemblyFunction);      lua.setglobal(L,"load_assembly");
+			//lua.pushcfunction(L,registerTableFunction);     lua.setglobal(L,"make_object");
+			//lua.pushcfunction(L,unregisterTableFunction);   lua.setglobal(L,"free_object");
+			lua.pushcfunction(L,getMethodSigFunction);      lua.setglobal(L,"get_method_bysig");
+			lua.pushcfunction(L,getConstructorSigFunction); lua.setglobal(L,"get_constructor_bysig");
+			lua.pushcfunction(L,ctypeFunction);             lua.setglobal(L,"ctype");
+			lua.pushcfunction(L,enumFromIntFunction);       lua.setglobal(L,"enum");
+			StackAssert.End();
 		}
 
-		/// <summary>[requires checkstack(3)] Creates the metatable for delegates</summary>
+		/// <summary>[requires checkstack(2)] Creates the metatable for delegates</summary>
 		private void createFunctionMetatable(lua.State L)
 		{
 			Debug.Assert(L == interpreter._L); StackAssert.Start(L);
 			luaL.newmetatable(L,"luaNet_function");
-			lua.pushstring(L,"__gc");
-			lua.pushcfunction(L,metaFunctions.gcFunction);
-			lua.settable(L,-3);
-			lua.pushstring(L,"__call");
-			lua.pushcfunction(L,metaFunctions.execDelegateFunction);
-			lua.settable(L,-3);
+			lua.pushcfunction(L,metaFunctions.gcFunction);           lua.setfield(L,-2,"__gc");
+			lua.pushcfunction(L,metaFunctions.execDelegateFunction); lua.setfield(L,-2,"__call");
 			lua.pop(L,1);                      StackAssert.End();
 		}
 		/// <summary>[-0, +0, v] Passes errors (argument e) to the Lua interpreter. This function throws a Lua exception, and therefore never returns.</summary>
@@ -259,16 +230,12 @@ namespace LuaInterface
 				return luaL.argerror(L, 2, "can not find superclass '" + superclassName + "'");
 
 			// Creates and pushes the object in the stack, setting
-			// it as the  metatable of the first argument
+			// it as the indexer of the first argument
 			object obj = CodeGeneration.Instance.GetClassInstance(klass, getTable(L,1));
 			pushObject(L, obj, "luaNet_metatable");
 			lua.newtable(L);
-			lua.pushstring(L, "__index");
-			lua.pushvalue(L, -3);
-			lua.settable(L, -3);
-			lua.pushstring(L, "__newindex");
-			lua.pushvalue(L, -3);
-			lua.settable(L, -3);
+			lua.pushvalue(L, -2); lua.setfield(L, -2, "__index");
+			lua.pushvalue(L, -2); lua.setfield(L, -2, "__newindex");
 			lua.setmetatable(L, 1);
 			// Pushes the object again, this time as the base field
 			// of the table and with the luaNet_searchbase metatable
@@ -302,10 +269,8 @@ namespace LuaInterface
 				table.Dispose();
 				luaTableField.SetValue(obj,null);
 
-				lua.pushnil(L);
-				lua.setmetatable(L,1);
-				lua.pushnil(L);
-				lua.setfield(L,1,"base");
+				lua.pushnil(L); lua.setmetatable(L,1);
+				lua.pushnil(L); lua.setfield(L,1,"base");
 			}
 			catch(Exception e) { return throwError(L,e); }
 			return 0;
@@ -380,8 +345,7 @@ namespace LuaInterface
 			if (t == null)
 			{
 				lua.pushnil(L);
-				lua.pushstring(L,"not a CLR class");
-				return 2;
+				return 1;
 			}
 
 			pushObject(L,t,"luaNet_metatable");
@@ -481,29 +445,15 @@ namespace LuaInterface
 			// Gets or creates the metatable for the object's type
 			else if (luaL.newmetatable(L,o.GetType().AssemblyQualifiedName))
 			{
-				lua.pushstring(L,"cache");
-				lua.newtable(L);
-				lua.rawset(L,-3);
+				lua.newtable(L);                                     lua.setfield(L,-2,"cache");
+				lua.pushcfunction(L,metaFunctions.indexFunction);    lua.setfield(L,-2,"__index");
+				lua.pushcfunction(L,metaFunctions.gcFunction);       lua.setfield(L,-2,"__gc");
+				lua.pushcfunction(L,metaFunctions.toStringFunction); lua.setfield(L,-2,"__tostring");
+				lua.pushcfunction(L,metaFunctions.newindexFunction); lua.setfield(L,-2,"__newindex");
 
 				lua.pushlightuserdata(L,luanet.gettag());
 				lua.pushnumber(L,1);
-				lua.rawset(L,-3);
-
-				lua.pushstring(L,"__index");
-				lua.pushcfunction(L,metaFunctions.indexFunction);
-				lua.rawset(L,-3);
-
-				lua.pushstring(L,"__gc");
-				lua.pushcfunction(L,metaFunctions.gcFunction);
-				lua.rawset(L,-3);
-
-				lua.pushstring(L,"__tostring");
-				lua.pushcfunction(L,metaFunctions.toStringFunction);
-				lua.rawset(L,-3);
-
-				lua.pushstring(L,"__newindex");
-				lua.pushcfunction(L,metaFunctions.newindexFunction);
-				lua.rawset(L,-3);
+				lua.settable(L,-3);
 			}
 
 			Debug.Assert(lua.istable(L, -1));
