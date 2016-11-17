@@ -202,24 +202,24 @@ namespace LuaInterfaceTest
 				// array
 				for (double i = 1; i <= _ArrayEnd; ++i)
 				{
-					Assert.AreEqual<double>(i, table.GetValue(i));
+					UAssert.AreEqual<double>(i, table.GetValue(i));
 					table.SetValue(i, 12);
-					Assert.AreEqual<double>(12.0, table.GetValue(i));
+					UAssert.AreEqual<double>(12.0, table.GetValue(i));
 				}
 
 				// associative array
 				for (int i = 0; i < _Keys.Count; ++i)
 				{
 					var k = _Keys[i];
-					Assert.AreEqual<double>(i + 1, table.GetValue(k));
+					UAssert.AreEqual<double>(i + 1, table.GetValue(k));
 					table.SetValue(k, 12);
-					Assert.AreEqual<double>(12.0, table.GetValue(k));
+					UAssert.AreEqual<double>(12.0, table.GetValue(k));
 				}
 
 				// double key
-				Assert.AreEqual<string>(_DoubleValue, table.GetValue(_Double));
+				UAssert.AreEqual<string>(_DoubleValue, table.GetValue(_Double));
 				table.SetValue(_Double, 12);
-				Assert.AreEqual<double>(12.0, table.GetValue(_Double));
+				UAssert.AreEqual<double>(12.0, table.GetValue(_Double));
 
 				// - try adding values, which the metatable will intercept -
 
@@ -227,14 +227,14 @@ namespace LuaInterfaceTest
 				{
 					Assert.AreEqual(LuaType.Nil, table.GetValue(i).Type);
 					table.SetValue(i, 12);
-					Assert.AreEqual<string>(_MetaWrite, table.GetValue(i));
+					UAssert.AreEqual<string>(_MetaWrite, table.GetValue(i));
 				}
 
 				foreach (string k in _EmptyKeys)
 				{
 					Assert.AreEqual(LuaType.Nil, table.GetValue(k).Type);
 					table.SetValue(k, 12);
-					Assert.AreEqual<string>(_MetaWrite, table.GetValue(k));
+					UAssert.AreEqual<string>(_MetaWrite, table.GetValue(k));
 				}
 			}
 		}
@@ -356,13 +356,13 @@ namespace LuaInterfaceTest
 				for (int i = 1; i <= _ArrayEnd*2; ++i)
 				{
 					if (i <= _ArrayEnd)
-						Assert.AreEqual<double>(i, table.GetValue(i));
+						UAssert.AreEqual<double>(i, table.GetValue(i));
 					else
 						Assert.AreEqual(LuaType.Nil, table.GetValue(i).Type);
 					table.RawSetValue(i, 12);
-					Assert.AreEqual<double>(12.0, table.GetValue(i));
+					UAssert.AreEqual<double>(12.0, table.GetValue(i));
 					table.RawSetValue((double)i, 1212);
-					Assert.AreEqual<double>(1212.0, table.GetValue(i));
+					UAssert.AreEqual<double>(1212.0, table.GetValue(i));
 				}
 
 				// associative array
@@ -371,21 +371,21 @@ namespace LuaInterfaceTest
 				{
 					string k = keys[i];
 					if (i < _Keys.Count)
-						Assert.AreEqual<double>(i + 1, table.GetValue(k));
+						UAssert.AreEqual<double>(i + 1, table.GetValue(k));
 					else
 						Assert.AreEqual(LuaType.Nil, table.GetValue(k).Type);
 					table.RawSetValue(k, 12);
-					Assert.AreEqual<double>(12.0, table.GetValue(k));
+					UAssert.AreEqual<double>(12.0, table.GetValue(k));
 				}
 
 				// double key
-				Assert.AreEqual<string>(_DoubleValue, table.GetValue(_Double));
+				UAssert.AreEqual<string>(_DoubleValue, table.GetValue(_Double));
 				table.RawSetValue(_Double, 12);
-				Assert.AreEqual<double>(12.0, table.GetValue(_Double));
+				UAssert.AreEqual<double>(12.0, table.GetValue(_Double));
 
 				Assert.AreEqual(LuaType.Nil, table.GetValue(_EmptyDouble).Type);
 				table.RawSetValue(_EmptyDouble, 12);
-				Assert.AreEqual<double>(12.0, table.GetValue(_EmptyDouble));
+				UAssert.AreEqual<double>(12.0, table.GetValue(_EmptyDouble));
 			}
 		}
 

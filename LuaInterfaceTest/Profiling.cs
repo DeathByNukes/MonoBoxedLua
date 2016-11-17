@@ -1,4 +1,5 @@
-﻿using System;
+﻿#if false
+using System;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using LuaInterface;
@@ -95,3 +96,4 @@ namespace LuaInterfaceTest
 		}
 	}
 }
+#endif

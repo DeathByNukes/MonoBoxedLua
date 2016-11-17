@@ -88,11 +88,7 @@ namespace LuaInterfaceTest
 		static LuaScriptException GetPCallException(object[] results) {
 			Assert.AreEqual(2, results.Length);
 			Assert.AreEqual(false, results[0]);
-			#if NUNIT
-			Assert.IsInstanceOf<LuaScriptException>(results[1]);
-			#else
-			Assert.IsInstanceOfType(results[1], typeof(LuaScriptException));
-			#endif
+			UAssert.IsInstanceOf<LuaScriptException>(results[1]);
 			return (LuaScriptException) results[1];
 		}
 		class TestException : Exception {

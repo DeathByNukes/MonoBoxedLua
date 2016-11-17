@@ -72,6 +72,7 @@
     <Compile Include="References.cs" />
     <Compile Include="Registration.cs" />
     <Compile Include="Table.cs" />
+    <Compile Include="UAssert.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\LuaInterface\LuaInterface.csproj">

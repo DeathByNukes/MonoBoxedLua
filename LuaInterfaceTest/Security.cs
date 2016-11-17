@@ -39,11 +39,7 @@ namespace LuaInterfaceTest
 				foreach (var expr in expressions)
 				{
 					var result = lua.Eval(expr);
-					#if NUNIT
-						Assert.IsInstanceOf<string>(result, script);
-					#else
-						Assert.IsInstanceOfType(result, typeof(string), expr);
-					#endif
+					UAssert.IsInstanceOf<string>(result, expr);
 				}
 			}
 		}
