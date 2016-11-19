@@ -5,6 +5,16 @@ using LuaInterface.LuaAPI;
 namespace LuaInterface
 {
 	/// <summary><para>Container for simple Lua values.</para><para>Though it cannot contain the value of garbage collected Lua types other than string (see <see cref="IsSupported"/>), it works around this fact whenever possible.</para></summary>
+	/// <remarks>
+	/// <para><see cref="LuaValue"/> versions of APIs provide two advantages over the regular <see cref="Object"/> APIs:<list type="number"><item><description>Lua values stored in a LuaValue are never boxed. This means less garbage collection overhead and all the object data is stored on the stack.</description></item><item><description><see cref="LuaBase"/> objects (tables, functions, and userdata) are never generated. This means less burden on both the CLR and Lua garbage collectors, and there is no risk of a memory leak from failing to call <see cref="LuaBase.Dispose"/>.</description></item></list></para>
+	/// <para>LuaValue instances can be implicitly cast to their CLR equivalents. If the LuaValue contains a type other than type it is being cast to, <see cref="InvalidCastException"/> will be thrown.</para>
+	/// <para>In the case of casting to nullable types and strings, nil is converted to null.</para>
+	/// <para>CLR equivalents can also be implicitly cast to a LuaValue, so they can be directly assigned to LuaValue variables and arguments.</para>
+	/// <para>The OrDefault methods return the stored value if it matches the argument type; if it doesn't match or is nil, the argument is returned. They do not throw any exceptions.</para>
+	/// <para>The IfNil methods are like OrDefault except an exception is thrown when the value is the wrong type. This produces the same result as casting the value to a nullable type and then immediately using the null-coalescing (??) operator.</para>
+	/// <para>The As* properties attempt to cast to the desired value and return null if the cast fails. They do not throw any exceptions.</para>
+	/// <para>The TryGetAs methods attempt to cast to the same type as the argument. If the cast succeeds, the value is assigned to the specified variable; otherwise, the variable is left unchanged and false is returned. Warning: <see cref="TryGetAs(ref string)"/> operates the same as all the other overloads; it considers nil to be a non-string type and will never set a string variable to null.</para>
+	/// </remarks>
 	[StructLayout(LayoutKind.Auto)] public struct LuaValue
 	{
 		[StructLayout(LayoutKind.Explicit)] struct Union
@@ -27,6 +37,7 @@ namespace LuaInterface
 
 		private LuaValue(string value, LuaType type) : this() { _string = value; this.Type = type; }
 
+		/// <summary>A nil LuaValue. default(LuaValue) can also be used for nil.</summary>
 		public static LuaValue Nil { get { return default(LuaValue); } }
 
 		public static implicit operator bool  (LuaValue v) { if (v.Type == LuaType.Boolean)       return v._union.Boolean;       throw v._newCastException(LuaType.Boolean); }
@@ -48,7 +59,14 @@ namespace LuaInterface
 		public float  OrDefault(float  default_value) { return this.Type == LuaType.Number        ? (float)_union.Number : default_value; }
 		public int    OrDefault(int    default_value) { return this.Type == LuaType.Number        ? (int)_union.Number   : default_value; }
 		public string OrDefault(string default_value) { return this.Type == LuaType.String        ? _string              : default_value; }
-		
+
+		public string IfNil(string default_value) { switch (this.Type) { case LuaType.String:        return _string;              case LuaType.Nil: return default_value; } throw _newCastException(LuaType.String); }
+		public bool   IfNil(bool   default_value) { switch (this.Type) { case LuaType.Boolean:       return _union.Boolean;       case LuaType.Nil: return default_value; } throw _newCastException(LuaType.Boolean); }
+		public IntPtr IfNil(IntPtr default_value) { switch (this.Type) { case LuaType.LightUserData: return _union.LightUserData; case LuaType.Nil: return default_value; } throw _newCastException(LuaType.LightUserData); }
+		public double IfNil(double default_value) { switch (this.Type) { case LuaType.Number:        return _union.Number;        case LuaType.Nil: return default_value; } throw _newCastException(LuaType.Number); }
+		public float  IfNil(float  default_value) { switch (this.Type) { case LuaType.Number:        return (float)_union.Number; case LuaType.Nil: return default_value; } throw _newCastException(LuaType.Number); }
+		public int    IfNil(int    default_value) { switch (this.Type) { case LuaType.Number:        return (int)_union.Number;   case LuaType.Nil: return default_value; } throw _newCastException(LuaType.Number); }
+
 		public bool?   AsBool   { get { return this.Type == LuaType.Boolean       ? new bool?  (_union.Boolean)       : default(bool?);   } }
 		public IntPtr? AsIntPtr { get { return this.Type == LuaType.LightUserData ? new IntPtr?(_union.LightUserData) : default(IntPtr?); } }
 		public double? AsDouble { get { return this.Type == LuaType.Number        ? new double?(_union.Number)        : default(double?); } }
@@ -170,7 +188,7 @@ namespace LuaInterface
 			}
 		}
 
-		/// <summary>[-0, +0, -]</summary>
+		/// <summary>[-0, +0, -] Creates a <see cref="LuaValue"/> from the specified value on the stack. If <paramref name="detailed_tostring"/> is true, <see cref="luanet.summarizetable"/> will be used to preemptively generate and store a detailed <see cref="ToString"/> value.</summary>
 		unsafe public static LuaValue read(lua.State L, int index, bool detailed_tostring)
 		{
 			var type = lua.type(L, index);
@@ -191,7 +209,7 @@ namespace LuaInterface
 			}
 		}
 
-		/// <summary>[-1, +0, -]</summary>
+		/// <summary>[-1, +0, -] Creates a <see cref="LuaValue"/> from the value on the top of the stack and pops it. If <paramref name="detailed_tostring"/> is true, <see cref="luanet.summarizetable"/> will be used to preemptively generate and store a detailed <see cref="ToString"/> value.</summary>
 		public static LuaValue pop(lua.State L, bool detailed_tostring)
 		{
 			var ret = read(L, -1, detailed_tostring);
