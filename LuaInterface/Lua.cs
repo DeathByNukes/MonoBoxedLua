@@ -96,7 +96,7 @@ namespace LuaInterface
 		public void SecureLuaFunctions()
 		{
 			var L = _L;
-			luanet.checkstack(L, 1, "Lua.SecureLuaFunctions");
+			luanet.checkstack(L, 2, "Lua.SecureLuaFunctions");
 			
 			// debug functions could be used to tamper with our metatables and upvalues
 			// specific vulnerabilities are not known but this closes a huge attack surface
@@ -121,7 +121,10 @@ namespace LuaInterface
 			lua.setglobal(L, "load");
 
 			translator.pushFunction(L, _loadfile);
+			lua.pushvalue(L, -1);
 			lua.setglobal(L, "loadfile");
+			lua.pushcclosure(L, _dofile, 1); // upvalue(1) = loadfile
+			lua.setglobal(L, "dofile");
 
 			// todo: read module/require docs and see if they can be sandboxed
 			lua.pushnil(L); lua.setglobal(L, "module");
@@ -222,6 +225,21 @@ namespace LuaInterface
 			lua.pushstring(L, msg);
 			return 2;
 		}
+		// loadfile must be stored in an upvalue
+		static readonly lua.CFunction _dofile = L =>
+		{
+			int nargs = lua.gettop(L);
+			lua.pushvalue(L, lua.upvalueindex(1));
+			if (nargs != 0)
+				lua.insert(L, 1);
+			lua.call(L, nargs, 2);
+			if (lua.type(L, 1) == LUA.T.NIL)
+				return lua.error(L);
+
+			lua.settop(L, 1);
+			lua.call(L, 0, LUA.MULTRET);
+			return lua.gettop(L);
+		};
 
 		Func<Lua, string, string> _path_filter = (l, path) =>
 		{
