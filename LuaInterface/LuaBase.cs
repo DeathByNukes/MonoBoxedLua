@@ -344,6 +344,29 @@ namespace LuaInterface
 
 		#endregion
 
+		#region Length
+
+		/// <summary>Returns the "length" of the value at the given acceptable index: for strings, this is the string length; for tables, this is the result of the length operator ('#'); for userdata, this is the size of the block of memory allocated for the userdata; for other values, it is 0. For tables, note that this is the array length (string etc. keys aren't counted) and it doesn't work reliably on sparse arrays.</summary>
+		/// <seealso href="http://www.lua.org/manual/5.1/manual.html#2.5.5"/>
+		public int Length { get { return this.LongLength.ToInt32(); } }
+
+		/// <summary>Returns the "length" of the value at the given acceptable index: for strings, this is the string length; for tables, this is the result of the length operator ('#'); for userdata, this is the size of the block of memory allocated for the userdata; for other values, it is 0. For tables, note that this is the array length (string etc. keys aren't counted) and it doesn't work reliably on sparse arrays.</summary>
+		/// <seealso href="http://www.lua.org/manual/5.1/manual.html#2.5.5"/>
+		public UIntPtr LongLength
+		{
+			get
+			{
+				var L = Owner._L;
+				luanet.checkstack(L, 1, "LuaBase.LongLength");
+				rawpush(L);
+				var len = lua.objlen(L, -1);
+				lua.pop(L,1);
+				return len;
+			}
+		}
+
+		#endregion
+
 		#region Call
 
 		/// <summary>Calls the object and returns its return values inside an array.</summary>

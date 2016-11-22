@@ -28,25 +28,6 @@ namespace LuaInterface
 			try { return new LuaTable(L, Owner); } catch (InvalidCastException) { Dispose(); throw; }
 		}
 
-		/// <summary>The result of the Lua length operator ('#'). Note that this is the array length (string etc. keys aren't counted) and it doesn't work reliably on sparse arrays.</summary>
-		/// <seealso href="http://www.lua.org/manual/5.1/manual.html#2.5.5"/>
-		public int Length { get { return this.LongLength.ToInt32(); } }
-
-		/// <summary>The result of the Lua length operator ('#'). Note that this is the array length (string etc. keys aren't counted) and it doesn't work reliably on sparse arrays.</summary>
-		/// <seealso href="http://www.lua.org/manual/5.1/manual.html#2.5.5"/>
-		public UIntPtr LongLength
-		{
-			get
-			{
-				var L = Owner._L;
-				luanet.checkstack(L, 1, "LuaTable.LongLength");
-				push(L);
-				var len = lua.objlen(L, -1);
-				lua.pop(L,1);
-				return len;
-			}
-		}
-
 		/// <summary>Counts the number of entries in the table.</summary>
 		public int Count() { return checked((int)this.LongCount()); }
 		/// <summary>Counts the number of entries in the table.</summary>
