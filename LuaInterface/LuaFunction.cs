@@ -59,7 +59,7 @@ namespace LuaInterface
 				}, default(IntPtr));
 			}
 			finally { lua.settop(L, oldTop); }
-			if (err != 0)
+			if (err == 0)
 				return;
 			Debug.Assert(err == 1);
 		IS_CFUNCTION:
