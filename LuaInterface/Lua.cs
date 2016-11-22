@@ -123,6 +123,7 @@ namespace LuaInterface
 			translator.pushFunction(L, _loadfile);
 			lua.setglobal(L, "loadfile");
 
+			// todo: read module/require docs and see if they can be sandboxed
 			lua.pushnil(L); lua.setglobal(L, "module");
 			lua.pushnil(L); lua.setglobal(L, "require");
 
@@ -140,6 +141,23 @@ namespace LuaInterface
 				}
 			");
 			*/
+			#if DEBUG
+			lua.getglobal(L,"io");      Debug.Assert(lua.isnil(L,-1)); lua.pop(L,1);
+			lua.getglobal(L,"package"); Debug.Assert(lua.isnil(L,-1)); lua.pop(L,1);
+
+			lua.getglobal(L, "os");
+			if (lua.istable(L, -1))
+			{
+				lua.getfield(L,-1,"execute"  ); Debug.Assert(lua.isnil(L,-1)); lua.pop(L,1);
+				lua.getfield(L,-1,"exit"     ); Debug.Assert(lua.isnil(L,-1)); lua.pop(L,1);
+				lua.getfield(L,-1,"getenv"   ); Debug.Assert(lua.isnil(L,-1)); lua.pop(L,1);
+				lua.getfield(L,-1,"remove"   ); Debug.Assert(lua.isnil(L,-1)); lua.pop(L,1);
+				lua.getfield(L,-1,"rename"   ); Debug.Assert(lua.isnil(L,-1)); lua.pop(L,1);
+				lua.getfield(L,-1,"setlocale"); Debug.Assert(lua.isnil(L,-1)); lua.pop(L,1);
+				lua.getfield(L,-1,"tmpname"  ); Debug.Assert(lua.isnil(L,-1)); lua.pop(L,1);
+			}
+			lua.pop(L, 1);
+			#endif
 		}
 		// wrapper around the real loadstring function (must be stored in an upvalue) that throws an error if the string is bytecode
 		static unsafe readonly lua.CFunction _loadstring = L =>
