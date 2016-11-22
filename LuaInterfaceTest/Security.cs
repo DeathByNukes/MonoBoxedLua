@@ -110,5 +110,42 @@ namespace LuaInterfaceTest
 				Assert.AreNotEqual("table", lua.Eval("type(getmetatable(o))"));
 			}
 		}
+
+		[TestMethod] public void Bytecode()
+		{
+			using (var lua = new Lua(true))
+			{
+				const string retval = "pwned";
+				Action<LuaFunction> verify = func =>
+				{
+					Assert.IsNotNull(func);
+					var rets = func.Call();
+					func.Dispose();
+					Assert.IsNotNull(rets);
+					Assert.AreEqual(retval, rets[0]);
+				};
+				var function = lua.Eval<LuaFunction>("function() return '"+retval+"' end");
+				var dump = function.Dump();
+				function.Dispose(); function = null;
+
+				Assert.AreEqual((byte)Lua.BytecodePrefix, dump[0]);
+				var dump_str = lua.NewString(dump);
+
+				verify(lua.Eval<LuaFunction>("assert(loadstring(...))", dump_str));
+
+				lua.SecureLuaFunctions(); // ---------------------------------
+
+				verify(lua.LoadBuffer(dump, "bytecode")); // the C# API has no restrictions; you should check before loading user input through it
+
+				function = lua.Eval<LuaFunction>("loadstring(...)", dump_str);
+				if (function != null)
+				{
+					verify(function);
+					Assert.Fail("bytecode loaded and executed successfully");
+				}
+
+				dump_str.Dispose();
+			}
+		}
 	}
 }

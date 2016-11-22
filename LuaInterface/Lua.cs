@@ -26,8 +26,8 @@ namespace LuaInterface
 
 		public Lua() : this(false) { }
 
-		/// <param name="allowDebug">Specify true to keep LuaInterface from removing debug functions.</param>
-		public Lua(bool allowDebug)
+		/// <param name="allow_insecure">Specify true to prevent LuaInterface from automatically calling <see cref="SecureLuaFunctions"/>.</param>
+		public Lua(bool allow_insecure)
 		{
 			var L = luaL.newstate();
 			if (L.IsNull)
@@ -36,17 +36,11 @@ namespace LuaInterface
 			// Load libraries
 			luaL.openlibs(L);
 
-			// remove potentially exploitable debug functions
-			if (!allowDebug) luaL.dostring(L, @"
-				local d = debug
-				debug = {
-					getinfo = d.getinfo,
-					traceback = d.traceback,
-				}
-			");
-
 			lua.atpanic(L, panicCallback);
 			Init(L);
+
+			if (!allow_insecure)
+				SecureLuaFunctions();
 		}
 
 		const string _LuaInterfaceMarker = "LUAINTERFACE LOADED";
@@ -96,6 +90,151 @@ namespace LuaInterface
 			// note: panic completely wiped the old stack!
 		};
 
+		#region SecureLuaFunctions
+
+		/// <summary>Removes Lua functions that are inherently insecure and adds security checks to abusable functions. Note that if you used the default constructor or specified false to the other one, this function was automatically called already. It should not be called more than once.</summary>
+		public void SecureLuaFunctions()
+		{
+			var L = _L;
+			luanet.checkstack(L, 1, "Lua.SecureLuaFunctions");
+			
+			// debug functions could be used to tamper with our metatables and upvalues
+			// specific vulnerabilities are not known but this closes a huge attack surface
+			luaL.dostring(L, @"
+				local d = debug
+				debug = {
+					getinfo = d.getinfo,
+					traceback = d.traceback,
+				}
+			");
+
+			lua.getglobal(L, "loadstring");
+			if (lua.isnil(L, -1))
+				lua.pop(L, 1);
+			else
+			{
+				lua.pushcclosure(L, _loadstring, 1); // translator.pushClosure not implemented, store delegate in field instead
+				lua.setglobal(L, "loadstring");
+			}
+
+			translator.pushFunction(L, L2 => luaL.error(L2, "load() is disabled because a secure version is not implemented yet."));
+			lua.setglobal(L, "load");
+
+			translator.pushFunction(L, _loadfile);
+			lua.setglobal(L, "loadfile");
+
+			lua.pushnil(L); lua.setglobal(L, "module");
+			lua.pushnil(L); lua.setglobal(L, "require");
+
+			// the below comment matches the changes that have been done directly to the dll file
+			/*
+			lua.pushnil(L); lua.setglobal(L, "io");
+			lua.pushnil(L); lua.setglobal(L, "package");
+			luaL.dostring(L, @"
+				local o = os
+				os = {
+					clock    = o.clock,
+					date     = o.date,
+					difftime = o.difftime,
+					time     = o.time,
+				}
+			");
+			*/
+		}
+		// wrapper around the real loadstring function (must be stored in an upvalue) that throws an error if the string is bytecode
+		static unsafe readonly lua.CFunction _loadstring = L =>
+		{
+			luaL.checktype(L, 1, LUA.T.STRING);
+			// don't convert the whole string to a CLR string just to check the first character
+			UIntPtr len;
+			byte* str = (byte*) lua.tolstring(L, 1, out len);
+			if (len != default(UIntPtr) && str[0] == LUA.SIGNATURE_0)
+				return _loadError(L, "bytecode is not supported");
+			lua.settop(L, 2);
+			lua.pushvalue(L, lua.upvalueindex(1));
+			lua.insert(L, 1);
+			lua.call(L, 2, LUA.MULTRET);
+			return lua.gettop(L);
+		};
+		unsafe int _loadfile(lua.State L)
+		{
+			Debug.Assert(L == _L);
+			var file = luaL.optstring(L, 1, null); // same way original loadfile reads args
+			if (file == null)
+				return _loadError(L, "reading from stdin is not supported");
+			byte[] contents;
+			try
+			{
+				file = _path_filter(this, file);
+				if (file == null)
+					throw new FileNotFoundException("File was not found in any search path.");
+
+				contents = File.ReadAllBytes(file); // todo: stream the contents through lua_load instead of loading the entire file at once
+			}
+			catch (Exception ex) { return _loadError(L, "cannot open @"+file+": "+ex.Message); }
+
+			if (contents.Length != 0)
+			{
+				if (contents[0] == LUA.SIGNATURE_0)
+					return _loadError(L, "bytecode is not supported");
+				if (contents[0] == '#') // shebang
+				{
+					contents[0] = (byte) '-';
+					if (contents.Length >= 2)
+						contents[1] = (byte) '-';
+				}
+				// in addition to being convenient, commenting the shebang line preserves line numbers
+				// the luaL_readfile version is a lot more complicated and it's not worth repeating here since we aren't supporting bytecode in the first place
+				// since we aren't removing the first line in any circumstances, we don't need to worry about checking the next line for bytecode sig; it will just fail with a parse error
+			}
+
+			LUA.ERR err;
+			fixed (void* contents_p = contents)
+				err = luaL.loadbuffer(L, new IntPtr(contents_p), contents.Length, "@"+file);
+			if (err == LUA.ERR.Success)
+				return 1;
+			lua.pushnil(L);
+			lua.insert(L, -2);
+			return 2;
+		}
+		// "If there are no errors, returns the compiled chunk as a function; otherwise, returns nil plus the error message."
+		static int _loadError(lua.State L, string msg)
+		{
+			lua.pushnil(L);
+			lua.pushstring(L, msg);
+			return 2;
+		}
+
+		Func<Lua, string, string> _path_filter = (l, path) =>
+		{
+			// ensures "path" refers to a file in the current directory and doesn't refer to one of the special windows filenames
+			// as a bonus it enforces case sensitivity on all platforms
+			#if NET_4
+			foreach (var file in Directory.EnumerateFiles("."))
+			#else
+			foreach (var file in Directory.GetFiles("."))
+			#endif
+			if (file == path)
+			{
+				var attrib = File.GetAttributes(file);
+				if ((attrib & FileAttributes.System) != FileAttributes.System)
+					return file;
+				break;
+			}
+			return null;
+		};
+		/// <summary>When <see cref="SecureLuaFunctions"/> is in effect, all attempts to access a file pass through this function. The input string is the script-supplied path and the output is the string that should actually be used. If you return null, a "file not found" error will be generated.</summary>
+		public Func<Lua, string, string> path_filter
+		{
+			get { return _path_filter; }
+			set
+			{
+				if (value == null) throw new ArgumentNullException("value");
+				_path_filter = value;
+			}
+		}
+
+		#endregion
 
 
 		/// <summary>
