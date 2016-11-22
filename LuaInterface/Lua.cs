@@ -652,6 +652,24 @@ namespace LuaInterface
 			return ud;
 		}
 
+		/// <summary>Creates a new <see cref="LuaString"/> object with the specified contents.</summary>
+		public LuaString NewString(string contents)
+		{
+			var L = _L;
+			luanet.checkstack(L, 1, "Lua.NewString");
+			lua.pushstring(L, contents);
+			return new LuaString(L, this);
+		}
+		/// <summary>Creates a new <see cref="LuaString"/> object with the specified contents.</summary>
+		public unsafe LuaString NewString(byte[] contents)
+		{
+			var L = _L;
+			luanet.checkstack(L, 1, "Lua.NewString");
+			fixed (void* contents_p = contents)
+				lua.pushlstring(L, new IntPtr(contents_p), new UIntPtr((void*) contents.LongLength));
+			return new LuaString(L, this);
+		}
+
 		/// <summary>Registers an object's method as a Lua function (global or table field) The method may have any signature.</summary>
 		/// <param name="path">The global variable to store it in, or null. Can contain one or more dots to store it as a field inside a table.</param>
 		/// <param name="target">The instance to invoke the method on, or null if it is a static method.</param>

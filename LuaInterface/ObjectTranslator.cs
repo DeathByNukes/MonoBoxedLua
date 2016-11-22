@@ -581,6 +581,13 @@ namespace LuaInterface
 			lua.pushvalue(L,index);
 			return new LuaFunction(L,interpreter);
 		}
+		/// <summary>[-0, +0, m] Gets the raw string in the <paramref name="index"/> position of the Lua stack.</summary>
+		internal LuaString getLuaString(lua.State L, int index)
+		{
+			Debug.Assert(L == interpreter._L);
+			lua.pushvalue(L,index);
+			return new LuaString(L,interpreter);
+		}
 		/// <summary>[-0, +0, -] Gets the CLR object in the <paramref name="index"/> position of the Lua stack.</summary>
 		internal object getNetObject(lua.State L, int index)
 		{

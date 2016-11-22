@@ -137,6 +137,7 @@
   <ItemGroup>
     <Compile Include="AssemblyInfo.cs" />
     <Compile Include="CheckType.cs" />
+    <Compile Include="LuaString.cs" />
     <Compile Include="GenerateEventAssembly.cs" />
     <Compile Include="Lua.cs" />
     <Compile Include="LuaAPI\StackIndex.cs" />

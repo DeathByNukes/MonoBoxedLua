@@ -48,6 +48,7 @@ namespace LuaInterface
 				{typeof(LuaFunction).TypeHandle, new Caster(isFunction, asFunction)},
 				{typeof(LuaTable   ).TypeHandle, new Caster(isTable   , asTable   )},
 				{typeof(LuaUserData).TypeHandle, new Caster(isUserData, asUserData)},
+				{typeof(LuaString  ).TypeHandle, new Caster(isString  , asLString )},
 			};
 			extractNetObject = asNetObject;
 		}
@@ -144,9 +145,10 @@ namespace LuaInterface
 		static object asDecimal (lua.State L,int index) { double num; return luanet.trygetnumber(L, index, out num) ? (object)(decimal) num : null; }
 		static object asBoolean (lua.State L,int index) { return lua.toboolean(L,index); }
 		static object asString  (lua.State L,int index) { return lua.tostring (L,index); }
-		       object asFunction(lua.State L,int index) { return lua.type(L, index) == LUA.T.FUNCTION ? translator.getFunction(L, index) : null; }
-		       object asTable   (lua.State L,int index) { return lua.type(L, index) == LUA.T.TABLE    ? translator.getTable   (L, index) : null; }
-		       object asUserData(lua.State L,int index) { return lua.type(L, index) == LUA.T.USERDATA ? translator.getUserData(L, index) : null; }
+		       object asFunction(lua.State L,int index) { return lua.type(L, index) == LUA.T.FUNCTION ? translator.getFunction (L, index) : null; }
+		       object asTable   (lua.State L,int index) { return lua.type(L, index) == LUA.T.TABLE    ? translator.getTable    (L, index) : null; }
+		       object asUserData(lua.State L,int index) { return lua.type(L, index) == LUA.T.USERDATA ? translator.getUserData (L, index) : null; }
+		       object asLString (lua.State L,int index) { return lua.type(L, index) == LUA.T.STRING   ? translator.getLuaString(L, index) : null; }
 
 		public object asObject(lua.State L,int index)
 		{
