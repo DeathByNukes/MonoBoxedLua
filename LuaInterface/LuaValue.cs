@@ -27,6 +27,7 @@ namespace LuaInterface
 		readonly Union _union;
 		readonly string _string;
 
+		/// <summary>The type of the value stored in this structure.</summary>
 		public readonly LuaType Type; // LuaType.Nil is 0
 
 		public LuaValue(bool value)   : this() { _union = new Union(value); this.Type = LuaType.Boolean; }
@@ -45,7 +46,7 @@ namespace LuaInterface
 		public static implicit operator double(LuaValue v) { if (v.Type == LuaType.Number)        return v._union.Number;        throw v._newCastException(LuaType.Number); }
 		public static explicit operator float (LuaValue v) { if (v.Type == LuaType.Number)        return (float)v._union.Number; throw v._newCastException(LuaType.Number); }
 		public static explicit operator int   (LuaValue v) { if (v.Type == LuaType.Number)        return (int)v._union.Number;   throw v._newCastException(LuaType.Number); }
-		public static implicit operator string(LuaValue v)  { switch (v.Type) { case LuaType.String:        return v._string;                           case LuaType.Nil: return null;             } throw v._newCastException(LuaType.String); }
+		public static implicit operator string (LuaValue v) { switch (v.Type) { case LuaType.String:        return v._string;                           case LuaType.Nil: return null;             } throw v._newCastException(LuaType.String); }
 		public static implicit operator bool?  (LuaValue v) { switch (v.Type) { case LuaType.Boolean:       return new bool?  (v._union.Boolean);       case LuaType.Nil: return default(bool?);   } throw v._newCastException(LuaType.Boolean); }
 		public static implicit operator IntPtr?(LuaValue v) { switch (v.Type) { case LuaType.LightUserData: return new IntPtr?(v._union.LightUserData); case LuaType.Nil: return default(IntPtr?); } throw v._newCastException(LuaType.LightUserData); }
 		public static implicit operator double?(LuaValue v) { switch (v.Type) { case LuaType.Number:        return new double?(v._union.Number);        case LuaType.Nil: return default(double?); } throw v._newCastException(LuaType.Number); }
@@ -53,32 +54,56 @@ namespace LuaInterface
 		public static explicit operator int?   (LuaValue v) { switch (v.Type) { case LuaType.Number:        return new int?   ((int)v._union.Number);   case LuaType.Nil: return default(int?);    } throw v._newCastException(LuaType.Number); }
 		InvalidCastException _newCastException(LuaType t) { return new InvalidCastException(string.Format("Tried to read a {0} as a {1}.", this.Type, t)); }
 
+		///                                                                                                                                <summary>Returns the value if it is a <see cref="LuaType.Boolean"      />, otherwise returns <paramref name="default_value"/>.</summary>
 		public bool   OrDefault(bool   default_value) { return this.Type == LuaType.Boolean       ? _union.Boolean       : default_value; }
+		///                                                                                                                                <summary>Returns the value if it is a <see cref="LuaType.LightUserData"/>, otherwise returns <paramref name="default_value"/>.</summary>
 		public IntPtr OrDefault(IntPtr default_value) { return this.Type == LuaType.LightUserData ? _union.LightUserData : default_value; }
+		///                                                                                                                                <summary>Returns the value if it is a <see cref="LuaType.Number"       />, otherwise returns <paramref name="default_value"/>.</summary>
 		public double OrDefault(double default_value) { return this.Type == LuaType.Number        ? _union.Number        : default_value; }
+		///                                                                                                                                <summary>Returns the value if it is a <see cref="LuaType.Number"       />, otherwise returns <paramref name="default_value"/>.</summary>
 		public float  OrDefault(float  default_value) { return this.Type == LuaType.Number        ? (float)_union.Number : default_value; }
+		///                                                                                                                                <summary>Returns the value if it is a <see cref="LuaType.Number"       />, otherwise returns <paramref name="default_value"/>.</summary>
 		public int    OrDefault(int    default_value) { return this.Type == LuaType.Number        ? (int)_union.Number   : default_value; }
+		///                                                                                                                                <summary>Returns the value if it is a <see cref="LuaType.String"       />, otherwise returns <paramref name="default_value"/>.</summary>
 		public string OrDefault(string default_value) { return this.Type == LuaType.String        ? _string              : default_value; }
 
-		public string IfNil(string default_value) { switch (this.Type) { case LuaType.String:        return _string;              case LuaType.Nil: return default_value; } throw _newCastException(LuaType.String); }
+		///                                                                                                                                                                                                                  <summary>Returns the value if it is a <see cref="LuaType.Boolean"      />, <paramref name="default_value"/> if it is <see cref="LuaType.Nil"/>, or throws an exception if it is a different type.</summary><exception cref="InvalidCastException"></exception>
 		public bool   IfNil(bool   default_value) { switch (this.Type) { case LuaType.Boolean:       return _union.Boolean;       case LuaType.Nil: return default_value; } throw _newCastException(LuaType.Boolean); }
+		///                                                                                                                                                                                                                  <summary>Returns the value if it is a <see cref="LuaType.LightUserData"/>, <paramref name="default_value"/> if it is <see cref="LuaType.Nil"/>, or throws an exception if it is a different type.</summary><exception cref="InvalidCastException"></exception>
 		public IntPtr IfNil(IntPtr default_value) { switch (this.Type) { case LuaType.LightUserData: return _union.LightUserData; case LuaType.Nil: return default_value; } throw _newCastException(LuaType.LightUserData); }
+		///                                                                                                                                                                                                                  <summary>Returns the value if it is a <see cref="LuaType.Number"       />, <paramref name="default_value"/> if it is <see cref="LuaType.Nil"/>, or throws an exception if it is a different type.</summary><exception cref="InvalidCastException"></exception>
 		public double IfNil(double default_value) { switch (this.Type) { case LuaType.Number:        return _union.Number;        case LuaType.Nil: return default_value; } throw _newCastException(LuaType.Number); }
+		///                                                                                                                                                                                                                  <summary>Returns the value if it is a <see cref="LuaType.Number"       />, <paramref name="default_value"/> if it is <see cref="LuaType.Nil"/>, or throws an exception if it is a different type.</summary><exception cref="InvalidCastException"></exception>
 		public float  IfNil(float  default_value) { switch (this.Type) { case LuaType.Number:        return (float)_union.Number; case LuaType.Nil: return default_value; } throw _newCastException(LuaType.Number); }
+		///                                                                                                                                                                                                                  <summary>Returns the value if it is a <see cref="LuaType.Number"       />, <paramref name="default_value"/> if it is <see cref="LuaType.Nil"/>, or throws an exception if it is a different type.</summary><exception cref="InvalidCastException"></exception>
 		public int    IfNil(int    default_value) { switch (this.Type) { case LuaType.Number:        return (int)_union.Number;   case LuaType.Nil: return default_value; } throw _newCastException(LuaType.Number); }
+		///                                                                                                                                                                                                                  <summary>Returns the value if it is a <see cref="LuaType.String"       />, <paramref name="default_value"/> if it is <see cref="LuaType.Nil"/>, or throws an exception if it is a different type.</summary><exception cref="InvalidCastException"></exception>
+		public string IfNil(string default_value) { switch (this.Type) { case LuaType.String:        return _string;              case LuaType.Nil: return default_value; } throw _newCastException(LuaType.String); }
 
+		///                                                                                                                                  <summary>Returns the value if it is a <see cref="LuaType.Boolean"      />, otherwise returns null.</summary>
 		public bool?   AsBool   { get { return this.Type == LuaType.Boolean       ? new bool?  (_union.Boolean)       : default(bool?);   } }
+		///                                                                                                                                  <summary>Returns the value if it is a <see cref="LuaType.LightUserData"/>, otherwise returns null.</summary>
 		public IntPtr? AsIntPtr { get { return this.Type == LuaType.LightUserData ? new IntPtr?(_union.LightUserData) : default(IntPtr?); } }
+		///                                                                                                                                  <summary>Returns the value if it is a <see cref="LuaType.Number"       />, otherwise returns null.</summary>
 		public double? AsDouble { get { return this.Type == LuaType.Number        ? new double?(_union.Number)        : default(double?); } }
+		///                                                                                                                                  <summary>Returns the value if it is a <see cref="LuaType.Number"       />, otherwise returns null.</summary>
 		public float?  AsFloat  { get { return this.Type == LuaType.Number        ? new float? ((float)_union.Number) : default(float?);  } }
+		///                                                                                                                                  <summary>Returns the value if it is a <see cref="LuaType.Number"       />, otherwise returns null.</summary>
 		public int?    AsInt    { get { return this.Type == LuaType.Number        ? new int?   ((int)_union.Number)   : default(int?);    } }
+		///                                                                                                                                  <summary>Returns the value if it is a <see cref="LuaType.String"       />, otherwise returns null.</summary>
 		public string  AsString { get { return this.Type == LuaType.String        ? _string                           : null;             } }
 
+		///                                                                                                                                              <summary>If the value is a <see cref="LuaType.Boolean"      />, assigns the value to <paramref name="variable"/> and returns true. Otherwise, leaves <paramref name="variable"/> alone and returns false.</summary>
 		public bool TryGetAs(ref bool   variable) { if (this.Type != LuaType.Boolean      ) return false; variable = _union.Boolean      ; return true; }
+		///                                                                                                                                              <summary>If the value is a <see cref="LuaType.LightUserData"/>, assigns the value to <paramref name="variable"/> and returns true. Otherwise, leaves <paramref name="variable"/> alone and returns false.</summary>
 		public bool TryGetAs(ref IntPtr variable) { if (this.Type != LuaType.LightUserData) return false; variable = _union.LightUserData; return true; }
+		///                                                                                                                                              <summary>If the value is a <see cref="LuaType.Number"       />, assigns the value to <paramref name="variable"/> and returns true. Otherwise, leaves <paramref name="variable"/> alone and returns false.</summary>
 		public bool TryGetAs(ref double variable) { if (this.Type != LuaType.Number       ) return false; variable = _union.Number       ; return true; }
+		///                                                                                                                                              <summary>If the value is a <see cref="LuaType.Number"       />, assigns the value to <paramref name="variable"/> and returns true. Otherwise, leaves <paramref name="variable"/> alone and returns false.</summary>
 		public bool TryGetAs(ref float  variable) { if (this.Type != LuaType.Number       ) return false; variable = (float)_union.Number; return true; }
+		///                                                                                                                                              <summary>If the value is a <see cref="LuaType.Number"       />, assigns the value to <paramref name="variable"/> and returns true. Otherwise, leaves <paramref name="variable"/> alone and returns false.</summary>
 		public bool TryGetAs(ref int    variable) { if (this.Type != LuaType.Number       ) return false; variable = (int)_union.Number  ; return true; }
+		///                                                                                                                                              <summary>If the value is a <see cref="LuaType.String"       />, assigns the value to <paramref name="variable"/> and returns true. Otherwise, leaves <paramref name="variable"/> alone and returns false.</summary>
 		public bool TryGetAs(ref string variable) { if (this.Type != LuaType.String       ) return false; variable = _string             ; return true; }
 
 		public static implicit operator LuaValue(bool   v) { return new LuaValue(v); }
