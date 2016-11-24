@@ -147,5 +147,50 @@ namespace LuaInterfaceTest
 				dump_str.Dispose();
 			}
 		}
+
+		public class ExposedClass
+		{
+			public static bool PublicS = true;
+			public        bool Public = true;
+			internal static bool InternalS = true;
+			internal        bool Internal = true;
+			protected static bool ProtectedS = true;
+			protected        bool Protected = true;
+			private static bool PrivateS = true;
+			private        bool Private = true;
+		}
+		[TestMethod] public void MemberAccess()
+		{
+			using (var lua = new Lua(true))
+			{
+				lua.RegisterType(typeof(ExposedClass));
+				lua.DoString(@"
+					assert(ExposedClass.PublicS)
+					assert(ExposedClass().Public)
+				");
+				UAssert.Throws<LuaScriptException>(() =>
+				{
+					lua.DoString(@"
+						InternalS = ExposedClass.InternalS
+						Internal  = ExposedClass().Internal
+					");
+				});
+				UAssert.Throws<LuaScriptException>(() =>
+				{
+					lua.DoString(@"
+						ProtectedS = ExposedClass.ProtectedS
+						Protected  = ExposedClass().Protected
+					");
+				});
+				UAssert.Throws<LuaScriptException>(() =>
+				{
+					lua.DoString(@"
+						PrivateS = ExposedClass.PrivateS
+						Private  = ExposedClass().Private
+					");
+				});
+				CollectionAssert.DoesNotContain(lua.DoString("return InternalS,Internal,ProtectedS,Protected,PrivateS,Private"), true);
+			}
+		}
 	}
 }
