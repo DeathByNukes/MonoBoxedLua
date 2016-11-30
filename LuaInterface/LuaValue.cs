@@ -114,6 +114,17 @@ namespace LuaInterface
 		public static implicit operator LuaValue(IntPtr? v) { return v.HasValue ? new LuaValue(v.Value) : default(LuaValue); }
 		public static implicit operator LuaValue(double? v) { return v.HasValue ? new LuaValue(v.Value) : default(LuaValue); }
 
+		/// <summary>Converts the value to a boolean according to Lua type conversion rules. (nil and false are false, all other values are true)</summary>
+		public bool If()
+		{
+			switch (this.Type)
+			{
+				case LuaType.Boolean: return _union.Boolean;
+				case LuaType.Nil:     return false;
+				default:              return true;
+			}
+		}
+
 		/// <summary>Returns the value cast as an <see cref="Object"/>. If <see cref="IsSupported"/> is false, returns the <see cref="LuaValue"/> unaltered.</summary>
 		public object Box()
 		{
