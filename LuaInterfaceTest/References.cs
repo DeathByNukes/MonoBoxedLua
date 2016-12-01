@@ -57,7 +57,12 @@ namespace LuaInterfaceTest
 				using (var one_newref = one.NewReference())
 					Assert.IsTrue(one == one_newref && one != two && one_newref != two);
 
-				if (types.Length != 3)
+				using (var one = lua.NewString("a"))
+				using (var two = lua.NewString("b"))
+				using (var one_newref = one.NewReference())
+					Assert.IsTrue(one == one_newref && one != two && one_newref != two);
+
+				if (types.Length != 4)
 					Assert.Inconclusive("Not all LuaBase implementations are covered by this test.");
 			}
 		}
