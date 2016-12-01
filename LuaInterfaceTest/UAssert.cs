@@ -1,4 +1,6 @@
-﻿namespace LuaInterfaceTest
+﻿using System;
+
+namespace LuaInterfaceTest
 {
 	#if NUNIT
 	using NUnit.Framework;
@@ -39,6 +41,26 @@
 			#else
 				Assert.AreEqual<T>(expected, actual, message);
 			#endif
+		}
+
+		public static void Throws<T>(Action test) where T : Exception { Throws<T>(test, "Exception "+typeof(T).FullName+" was not thrown.");}
+		public static void Throws<T>(Action test, string message) where T : Exception
+		{
+			try
+			{
+				test();
+				Assert.Fail(message);
+			}
+			catch (T) { }
+		}
+		public static void NoThrow<T>(Action test) where T : Exception { Throws<T>(test, "Exception "+typeof(T).FullName+" was thrown.");}
+		public static void NoThrow<T>(Action test, string message) where T : Exception
+		{
+			try { test(); }
+			catch (T)
+			{
+				Assert.Fail(message);
+			}
 		}
 	}
 }
