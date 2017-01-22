@@ -99,13 +99,14 @@ namespace LuaInterface.LuaAPI
 
 		#region state manipulation
 
+		/// <summary>[-0, +1, m] <para>Creates a new thread, pushes it on the stack, and returns a pointer to a lua_State that represents this new thread. The new state returned by this function shares with the original state all global objects (such as tables), but has an independent execution stack.</para><para>There is no explicit function to close or to destroy a thread. Threads are subject to garbage collection, like any Lua object.</para></summary>
+		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_newthread")] public static extern lua.State newthread(lua.State L);
 		/// <summary>[-∞, +0, -] Destroys all objects in the given Lua state (calling the corresponding garbage-collection metamethods, if any) and frees all dynamic memory used by this state.</summary>
-		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_close"  )] public static extern void close  (lua.State L);
+		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_close"    )] public static extern void close         (lua.State L);
 		/// <summary>[-0, +0, -] Sets a new panic function and returns the old one. If an error happens outside any protected environment, Lua calls a panic function and then calls exit(EXIT_FAILURE), thus exiting the host application. Your panic function can avoid this exit by never returning (e.g., throwing an exception). The panic function can access the error message at the top of the stack.</summary>
-		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_atpanic")] public static extern void atpanic(lua.State L, lua.CFunction panicf);
+		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_atpanic"  )] public static extern void atpanic       (lua.State L, lua.CFunction panicf);
 		// omitted:
 		//   lua_newstate  (use luaL.newstate)
-		//   lua_newthread (no threads)
 
 		#endregion
 
@@ -125,7 +126,8 @@ namespace LuaInterface.LuaAPI
 		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_replace"   )] public static extern void replace   (lua.State L, int index);
 		/// <summary>[-0, +0, m] Ensures that there are at least <paramref name="extra"/> free stack slots in the stack. It returns false if it cannot grow the stack to that size. This function never shrinks the stack; if the stack is already larger than the new size, it is left unchanged.</summary>
 		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_checkstack")] public static extern bool checkstack(lua.State L, int extra);
-		// omitted: lua_xmove (no threads)
+		/// <summary>[-?, +?, -] <para>Exchange values between different threads of the same global state.</para><para>This function pops <paramref name="n"/> values from the stack <paramref name="from"/>, and pushes them onto the stack <paramref name="to"/>.</para></summary>
+		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_xmove"     )] public static extern void xmove     (lua.State from, lua.State to, int n);
 
 		/// <summary>[-n, +0, -] Pops n elements from the stack.</summary>
 		[MethodImpl(INLINE)] public static void pop(lua.State L, int n) { lua.settop(L, -n - 1); }
@@ -163,6 +165,8 @@ namespace LuaInterface.LuaAPI
 		public static bool isnone         (lua.State L, int index) { return lua.type(L,index) == LUA.T.NONE; }
 		/// <summary>[-0, +0, -] Returns true if the given acceptable index is not valid (that is, it refers to an element outside the current stack) or if the value at this index is nil, and false otherwise.</summary>
 		public static bool isnoneornil    (lua.State L, int index) { return (int)lua.type(L,index) <= 0; }
+		/// <summary>[-0, +0, -] Returns true if the value at the given acceptable index is a thread, and false otherwise.</summary>
+		public static bool isthread       (lua.State L, int index) { return lua.type(L,index) == LUA.T.THREAD; }
 
 		#endregion
 
@@ -176,21 +180,21 @@ namespace LuaInterface.LuaAPI
 		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_lessthan")] public static extern bool   lessthan(lua.State L, int index1, int index2);
 
 		/// <summary>[-0, +0, -] Converts the Lua value at the given acceptable index to the C type lua_Number. The Lua value must be a number or a string convertible to a number; otherwise, 0 is returned.</summary>
-		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_tonumber"   )] public static extern double tonumber   (lua.State L, int index);
+		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_tonumber"   )] public static extern double    tonumber   (lua.State L, int index);
 		/// <summary>[-0, +0, -] Converts the Lua value at the given acceptable index to a boolean value. Like all tests in Lua, <see cref="lua.toboolean"/> returns true for any Lua value different from false and nil; otherwise it returns false. It also returns false when called with a non-valid index.</summary>
-		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_toboolean"  )] public static extern bool   toboolean  (lua.State L, int index);
+		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_toboolean"  )] public static extern bool      toboolean  (lua.State L, int index);
 		/// <summary>[-0, +0, m] Use <see cref="lua.tostring"/> instead.</summary>
-		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_tolstring"  )] public static extern void*  tolstring  (lua.State L, int index, out size_t len);
+		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_tolstring"  )] public static extern void*     tolstring  (lua.State L, int index, out size_t len);
 		/// <summary>[-0, +0, -] Converts a value at the given acceptable index to a C function. That value must be a C function; otherwise, returns <see langword="null"/>.</summary>
-		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_tocfunction")] public static extern void*  tocfunction(lua.State L, int index);
+		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_tocfunction")] public static extern void*     tocfunction(lua.State L, int index);
 		/// <summary>[-0, +0, -] If the value at the given acceptable index is a full userdata, returns its block address. If the value is a light userdata, returns its pointer. Otherwise, returns <see langword="null"/>.</summary>
-		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_touserdata" )] public static extern void*  touserdata (lua.State L, int index);
+		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_touserdata" )] public static extern void*     touserdata (lua.State L, int index);
 		/// <summary>[-0, +0, -] Converts the value at the given acceptable index to a generic C pointer (void*). The value can be a userdata, a table, a thread, or a function; otherwise, <see cref="lua.topointer"/> returns <see langword="null"/>. Typically this function is used only for debug information.</summary>
-		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_topointer"  )] public static extern void*  topointer  (lua.State L, int index);
+		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_topointer"  )] public static extern void*     topointer  (lua.State L, int index);
+		/// <summary>[-0, +0, -] Converts the value at the given acceptable index to a Lua thread (represented as lua_State*). This value must be a thread; otherwise, the function returns NULL.</summary>
+		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_tothread"   )] public static extern lua.State tothread   (lua.State L, int index);
 		// omitted:
-		//   lua_isthread  (no threads)
 		//   lua_tointeger (use System.Convert)
-		//   lua_tothread  (no threads)
 
 		/// <summary>
 		/// [-0, +0, m] Converts the Lua value at the given acceptable index to a C# string.
@@ -222,6 +226,8 @@ namespace LuaInterface.LuaAPI
 		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_pushboolean"      )] public static extern void pushboolean      (lua.State L, bool b);
 		/// <summary>[-0, +1, -] Pushes a light userdata (IntPtr) onto the stack.</summary>
 		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_pushlightuserdata")] public static extern void pushlightuserdata(lua.State L, IntPtr p);
+		/// <summary>[-0, +1, -] Pushes a light userdata (IntPtr) onto the stack.</summary>
+		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_pushthread"       )] public static extern bool pushthread       (lua.State L);
 		/// <summary>[-0, +1, m] Pushes a C function onto the stack. This function receives a pointer to a C function and pushes onto the stack a Lua value of type function that, when called, invokes the corresponding C function.</summary>
 		[MethodImpl(INLINE)] public static void pushcfunction(lua.State L, lua.CFunction f) { lua.pushcclosure(L, f, 0); }
 		/// <summary>[-0, +0, e] Sets the C function f as the new value of global name.</summary>
@@ -229,7 +235,6 @@ namespace LuaInterface.LuaAPI
 		// omitted:
 		//   lua_pushvfstring  (use lua.pushstring)
 		//   lua_pushfstring   (use lua.pushstring)
-		//   lua_pushthread    (no threads)
 
 		// /// <summary>[-0, +1, m] Pushes the zero-terminated string s onto the stack.</summary>
 		// [DllImport(LUADLL,CallingConvention=LUACC,EntryPoint="lua_pushstring")] public static extern void pushstring(lua.State L, string s);
@@ -344,10 +349,12 @@ namespace LuaInterface.LuaAPI
 
 		#region coroutine functions
 
-		// omitted:
-		//   lua_yield  (no threads)
-		//   lua_resume (no threads)
-		//   lua_status (no threads)
+		/// <summary>[-?, +?, -] <para>Yields a coroutine.</para><para>This function should only be called as the return expression of a C function, as follows:</para><code>return lua.yield (L, nresults);</code><para>When a C function calls lua.yield in that way, the running coroutine suspends its execution, and the call to lua.resume that started this coroutine returns. The parameter <paramref name="nresults"/> is the number of values from the stack that are passed as results to lua.resume.</para></summary>
+		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_yield" )] public static extern int yield(lua.State L, int nresults);
+		/// <summary>[-?, +?, -] <para>Starts and resumes a coroutine in a given thread.</para><para>To start a coroutine, you first create a new thread (see <see cref="lua.newthread"/>); then you push onto its stack the main function plus any arguments; then you call lua.resume, with <paramref name="narg"/> being the number of arguments. This call returns when the coroutine suspends or finishes its execution. When it returns, the stack contains all values passed to <see cref="lua.yield"/>, or all values returned by the body function. lua.resume returns <see cref="LUA.ERR.YIELD"/> if the coroutine yields, 0 if the coroutine finishes its execution without errors, or an error code in case of errors (see <see cref="lua.pcall"/>). In case of errors, the stack is not unwound, so you can use the debug API over it. The error message is on the top of the stack. To restart a coroutine, you put on its stack only the values to be passed as results from yield, and then call lua.resume.</para></summary>
+		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_resume")] public static extern LUA.ERR resume(lua.State L, int narg);
+		/// <summary>[-0, +0, -] <para>Returns the status of the thread <paramref name="L"/>.</para><para>The status can be 0 for a normal thread, an error code if the thread finished its execution with an error, or <see cref="LUA.ERR.YIELD"/> if the thread is suspended.</para></summary>
+		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_status")] public static extern LUA.ERR status(lua.State L);
 
 		#endregion
 
