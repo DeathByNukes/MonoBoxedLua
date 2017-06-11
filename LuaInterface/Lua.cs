@@ -113,7 +113,7 @@ namespace LuaInterface
 			lua.setmetatable(L, -2);
 			lua.rawset(L, LUA.REGISTRYINDEX);
 
-			translator = new ObjectTranslator(this);
+			translator = new ObjectTranslator(L, this);
 
 			lua.getglobal(L, "tostring");
 			tostring_ref = luaL.@ref(L);
@@ -317,10 +317,10 @@ namespace LuaInterface
 		/// Assuming we have a Lua error string sitting on the stack, throw a C# exception out to the user's app
 		/// </summary>
 		/// <exception cref="LuaScriptException">Thrown if the script caused an exception</exception>
-		internal LuaScriptException ExceptionFromError(int oldTop)
+		internal LuaScriptException ExceptionFromError(lua.State L, int oldTop)
 		{
-			object err = translator.getObject(_L, -1);
-			lua.settop(_L, oldTop);
+			object err = translator.getObject(L, -1);
+			lua.settop(L, oldTop);
 
 			// A pre-wrapped exception - just rethrow it (stack trace of InnerException will be preserved)
 			var luaEx = err as LuaScriptException;
@@ -351,7 +351,7 @@ namespace LuaInterface
 			if (luaL.loadstring(L, chunk) == LUA.ERR.Success)
 				return new LuaFunction(L, this);
 			else
-				throw ExceptionFromError(-2);
+				throw ExceptionFromError(L, -2);
 		}
 		/// <summary>Loads a Lua chunk from a string.</summary>
 		public LuaFunction LoadString(string chunk, string name)
@@ -363,7 +363,7 @@ namespace LuaInterface
 			if (luaL.loadbuffer(L, chunk, name) == LUA.ERR.Success)
 				return new LuaFunction(L, this);
 			else
-				throw ExceptionFromError(-2);
+				throw ExceptionFromError(L, -2);
 		}
 
 		/// <summary>Loads a Lua chunk from a file. If <paramref name="fileName"/> is null, the chunk will be loaded from standard input.</summary>
@@ -375,7 +375,7 @@ namespace LuaInterface
 			if (luaL.loadfile(L, fileName) == LUA.ERR.Success)
 				return new LuaFunction(L, this);
 			else
-				throw ExceptionFromError(-2);
+				throw ExceptionFromError(L, -2);
 		}
 
 		/// <summary>Loads a Lua chunk from a buffer.</summary>
@@ -393,7 +393,7 @@ namespace LuaInterface
 			if (status == LUA.ERR.Success)
 				return new LuaFunction(L, this);
 			else
-				throw ExceptionFromError(-2);
+				throw ExceptionFromError(L, -2);
 		}
 
 
@@ -422,7 +422,7 @@ namespace LuaInterface
 					return ret;
 				}
 			}
-			throw ExceptionFromError(-2); // pop 1
+			throw ExceptionFromError(L, -2); // pop 1
 		}
 
 		/// <summary>Excutes a Lua chunk and returns all the chunk's return values in an array</summary>
@@ -443,7 +443,7 @@ namespace LuaInterface
 			if (luaL.loadbuffer(L, chunk, chunkName) == LUA.ERR.Success)
 				if (lua.pcall(L, 0, LUA.MULTRET, 0) == LUA.ERR.Success)
 					return translator.popValues(L, oldTop);
-			throw ExceptionFromError(oldTop);
+			throw ExceptionFromError(L, oldTop);
 		}
 		/// <summary>
 		/// Excutes a Lua chunk and returns all the chunk's return values in an array.
@@ -499,12 +499,13 @@ namespace LuaInterface
 				lua.remove(L, oldTop+1);
 				return translator.popValues(L, oldTop);
 			}
-			throw ExceptionFromError(oldTop);
+			throw ExceptionFromError(L, oldTop);
 		}
 
 		/// <summary>Calls <paramref name="function"/> in protected mode. If a Lua error occurs inside the function, it will be caught at this point and converted to a C# exception.</summary>
 		public void CPCall(Action function)
 		{
+			var L = _L;
 			if (function == null) throw new ArgumentNullException("function");
 			lua.CFunction wrapper = L =>
 			{
@@ -512,8 +513,8 @@ namespace LuaInterface
 				function();
 				return 0;
 			};
-			if (lua.cpcall(_L, wrapper, default(IntPtr)) != LUA.ERR.Success)
-				throw ExceptionFromError(-2);
+			if (lua.cpcall(L, wrapper, default(IntPtr)) != LUA.ERR.Success)
+				throw ExceptionFromError(L, -2);
 		}
 
 		#endregion
@@ -531,11 +532,11 @@ namespace LuaInterface
 		{
 			get
 			{
-				return getNestedObject(LUA.GLOBALSINDEX, fullPath.Split('.'));
+				return getNestedObject(_L, LUA.GLOBALSINDEX, fullPath.Split('.'));
 			}
 			set
 			{
-				setNestedObject(LUA.GLOBALSINDEX, fullPath.Split('.'), value);
+				setNestedObject(_L, LUA.GLOBALSINDEX, fullPath.Split('.'), value);
 
 				#if GLOBALS_AUTOCOMPLETE
 				// Globals auto-complete
@@ -770,9 +771,8 @@ namespace LuaInterface
 
 
 		/// <summary>[-0, +0, e] Navigates a table in the top of the stack, returning the value of the specified field</summary>
-		internal object getNestedObject(int index, IEnumerable<string> fields)
+		internal object getNestedObject(lua.State L, int index, IEnumerable<string> fields)
 		{
-			var L = _L;
 			luanet.checkstack(L, 2, "Lua.getNestedObject"); StackAssert.Start(L);
 			luanet.getnestedfield(L, index, fields);
 			var ret = translator.getObject(L,-1);
@@ -781,14 +781,13 @@ namespace LuaInterface
 		}
 
 		/// <summary>[-0, +0, e] Navigates a table to set the value of one of its fields</summary>
-		internal void setNestedObject(int index, string[] path, object val)
+		internal void setNestedObject(lua.State L, int index, string[] path, object val)
 		{
-			setNestedObject(index, path.Take(path.Length-1), path[path.Length-1], val);
+			setNestedObject(L, index, path.Take(path.Length-1), path[path.Length-1], val);
 		}
 		/// <summary>[-0, +0, e] Navigates a table to set the value of one of its fields</summary>
-		internal void setNestedObject(int index, IEnumerable<string> pathWithoutField, string field, object val)
+		internal void setNestedObject(lua.State L, int index, IEnumerable<string> pathWithoutField, string field, object val)
 		{
-			var L = _L;
 			luanet.checkstack(L, 2, "Lua.setNestedObject"); StackAssert.Start(L);
 			luanet.getnestedfield(L, index, pathWithoutField);
 			translator.push(L,val);

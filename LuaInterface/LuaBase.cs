@@ -215,7 +215,7 @@ namespace LuaInterface
 			luaL.getref(L, Owner.tostring_ref);
 			rawpush(L);
 			if (lua.pcall(L, 1, 1, 0) != LUA.ERR.Success)
-				throw Owner.ExceptionFromError(-2); // -2, pop the error from the stack
+				throw Owner.ExceptionFromError(L, -2); // -2, pop the error from the stack
 			var str = lua.tostring(L, -1);
 			lua.pop(L,1);
 			return str ?? "";
@@ -233,7 +233,7 @@ namespace LuaInterface
 				var L = Owner._L;
 				luanet.checkstack(L, 1, "LuaBase.get_Indexer(String[])"); StackAssert.Start(L);
 				rawpush(L);
-				var ret = Owner.getNestedObject(-1, path);
+				var ret = Owner.getNestedObject(L, -1, path);
 				lua.pop(L,1);                                             StackAssert.End();
 				return ret;
 			}
@@ -242,7 +242,7 @@ namespace LuaInterface
 				var L = Owner._L;
 				luanet.checkstack(L, 1, "LuaBase.set_Indexer(String[])"); StackAssert.Start(L);
 				rawpush(L);
-				Owner.setNestedObject(-1, path, value);
+				Owner.setNestedObject(L, -1, path, value);
 				lua.pop(L,1);                                             StackAssert.End();
 			}
 		}
@@ -389,7 +389,7 @@ namespace LuaInterface
 				translator.push(L,args[i]);
 
 			if (lua.pcall(L, nArgs, returnTypes == null ? LUA.MULTRET : returnTypes.Length, 0) != LUA.ERR.Success)
-				throw Owner.ExceptionFromError(oldTop);
+				throw Owner.ExceptionFromError(L, oldTop);
 
 			return translator.popValues(L, oldTop, returnTypes);
 		}

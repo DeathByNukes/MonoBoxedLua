@@ -24,10 +24,9 @@ namespace LuaInterface
 
 		internal readonly EventHandlerContainer pendingEvents = new EventHandlerContainer();
 
-		public ObjectTranslator(Lua interpreter)
+		public ObjectTranslator(lua.State L, Lua interpreter)
 		{
 			this.interpreter=interpreter;
-			var L = interpreter._L;
 			luanet.checkstack(L, 3, "new ObjectTranslator");
 			typeChecker = new CheckType(this);
 			metaFunctions = new MetaFunctions(this);
