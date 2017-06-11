@@ -51,7 +51,7 @@ namespace LuaInterface
 		/// <summary>[requires checkstack(2)] Creates the metatable for superclasses (the base field of registered tables)</summary>
 		private void createBaseClassMetatable(lua.State L)
 		{
-			Debug.Assert(L == interpreter._L); StackAssert.Start(L);
+			Debug.Assert(interpreter.IsSameLua(L)); StackAssert.Start(L);
 			luaL.newmetatable(L,"luaNet_searchbase");
 			lua.pushboolean(L, false);                           lua.setfield(L,-2,"__metatable");
 			lua.pushcfunction(L,metaFunctions.gcFunction);       lua.setfield(L,-2,"__gc");
@@ -63,7 +63,7 @@ namespace LuaInterface
 		/// <summary>[requires checkstack(2)] Creates the metatable for type references</summary>
 		private void createClassMetatable(lua.State L)
 		{
-			Debug.Assert(L == interpreter._L); StackAssert.Start(L);
+			Debug.Assert(interpreter.IsSameLua(L)); StackAssert.Start(L);
 			luaL.newmetatable(L,"luaNet_class");
 			lua.pushboolean(L, false);                                  lua.setfield(L,-2,"__metatable");
 			lua.pushcfunction(L,metaFunctions.gcFunction);              lua.setfield(L,-2,"__gc");
@@ -76,7 +76,7 @@ namespace LuaInterface
 		/// <summary>[requires checkstack(1)] Registers the global functions used by LuaInterface</summary>
 		private void setGlobalFunctions(lua.State L)
 		{
-			Debug.Assert(L == interpreter._L); StackAssert.Start(L);
+			Debug.Assert(interpreter.IsSameLua(L)); StackAssert.Start(L);
 			lua.pushcfunction(L,importTypeFunction);        lua.setglobal(L,"import_type");
 			//lua.pushcfunction(L,loadAssemblyFunction);      lua.setglobal(L,"load_assembly");
 			//lua.pushcfunction(L,registerTableFunction);     lua.setglobal(L,"make_object");
@@ -91,7 +91,7 @@ namespace LuaInterface
 		/// <summary>[requires checkstack(2)] Creates the metatable for delegates</summary>
 		private void createFunctionMetatable(lua.State L)
 		{
-			Debug.Assert(L == interpreter._L); StackAssert.Start(L);
+			Debug.Assert(interpreter.IsSameLua(L)); StackAssert.Start(L);
 			luaL.newmetatable(L,"luaNet_function");
 			lua.pushboolean(L, false);                               lua.setfield(L,-2,"__metatable");
 			lua.pushcfunction(L,metaFunctions.gcFunction);           lua.setfield(L,-2,"__gc");
@@ -101,7 +101,7 @@ namespace LuaInterface
 		/// <summary>[-0, +0, v] Passes errors (argument e) to the Lua interpreter. This function throws a Lua exception, and therefore never returns.</summary>
 		internal int throwError(lua.State L, Exception ex)
 		{
-			Debug.Assert(L == interpreter._L);
+			Debug.Assert(interpreter.IsSameLua(L));
 			Debug.Assert(ex != null);
 			luaL.checkstack(L, 1, "ObjectTranslator.throwError");
 			// Determine the position in the script where the exception was triggered
@@ -123,7 +123,7 @@ namespace LuaInterface
 		/// <summary>Implementation of load_assembly. Throws an error if the assembly is not found.</summary>
 		private int loadAssembly(lua.State L)
 		{
-			Debug.Assert(L == interpreter._L && luanet.infunction(L));
+			Debug.Assert(interpreter.IsSameLua(L) && luanet.infunction(L));
 			string assemblyName = luaL.checkstring(L,1);
 			try
 			{
@@ -185,7 +185,7 @@ namespace LuaInterface
 		/// <summary>Implementation of import_type. Returns nil if the type is not found.</summary>
 		private int importType(lua.State L)
 		{
-			Debug.Assert(L == interpreter._L && luanet.infunction(L));
+			Debug.Assert(interpreter.IsSameLua(L) && luanet.infunction(L));
 			string className=lua.tostring(L,1);
 			Type klass = FindType(className);
 			if(klass != null)
@@ -200,7 +200,7 @@ namespace LuaInterface
 		/// </summary>
 		private int registerTable(lua.State L)
 		{
-			Debug.Assert(L == interpreter._L && luanet.infunction(L));
+			Debug.Assert(interpreter.IsSameLua(L) && luanet.infunction(L));
 #if __NOGEN__
 			return luaL.error(L,"Tables as Objects not implemented");
 #else
@@ -234,7 +234,7 @@ namespace LuaInterface
 		/// </summary>
 		private int unregisterTable(lua.State L)
 		{
-			Debug.Assert(L == interpreter._L && luanet.infunction(L));
+			Debug.Assert(interpreter.IsSameLua(L) && luanet.infunction(L));
 			if (!lua.getmetatable(L, 1))
 				return luaL.argerror(L, 1, "invalid table");
 			try
@@ -247,7 +247,7 @@ namespace LuaInterface
 				if (luaTableField == null) return luaL.argerror(L, 1, "invalid table");
 
 				var table = luaTableField.GetValue(obj) as LuaTable;
-				if (table == null || table.Owner._L != L) return luaL.argerror(L, 1, "invalid table");
+				if (table == null || table.Owner.IsSameLua(L)) return luaL.argerror(L, 1, "invalid table");
 				table.Dispose();
 				luaTableField.SetValue(obj,null);
 
@@ -260,7 +260,7 @@ namespace LuaInterface
 		/// <summary>Implementation of get_method_bysig. Returns nil if no matching method is not found.</summary>
 		private int getMethodSignature(lua.State L)
 		{
-			Debug.Assert(L == interpreter._L && luanet.infunction(L));
+			Debug.Assert(interpreter.IsSameLua(L) && luanet.infunction(L));
 			IReflect klass; object target;
 			int id=luanet.checkudata(L,1,"luaNet_class");
 			if (id != -1)
@@ -291,7 +291,7 @@ namespace LuaInterface
 		/// <summary>Implementation of get_constructor_bysig. Returns nil if no matching constructor is found.</summary>
 		private int getConstructorSignature(lua.State L)
 		{
-			Debug.Assert(L == interpreter._L && luanet.infunction(L));
+			Debug.Assert(interpreter.IsSameLua(L) && luanet.infunction(L));
 			int id = luanet.checkudata(L,1,"luaNet_class");
 			if (id == -1) return luaL.argerror(L,1,"type reference expected");
 			var klass = (IReflect) objects[id];
@@ -310,7 +310,7 @@ namespace LuaInterface
 
 		private Type typeOf(lua.State L, int idx)
 		{
-			Debug.Assert(L == interpreter._L);
+			Debug.Assert(interpreter.IsSameLua(L));
 			luaL.checkstack(L, 2, "ObjectTranslator.typeOf");
 			int id = luanet.checkudata(L,idx,"luaNet_class");
 			if (id == -1) return null;
@@ -322,7 +322,7 @@ namespace LuaInterface
 		/// <summary>Implementation of ctype.</summary>
 		private int ctype(lua.State L)
 		{
-			Debug.Assert(L == interpreter._L && luanet.infunction(L));
+			Debug.Assert(interpreter.IsSameLua(L) && luanet.infunction(L));
 			Type t = typeOf(L,1);
 			if (t == null)
 			{
@@ -337,7 +337,7 @@ namespace LuaInterface
 		/// <summary>Implementation of enum.</summary>
 		private int enumFromInt(lua.State L)
 		{
-			Debug.Assert(L == interpreter._L && luanet.infunction(L));
+			Debug.Assert(interpreter.IsSameLua(L) && luanet.infunction(L));
 			Type t = typeOf(L,1);
 			if (t == null || !t.IsEnum)
 				return luaL.argerror(L, 1, "enum type reference expected");
@@ -362,19 +362,19 @@ namespace LuaInterface
 		/// <summary>[-0, +1, m] Pushes a type reference into the stack</summary>
 		internal void pushType(lua.State L, Type t)
 		{
-			Debug.Assert(L == interpreter._L);
+			Debug.Assert(interpreter.IsSameLua(L));
 			pushObject(L,new ProxyType(t),"luaNet_class");
 		}
 		/// <summary>[-0, +1, m] Pushes a delegate into the stack</summary>
 		internal void pushFunction(lua.State L, lua.CFunction func)
 		{
-			Debug.Assert(L == interpreter._L);
+			Debug.Assert(interpreter.IsSameLua(L));
 			pushObject(L,func,"luaNet_function");
 		}
 		/// <summary>[-0, +1, m] Pushes a CLR object into the Lua stack as an userdata with the provided metatable</summary>
 		internal void pushObject(lua.State L, object o, string metatable)
 		{
-			Debug.Assert(L == interpreter._L);
+			Debug.Assert(interpreter.IsSameLua(L));
 			if (o == null)
 			{
 				lua.pushnil(L);
@@ -387,7 +387,7 @@ namespace LuaInterface
 		/// <summary>[-0, +1, m] Pushes a new object into the Lua stack with the provided metatable</summary>
 		private void pushNewObject(lua.State L,object o,int id,string metatable)
 		{
-			Debug.Assert(L == interpreter._L);
+			Debug.Assert(interpreter.IsSameLua(L));
 			luaL.checkstack(L, 4, "ObjectTranslator.pushNewObject");
 			StackAssert.Start(L);
 
@@ -417,7 +417,7 @@ namespace LuaInterface
 		/// <summary>Gets an object from the Lua stack with the desired type, if it matches, otherwise returns null.</summary>
 		internal object getAsType(lua.State L,int index,Type paramType)
 		{
-			Debug.Assert(L == interpreter._L);
+			Debug.Assert(interpreter.IsSameLua(L));
 			ExtractValue extractor = typeChecker.checkType(L,index,paramType);
 			if (extractor == null) return null;
 			return extractor(L, index);
@@ -453,7 +453,7 @@ namespace LuaInterface
 		/// <summary>[-0, +0, m] Gets an object from the Lua stack according to its Lua type.</summary>
 		internal unsafe object getObject(lua.State L, int index)
 		{
-			Debug.Assert(L == interpreter._L);
+			Debug.Assert(interpreter.IsSameLua(L));
 			switch(lua.type(L,index))
 			{
 			case LUA.T.NONE:
@@ -494,35 +494,35 @@ namespace LuaInterface
 		/// <summary>[-0, +0, m] Gets the table in the <paramref name="index"/> position of the Lua stack.</summary>
 		internal LuaTable getTable(lua.State L, int index)
 		{
-			Debug.Assert(L == interpreter._L);
+			Debug.Assert(interpreter.IsSameLua(L));
 			lua.pushvalue(L,index);
 			return new LuaTable(L,interpreter);
 		}
 		/// <summary>[-0, +0, m] Gets the userdata in the <paramref name="index"/> position of the Lua stack.</summary>
 		internal LuaUserData getUserData(lua.State L, int index)
 		{
-			Debug.Assert(L == interpreter._L);
+			Debug.Assert(interpreter.IsSameLua(L));
 			lua.pushvalue(L,index);
 			return new LuaUserData(L,interpreter);
 		}
 		/// <summary>[-0, +0, m] Gets the function in the <paramref name="index"/> position of the Lua stack.</summary>
 		internal LuaFunction getFunction(lua.State L, int index)
 		{
-			Debug.Assert(L == interpreter._L);
+			Debug.Assert(interpreter.IsSameLua(L));
 			lua.pushvalue(L,index);
 			return new LuaFunction(L,interpreter);
 		}
 		/// <summary>[-0, +0, m] Gets the raw string in the <paramref name="index"/> position of the Lua stack.</summary>
 		internal LuaString getLuaString(lua.State L, int index)
 		{
-			Debug.Assert(L == interpreter._L);
+			Debug.Assert(interpreter.IsSameLua(L));
 			lua.pushvalue(L,index);
 			return new LuaString(L,interpreter);
 		}
 		/// <summary>[-0, +0, -] Gets the CLR object in the <paramref name="index"/> position of the Lua stack.</summary>
 		internal object getNetObject(lua.State L, int index)
 		{
-			Debug.Assert(L == interpreter._L);
+			Debug.Assert(interpreter.IsSameLua(L));
 			luaL.checkstack(L, 3, "ObjectTranslator.getNetObject");
 			int id = luanet.tonetobject(L,index);
 			if (id != -1)
@@ -533,7 +533,7 @@ namespace LuaInterface
 		/// <summary>Gets the CLR object in the <paramref name="index"/> position of the Lua stack. Only use this if you're completely sure the value is a luanet userdata.</summary>
 		internal object getRawNetObject(lua.State L, int index)
 		{
-			Debug.Assert(L == interpreter._L);
+			Debug.Assert(interpreter.IsSameLua(L));
 			int id = luanet.rawnetobj(L,index);
 			if (id != -1)
 				return objects[id];
@@ -552,7 +552,7 @@ namespace LuaInterface
 		/// </summary>
 		internal object[] popValues(lua.State L, int oldTop, Type[] popTypes)
 		{
-			Debug.Assert(L == interpreter._L);
+			Debug.Assert(interpreter.IsSameLua(L));
 			Debug.Assert(oldTop >= 0, "oldTop must be a value previously returned by lua_gettop");
 			int newTop = lua.gettop(L);
 			if(oldTop >= newTop) return null;
@@ -605,7 +605,7 @@ namespace LuaInterface
 		/// <summary>[-0, +1, e] Pushes the object into the Lua stack according to its type.</summary>
 		internal void push(lua.State L, object o)
 		{
-			Debug.Assert(L == interpreter._L);
+			Debug.Assert(interpreter.IsSameLua(L));
 			if (o == null)
 			{
 				lua.pushnil(L);
@@ -659,7 +659,7 @@ namespace LuaInterface
 		/// <summary>Checks if the method matches the arguments in the Lua stack, getting the arguments if it does.</summary>
 		internal bool matchParameters(lua.State L,MethodBase method,ref MethodCache methodCache)
 		{
-			Debug.Assert(L == interpreter._L);
+			Debug.Assert(interpreter.IsSameLua(L));
 			return metaFunctions.matchParameters(L,method,ref methodCache);
 		}
 	}

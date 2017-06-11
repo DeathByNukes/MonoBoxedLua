@@ -69,7 +69,7 @@ namespace LuaInterface
 		/// <summary>Checks if the value at the specified Lua stack index matches paramType, returning a conversion function if it does and null otherwise.</summary>
 		internal ExtractValue checkType(lua.State L,int index,Type paramType)
 		{
-			Debug.Assert(L == translator.interpreter._L);
+			Debug.Assert(translator.interpreter.IsSameLua(L));
 
 			if (paramType.IsByRef) paramType = paramType.GetElementType();
 
@@ -152,7 +152,7 @@ namespace LuaInterface
 
 		public object asObject(lua.State L,int index)
 		{
-			Debug.Assert(L == translator.interpreter._L);
+			Debug.Assert(translator.interpreter.IsSameLua(L));
 			if(lua.type(L,index)==LUA.T.TABLE)
 			{
 				luaL.checkstack(L, 1, "CheckType.asObject");
@@ -174,7 +174,7 @@ namespace LuaInterface
 		}
 		public object asNetObject(lua.State L,int index)
 		{
-			Debug.Assert(L == translator.interpreter._L);
+			Debug.Assert(translator.interpreter.IsSameLua(L));
 			object obj=translator.getNetObject(L,index);
 			if(obj==null && lua.type(L,index)==LUA.T.TABLE)
 			{

@@ -37,7 +37,7 @@ namespace LuaInterface
 		/// <summary>[-0, +0, v] Gets the first argument via <see cref="ObjectTranslator.getRawNetObject"/>, throwing a Lua error if it isn't one.</summary>
 		object getNetObj(lua.State L)
 		{
-			Debug.Assert(L == translator.interpreter._L && luanet.infunction(L));
+			Debug.Assert(translator.interpreter.IsSameLua(L) && luanet.infunction(L));
 			var obj = translator.getRawNetObject(L, 1);
 			if (obj == null)
 				luaL.argerror(L, 1, lua.isnoneornil(L, 1) ? "value expected" : "CLR object expected");
@@ -55,7 +55,7 @@ namespace LuaInterface
 		/// <summary>__call metafunction of CLR delegates, retrieves and calls the delegate.</summary>
 		private int runFunctionDelegate(lua.State L)
 		{
-			Debug.Assert(L == translator.interpreter._L && luanet.infunction(L));
+			Debug.Assert(translator.interpreter.IsSameLua(L) && luanet.infunction(L));
 			var func = getNetObj<lua.CFunction>(L, "lua_CFunction expected");
 			lua.remove(L, 1);
 			return func(L);
@@ -63,7 +63,7 @@ namespace LuaInterface
 		/// <summary>__gc metafunction of CLR objects.</summary>
 		private int collectObject(lua.State L)
 		{
-			Debug.Assert(L == translator.interpreter._L && luanet.infunction(L));
+			Debug.Assert(translator.interpreter.IsSameLua(L) && luanet.infunction(L));
 			int udata = luanet.rawnetobj(L, 1);
 			if (udata != -1)
 				translator.collectObject(udata);
@@ -73,7 +73,7 @@ namespace LuaInterface
 		/// <summary>__tostring metafunction of CLR objects.</summary>
 		private int toString(lua.State L)
 		{
-			Debug.Assert(L == translator.interpreter._L && luanet.infunction(L));
+			Debug.Assert(translator.interpreter.IsSameLua(L) && luanet.infunction(L));
 			var obj = getNetObj(L);
 			string s;
 			try { s = obj.ToString(); }
@@ -121,7 +121,7 @@ namespace LuaInterface
 		/// </summary>
 		private int getMethod(lua.State L)
 		{
-			Debug.Assert(L == translator.interpreter._L && luanet.infunction(L));
+			Debug.Assert(translator.interpreter.IsSameLua(L) && luanet.infunction(L));
 			object obj = getNetObj(L);
 
 			object index = translator.getObject(L, 2);
@@ -208,7 +208,7 @@ namespace LuaInterface
 		/// </summary>
 		private int getBaseMethod(lua.State L)
 		{
-			Debug.Assert(L == translator.interpreter._L && luanet.infunction(L));
+			Debug.Assert(translator.interpreter.IsSameLua(L) && luanet.infunction(L));
 			object obj = getNetObj(L);
 
 			string methodName = lua.tostring(L, 2);
@@ -251,7 +251,7 @@ namespace LuaInterface
 		/// <exception cref="ArgumentNullException"><paramref name="objType"/> and <paramref name="methodName"/></exception>
 		private int getMember(lua.State L, IReflect objType, object obj, string methodName, BindingFlags bindingType)
 		{
-			Debug.Assert(L == translator.interpreter._L);
+			Debug.Assert(translator.interpreter.IsSameLua(L));
 			Debug.Assert(objType != null && methodName != null);
 
 			Debug.Assert((obj == null) == (objType is ProxyType));
@@ -366,7 +366,7 @@ namespace LuaInterface
 		/// </summary>
 		private int setFieldOrProperty(lua.State L)
 		{
-			Debug.Assert(L == translator.interpreter._L && luanet.infunction(L));
+			Debug.Assert(translator.interpreter.IsSameLua(L) && luanet.infunction(L));
 			object target = getNetObj(L);
 
 			Type type = target.GetType();
@@ -427,7 +427,7 @@ namespace LuaInterface
 		/// <returns>false if unable to find the named member, true for success</returns>
 		private bool trySetMember(lua.State L, IReflect targetType, object target, BindingFlags bindingType, out string detailMessage)
 		{
-			Debug.Assert(L == translator.interpreter._L);
+			Debug.Assert(translator.interpreter.IsSameLua(L));
 			Debug.Assert(targetType != null);
 			detailMessage = null;   // No error yet
 
@@ -497,7 +497,7 @@ namespace LuaInterface
 		/// <summary><para>[-0, +0, v] Convert a C# exception into a Lua error. Never returns.</para><para>We try to look into the exception to give the most meaningful description</para></summary>
 		void ThrowError(lua.State L, Exception e)
 		{
-			Debug.Assert(L == translator.interpreter._L);
+			Debug.Assert(translator.interpreter.IsSameLua(L));
 			Debug.Assert(e != null);
 
 			// If we got inside a reflection show what really happened
@@ -511,7 +511,7 @@ namespace LuaInterface
 		/// <summary>__index metafunction of type references, works on static members.</summary>
 		private int getClassMethod(lua.State L)
 		{
-			Debug.Assert(L == translator.interpreter._L && luanet.infunction(L));
+			Debug.Assert(translator.interpreter.IsSameLua(L) && luanet.infunction(L));
 			var klass = getNetObj<IReflect>(L, "type reference expected");
 
 			switch (lua.type(L, 2))
@@ -532,7 +532,7 @@ namespace LuaInterface
 		/// <summary>__newindex function of type references, works on static members.</summary>
 		private int setClassFieldOrProperty(lua.State L)
 		{
-			Debug.Assert(L == translator.interpreter._L && luanet.infunction(L));
+			Debug.Assert(translator.interpreter.IsSameLua(L) && luanet.infunction(L));
 			IReflect target = getNetObj<IReflect>(L, "type reference expected");
 
 			string detail;
@@ -549,7 +549,7 @@ namespace LuaInterface
 		/// </summary>
 		private int callConstructor(lua.State L)
 		{
-			Debug.Assert(L == translator.interpreter._L && luanet.infunction(L));
+			Debug.Assert(translator.interpreter.IsSameLua(L) && luanet.infunction(L));
 			var validConstructor = new MethodCache();
 			var klass = getNetObj<IReflect>(L, "type reference expected");
 			lua.remove(L, 1);
@@ -608,7 +608,7 @@ namespace LuaInterface
 		/// </summary>
 		internal bool matchParameters(lua.State L, MethodBase method, ref MethodCache methodCache)
 		{
-			Debug.Assert(L == translator.interpreter._L);
+			Debug.Assert(translator.interpreter.IsSameLua(L));
 			bool isMethod = true;
 			int currentLuaParam = 1;
 			int nLuaParams = lua.gettop(L);
@@ -702,7 +702,7 @@ namespace LuaInterface
 
 		private bool _IsParamsArray(lua.State L, int index, ParameterInfo param, out ExtractValue extractValue)
 		{
-			Debug.Assert(L == translator.interpreter._L);
+			Debug.Assert(translator.interpreter.IsSameLua(L));
 			extractValue = null;
 
 			if (param.GetCustomAttributes(typeof(ParamArrayAttribute), false).Length > 0)

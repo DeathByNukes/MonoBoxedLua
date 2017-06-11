@@ -38,7 +38,7 @@ namespace LuaInterface
 		}
 		public object extractGenerated(lua.State L,int index)
 		{
-			Debug.Assert(L == translator.interpreter._L);
+			Debug.Assert(translator.interpreter.IsSameLua(L));
 			return CodeGeneration.Instance.GetDelegate(delegateType,translator.getFunction(L,index));
 		}
 	}
@@ -60,7 +60,7 @@ namespace LuaInterface
 		}
 		public object extractGenerated(lua.State L,int index)
 		{
-			Debug.Assert(L == translator.interpreter._L);
+			Debug.Assert(translator.interpreter.IsSameLua(L));
 			return CodeGeneration.Instance.GetClassInstance(klass,translator.getTable(L,index));
 		}
 	}

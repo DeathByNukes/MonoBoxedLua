@@ -20,6 +20,7 @@ namespace LuaInterface
 	public class Lua : IDisposable
 	{
 		internal lua.State _L;
+		private lua.State _mainthread;
 		internal ObjectTranslator translator;
 
 		// lockCallback, unlockCallback; used by debug code commented out for now
@@ -42,11 +43,39 @@ namespace LuaInterface
 			if (!allow_insecure)
 				SecureLuaFunctions();
 		}
-
+		/// <summary>[-0, +0, m] Get the <see cref="Lua"/> instance that owns the specified lua_State.</summary>
+		public static Lua GetOwner(lua.State L)
+		{
+			luaL.checkstack(L, 1, "Lua.GetInstance");
+			lua.pushstring(L, _LuaInterfaceMarker);
+			lua.rawget(L, LUA.REGISTRYINDEX);
+			var ret = luaclr.isref(L, -1) ? luaclr.getref(L, -1) as Lua : null;
+			lua.pop(L, 1);
+			return ret;
+		}
+		public bool IsSameLua(lua.State L)
+		{
+			return mainThread(L) == _mainthread;
+		}
+		public static bool IsSameLua(lua.State L1, lua.State L2)
+		{
+			return mainThread(L1) == mainThread(L2);
+		}
+		internal static lua.State mainThread(lua.State L)
+		{
+			// todo: modify the Lua API to expose G(L)->mainthread
+			luaL.checkstack(L, 1, "Lua.GetInstance");
+			lua.pushstring(L, _LuaInterfaceMainThread);
+			lua.rawget(L, LUA.REGISTRYINDEX);
+			var ret = lua.tothread(L, -1);
+			lua.pop(L, 1);
+			return ret;
+		}
 		const string _LuaInterfaceMarker = "LUAINTERFACE LOADED";
+		const string _LuaInterfaceMainThread = "LUAINTERFACE MAIN THREAD";
 		private readonly bool _StatePassed;
 
-		/// <summary>Wrap around an existing lua_State. CAUTION: Multiple LuaInterface.Lua instances can't share the same lua state.</summary>
+		/// <summary>Wrap around an existing lua_State. The passed state must be the main thread. CAUTION: Multiple LuaInterface.Lua instances can't share the same lua state.</summary>
 		public Lua(lua.State L)
 		{
 			if (L.IsNull) throw new ArgumentNullException("L");
@@ -55,10 +84,10 @@ namespace LuaInterface
 			 // Check for existing LuaInterface marker
 			lua.pushstring(L, _LuaInterfaceMarker);
 			lua.rawget(L, LUA.REGISTRYINDEX);
-			bool found_marker = lua.toboolean(L,-1);
+			bool no_marker = lua.isnil(L,-1);
 			lua.pop(L,1);
-			if (found_marker)
-				throw new LuaException("There is already a LuaInterface.Lua instance associated with this Lua state");
+			if (!no_marker)
+				throw new InvalidOperationException("There is already a LuaInterface.Lua instance associated with this Lua state");
 
 			_StatePassed = true;
 			Init(L);
@@ -66,11 +95,22 @@ namespace LuaInterface
 
 		void Init(lua.State L)
 		{
-			_L = L;
+			lua.pushstring(L, _LuaInterfaceMainThread);
+			if (lua.pushthread(L))
+				lua.rawset(L, LUA.REGISTRYINDEX);
+			else
+			{
+				lua.pop(L, 2);
+				throw new InvalidOperationException("LuaInterface.Lua initialized with a lua_State that isn't the main thread.");
+			}
 
-			// Add LuaInterface marker
+			_mainthread = _L = L;
+
+			// Add LuaInterface owner reference
 			lua.pushstring(L, _LuaInterfaceMarker);
-			lua.pushboolean(L, true);
+			luaclr.newref(L, this, GCHandleType.Weak);
+			luaclr.newrefmeta(L, 0);
+			lua.setmetatable(L, -2);
 			lua.rawset(L, LUA.REGISTRYINDEX);
 
 			translator = new ObjectTranslator(this);
@@ -179,7 +219,7 @@ namespace LuaInterface
 		};
 		unsafe int _loadfile(lua.State L)
 		{
-			Debug.Assert(L == _L);
+			Debug.Assert(this.IsSameLua(L));
 			var file = luaL.optstring(L, 1, null); // same way original loadfile reads args
 			if (file == null)
 				return _loadError(L, "reading from stdin is not supported");
@@ -997,10 +1037,10 @@ namespace LuaInterface
 				translator = null;
 			}
 
-			if (!this._StatePassed && !_L.IsNull)
-				lua.close(_L);
+			if (!this._StatePassed && !_mainthread.IsNull)
+				lua.close(_mainthread);
 
-			_L = lua.State.Null;
+			_mainthread = _L = lua.State.Null;
 			// setting this to zero is important. LuaBase checks for this before disposing a reference.
 			// this way, it's possible to safely dispose/finalize Lua before disposing/finalizing LuaBase objects.
 			// also, it makes use after disposal slightly less dangerous (BUT NOT COMPLETELY)

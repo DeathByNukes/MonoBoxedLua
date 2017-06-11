@@ -107,7 +107,7 @@ namespace LuaInterface
 		/// <summary>Calls the method. Receives the arguments from the Lua stack and returns values in it.</summary>
 		public int call(lua.State L)
 		{
-			Debug.Assert(L == _Translator.interpreter._L && luanet.infunction(L));
+			Debug.Assert(_Translator.interpreter.IsSameLua(L) && luanet.infunction(L));
 			MethodBase methodToCall = _Method;
 			object targetObject = _Target;
 			bool failedCall = true;
