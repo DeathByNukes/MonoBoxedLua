@@ -15,15 +15,7 @@ namespace LuaInterface
 	{
 		internal readonly CheckType typeChecker;
 
-		// object # to object (FIXME - it should be possible to get object address as an object #)
 		public readonly Dictionary<int, object> objects = new Dictionary<int, object>();
-		// object to object #
-		public readonly Dictionary<object, int> objectsBackMap = new Dictionary<object, int>(new ReferenceComparer<object>());
-		class ReferenceComparer<T> : IEqualityComparer<T> where T : class
-		{
-			public bool Equals(T x, T y) { return (object)x == (object)y; }
-			public int GetHashCode(T obj) { return System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(obj); }
-		}
 
 		internal readonly Lua interpreter;
 		private readonly MetaFunctions metaFunctions;
@@ -50,25 +42,12 @@ namespace LuaInterface
 			ctypeFunction             = this.ctype;
 			enumFromIntFunction       = this.enumFromInt;
 
-			createLuaObjectList(L);
 			createBaseClassMetatable(L);
 			createClassMetatable(L);
 			createFunctionMetatable(L);
 			setGlobalFunctions(L);
 		}
 
-		/// <summary>[requires checkstack(3)] Sets up the list of objects in the Lua side</summary>
-		private static void createLuaObjectList(lua.State L)
-		{
-			StackAssert.Start(L);
-			lua.newtable(L);
-			lua.newtable(L);
-			lua.pushstring(L,"v");
-			lua.setfield(L,-2,"__mode");
-			lua.setmetatable(L,-2);
-			lua.setfield(L, LUA.REGISTRYINDEX, "luaNet_objects");
-			StackAssert.End();
-		}
 		/// <summary>[requires checkstack(2)] Creates the metatable for superclasses (the base field of registered tables)</summary>
 		private void createBaseClassMetatable(lua.State L)
 		{
@@ -401,36 +380,7 @@ namespace LuaInterface
 				lua.pushnil(L);
 				return;
 			}
-			luaL.checkstack(L, 2, "ObjectTranslator.pushObject");
-			StackAssert.Start(L);
-
-			// Object already in the list of Lua objects? Push the stored reference.
-			int id;
-			if (objectsBackMap.TryGetValue(o, out id))
-			{
-				lua.getfield(L, LUA.REGISTRYINDEX, "luaNet_objects");
-				lua.rawgeti(L,-1,id);
-
-				// Note: starting with lua5.1 the garbage collector may remove weak reference items (such as our luaNet_objects values) when the initial GC sweep
-				// occurs, but the actual call of the __gc finalizer for that object may not happen until a little while later.  During that window we might call
-				// this routine and find the element missing from luaNet_objects, but collectObject() has not yet been called.  In that case, we go ahead and call collect
-				// object here
-				// did we find a non nil object in our table? if not, we need to call collect object
-				if (!lua.isnil(L, -1))
-				{
-					lua.remove(L, -2); // drop the metatable - we're going to leave our object on the stack
-					StackAssert.End(1);
-					return;
-				}
-
-				// MetaFunctions.dumpStack(this, L);
-				lua.pop(L, 2); // remove the nil object value and the metatable
-
-				collectObject(o, id);            // Remove from both our tables and fall out to get a new ID
-			}
-
 			pushNewObject(L, o, addObject(o), metatable);
-			StackAssert.End(1);
 		}
 
 
@@ -462,11 +412,6 @@ namespace LuaInterface
 
 			Debug.Assert(lua.istable(L, -1));
 			lua.setmetatable(L,-2);
-
-			lua.getfield(L, LUA.REGISTRYINDEX, "luaNet_objects");
-			lua.pushvalue(L,-2);
-			lua.rawseti(L,-2,id); // luaNet_objects[id] = o
-			lua.pop(L,1);
 			StackAssert.End(1);
 		}
 		/// <summary>Gets an object from the Lua stack with the desired type, if it matches, otherwise returns null.</summary>
@@ -482,20 +427,7 @@ namespace LuaInterface
 		/// <summary>[nothrow] Given the Lua int ID for an object remove it from our maps</summary>
 		internal void collectObject(int id)
 		{
-			// The other variant of collectObject might have gotten here first, in that case we will silently ignore the missing entry
-			object o;
-			if (objects.TryGetValue(id, out o))
-				collectObject(o, id);
-		}
-
-
-		/// <summary>[nothrow] Given an object reference, remove it from our maps</summary>
-		void collectObject(object o, int id)
-		{
-			Debug.Assert(o != null);
-			// Debug.WriteLine("Removing " + o.ToString() + " @ " + udata);
 			objects.Remove(id);
-			objectsBackMap.Remove(o);
 		}
 
 
@@ -512,7 +444,6 @@ namespace LuaInterface
 			// Debug.WriteLine("Adding " + obj.ToString() + " @ " + index);
 
 			objects[id] = obj;
-			objectsBackMap[obj] = id;
 
 			return id;
 		}
