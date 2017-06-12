@@ -68,7 +68,7 @@ namespace LuaInterface.LuaAPI
 				luaclr.freeref(L, 1);
 			return 0;
 		};
-		/// <summary>[-0, +0, m] Checks if the value at <paramref name="index"/> is a reference-sized userdata with a metatable made by <see cref="newrefmeta"/>. See also: <see cref="isreflike"/></summary>
+		/// <summary>[-0, +0, m] Checks if the value at <paramref name="index"/> is a reference-sized userdata with a metatable made by <see cref="newrefmeta(lua.State,int)"/>. See also: <see cref="isreflike"/></summary>
 		public static bool isref(lua.State L, int index)
 		{
 			luaL.checkstack(L, 2, "luaclr.isref");
@@ -116,6 +116,26 @@ namespace LuaInterface.LuaAPI
 			lua.setmetatable(L, -2);
 
 			lua.pushcclosure(L, f, n+1);
+		}
+
+		/// <summary>[-0, +0, m] Retrieves the original delegate from a CFunction created by luaclr. Returns null if it is something else. See: <see cref="pushcfunction"/>, <see cref="pushcclosure"/></summary>
+		public static lua.CFunction tocfunction(lua.State L, int index)
+		{
+			luaL.checkstack(L, 2, "luaclr.tocfunction");
+			if (!lua.iscfunction(L, index))
+				return null;
+			// get the last upvalue, or nil if there are none
+			// todo optimization: modify the Lua API to expose upvalue count or do a binary search
+			lua.pushnil(L);
+			for (int n = 1; n <= 255; ++n)
+			{
+				if (lua.getupvalue(L, index, n) == null)
+					break;
+				lua.remove(L, -2);
+			}
+			var ret = luaclr.isref(L,-1) ? luaclr.getref(L,-1) as lua.CFunction : null;
+			lua.pop(L, 1);
+			return ret;
 		}
 	}
 }

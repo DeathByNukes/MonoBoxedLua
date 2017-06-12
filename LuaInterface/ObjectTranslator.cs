@@ -43,7 +43,6 @@ namespace LuaInterface
 
 			createBaseClassMetatable(L);
 			createClassMetatable(L);
-			createFunctionMetatable(L);
 			setGlobalFunctions(L);
 		}
 
@@ -85,17 +84,6 @@ namespace LuaInterface
 			lua.pushcfunction(L,ctypeFunction);             lua.setglobal(L,"ctype");
 			lua.pushcfunction(L,enumFromIntFunction);       lua.setglobal(L,"enum");
 			StackAssert.End();
-		}
-
-		/// <summary>[requires checkstack(2)] Creates the metatable for delegates</summary>
-		private void createFunctionMetatable(lua.State L)
-		{
-			Debug.Assert(interpreter.IsSameLua(L)); StackAssert.Start(L);
-			luaL.newmetatable(L,"luaNet_function");
-			lua.pushboolean(L, false);                               lua.setfield(L,-2,"__metatable");
-			lua.pushcfunction(L,metaFunctions.gcFunction);           lua.setfield(L,-2,"__gc");
-			lua.pushcfunction(L,metaFunctions.execDelegateFunction); lua.setfield(L,-2,"__call");
-			lua.pop(L,1);                      StackAssert.End();
 		}
 		/// <summary>[-0, +0, v] Passes errors (argument e) to the Lua interpreter. This function throws a Lua exception, and therefore never returns.</summary>
 		internal int throwError(lua.State L, Exception ex)
@@ -282,7 +270,7 @@ namespace LuaInterface
 			{
 				var method = klass.GetMethod(methodName,BindingFlags.Static | BindingFlags.Instance |
 					BindingFlags.FlattenHierarchy | luanet.LuaBindingFlags, null, signature, null);
-				pushFunction(L,new lua.CFunction((new LuaMethodWrapper(this,target,klass,method)).call));
+				luaclr.pushcfunction(L,(new LuaMethodWrapper(this,target,klass,method)).call);
 			}
 			catch (Exception e) { return throwError(L,e); }
 			return 1;
@@ -301,7 +289,7 @@ namespace LuaInterface
 			try
 			{
 				var constructor = klass.UnderlyingSystemType.GetConstructor(signature);
-				pushFunction(L,new lua.CFunction((new LuaMethodWrapper(this,null,klass,constructor)).call));
+				luaclr.pushcfunction(L,(new LuaMethodWrapper(this,null,klass,constructor)).call);
 			}
 			catch(Exception e) { return throwError(L,e); }
 			return 1;
@@ -363,12 +351,6 @@ namespace LuaInterface
 		{
 			Debug.Assert(interpreter.IsSameLua(L));
 			pushObject(L,new ProxyType(t),"luaNet_class");
-		}
-		/// <summary>[-0, +1, m] Pushes a delegate into the stack</summary>
-		internal void pushFunction(lua.State L, lua.CFunction func)
-		{
-			Debug.Assert(interpreter.IsSameLua(L));
-			pushObject(L,func,"luaNet_function");
 		}
 		/// <summary>[-0, +1, m] Pushes a CLR object into the Lua stack as an userdata with the provided metatable</summary>
 		internal void pushObject(lua.State L, object o, string metatable)
@@ -641,7 +623,7 @@ namespace LuaInterface
 				              x.push(L); return; }  }
 
 			{	var x = o as lua.CFunction;
-				if(x!=null) { pushFunction(L,x); return; }  }
+				if(x!=null) { luaclr.pushcfunction(L,x); return; }  }
 
 			if(o is LuaValue) { ((LuaValue)o).push(L); return; }
 

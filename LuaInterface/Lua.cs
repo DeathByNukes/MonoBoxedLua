@@ -157,10 +157,10 @@ namespace LuaInterface
 				lua.setglobal(L, "loadstring");
 			}
 
-			translator.pushFunction(L, L2 => luaL.error(L2, "load() is disabled because a secure version is not implemented yet."));
+			luaclr.pushcfunction(L, L2 => luaL.error(L2, "load() is disabled because a secure version is not implemented yet."));
 			lua.setglobal(L, "load");
 
-			translator.pushFunction(L, _loadfile);
+			luaclr.pushcfunction(L, _loadfile);
 			lua.pushvalue(L, -1);
 			lua.setglobal(L, "loadfile");
 			lua.pushcclosure(L, _dofile, 1); // upvalue(1) = loadfile

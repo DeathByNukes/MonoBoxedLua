@@ -18,7 +18,7 @@ namespace LuaInterface
 		private readonly ObjectTranslator translator;
 		internal readonly lua.CFunction gcFunction, indexFunction, newindexFunction,
 			baseIndexFunction, classIndexFunction, classNewindexFunction,
-			execDelegateFunction, callConstructorFunction, toStringFunction;
+			callConstructorFunction, toStringFunction;
 
 		public MetaFunctions(ObjectTranslator translator)
 		{
@@ -31,7 +31,6 @@ namespace LuaInterface
 			callConstructorFunction = this.callConstructor;
 			classIndexFunction = this.getClassMethod;
 			classNewindexFunction = this.setClassFieldOrProperty;
-			execDelegateFunction = this.runFunctionDelegate;
 		}
 
 		/// <summary>[-0, +0, v] Gets the first argument via <see cref="ObjectTranslator.getRawNetObject"/>, throwing a Lua error if it isn't one.</summary>
@@ -52,14 +51,6 @@ namespace LuaInterface
 			return obj;
 		}
 
-		/// <summary>__call metafunction of CLR delegates, retrieves and calls the delegate.</summary>
-		private int runFunctionDelegate(lua.State L)
-		{
-			Debug.Assert(translator.interpreter.IsSameLua(L) && luanet.infunction(L));
-			var func = getNetObj<lua.CFunction>(L, "lua_CFunction expected");
-			lua.remove(L, 1);
-			return func(L);
-		}
 		/// <summary>__gc metafunction of CLR objects.</summary>
 		private int collectObject(lua.State L)
 		{
@@ -266,7 +257,7 @@ namespace LuaInterface
 				var cachedMethod = cachedMember as lua.CFunction;
 				if (cachedMethod != null)
 				{
-					translator.pushFunction(L, cachedMethod);
+					luaclr.pushcfunction(L, cachedMethod);
 					lua.pushboolean(L, true);
 					return 2;
 				}
@@ -293,7 +284,7 @@ namespace LuaInterface
 				var wrapper = new lua.CFunction((new LuaMethodWrapper(translator, objType, methodName, bindingType)).call);
 
 				if (cachedMember == null) setMemberCache(objType, methodName, wrapper);
-				translator.pushFunction(L, wrapper);
+				luaclr.pushcfunction(L, wrapper);
 				lua.pushboolean(L, true);
 				return 2;
 

@@ -95,7 +95,7 @@ LUA_DLLEXPORT int luanet_tonetobject(lua_State *L,int index) {
     if(udata!=NULL) return *udata;
     udata=(int*)checkudata(L,index,"luaNet_searchbase");
     if(udata!=NULL) return *udata;
-    udata=(int*)checkudata(L,index,"luaNet_function");
+    udata=(int*)checkudata(L,index,"luaNet_function"); // obsolete, can be removed
     if(udata!=NULL) return *udata;
   }
   return -1;
