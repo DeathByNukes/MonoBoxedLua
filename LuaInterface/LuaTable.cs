@@ -730,17 +730,6 @@ namespace LuaInterface
 			CheckType(LUA.T.TABLE);
 		}
 
-		internal object rawgetFunction(string field)
-		{
-			object obj = this.RawGet(field);
-
-			var f = obj as lua.CFunction;
-			if (f != null)
-				return new LuaFunction(f, Owner);
-			else
-				return obj;
-		}
-
 		protected internal override void push(lua.State L)
 		{
 			Debug.Assert(L == Owner._L);

@@ -720,12 +720,6 @@ namespace LuaInterface
 			case LUA.T.FUNCTION:              StackAssert.End(1);
 				return new LuaFunction(L, this);
 
-			case LUA.T.USERDATA:
-				var o = translator.getNetObject(L, -1) as lua.CFunction;
-				if (o == null) break;
-				lua.pop(L,1);                       StackAssert.End();
-				return new LuaFunction(o, this);
-
 			case LUA.T.NIL:
 				lua.pop(L,1);                       StackAssert.End();
 				return null;
@@ -908,7 +902,9 @@ namespace LuaInterface
 			if (function == null) throw new ArgumentNullException("function");
 			if (function.IsStatic != (target == null)) throw NewMethodTargetError(target);
 
-			return new LuaFunction(new LuaMethodWrapper(translator, target, function.DeclaringType, function).call, this);
+			var L = _L;
+			luaclr.pushcfunction(L, new LuaMethodWrapper(translator, target, function.DeclaringType, function).call);
+			return new LuaFunction(L, this);
 		}
 		static ArgumentException NewMethodTargetError(object target)
 		{
@@ -932,7 +928,9 @@ namespace LuaInterface
 		public LuaFunction NewFunction(Delegate function)
 		{
 			var method = function.Method;
-			return new LuaFunction(new LuaMethodWrapper(translator, function.Target, method.DeclaringType, method).call, this);
+			var L = _L;
+			luaclr.pushcfunction(L, new LuaMethodWrapper(translator, function.Target, method.DeclaringType, method).call);
+			return new LuaFunction(L, this);
 		}
 		
 		/// <summary><para>Loads all types in the assembly just like the Lua function load_assembly.</para><para>Lua scripts can access static members and constructors of loaded types via the import_type function.</para></summary>
@@ -984,7 +982,7 @@ namespace LuaInterface
 		{
 			lua.CFunction func = L =>
 			{
-				Debug.Assert(L == _L);
+				Debug.Assert(this.IsSameLua(L));
 
 				// direct copy-paste of Lua's luaB_print function
 
@@ -1009,7 +1007,11 @@ namespace LuaInterface
 
 				return 0;
 			};
-			return new LuaFunction(func, this);
+			{
+				var L = _L;
+				luaclr.pushcfunction(L, func);
+				return new LuaFunction(L, this);
+			}
 		}
 
 		#endregion

@@ -8,17 +8,10 @@ namespace LuaInterface
 {
 	public sealed class LuaFunction : LuaBase
 	{
-		internal readonly lua.CFunction function;
-
 		/// <summary>[-1, +0, e] Pops a function from the top of the stack and creates a new reference. The value is discarded if a type exception is thrown.</summary>
 		public LuaFunction(lua.State L, Lua interpreter)
 		: base(TryRef(L, interpreter, LUA.T.FUNCTION), interpreter)
 		{
-		}
-		public LuaFunction(lua.CFunction function, Lua interpreter)
-		: base(LUA.NOREF, interpreter)
-		{
-			this.function = function;
 		}
 
 		/// <summary>Dumps a binary chunk that, if loaded again, results in a function equivalent to the one dumped.</summary>
@@ -33,8 +26,6 @@ namespace LuaInterface
 		/// <exception cref="InvalidOperationException">The function is not implemented in Lua.</exception>
 		public unsafe void Dump(Stream output)
 		{
-			if (Reference == LUA.NOREF)
-				goto IS_CFUNCTION;
 			var L = Owner._L;
 			luanet.checkstack(L, 1, "LuaFunction.Dump");
 			int oldTop = lua.gettop(L);
@@ -62,14 +53,12 @@ namespace LuaInterface
 			if (err == 0)
 				return;
 			Debug.Assert(err == 1);
-		IS_CFUNCTION:
 			throw new InvalidOperationException("Only native Lua functions can be dumped.");
 		}
 
 		/// <summary>Makes a new reference to the same function.</summary>
 		public LuaFunction NewReference()
 		{
-			if (Reference == LUA.NOREF) return new LuaFunction(function, Owner);
 			var L = Owner._L;
 			luanet.checkstack(L, 1, "LuaFunction.NewReference");
 			rawpush(L);
@@ -80,37 +69,14 @@ namespace LuaInterface
 		protected internal override void push(lua.State L)
 		{
 			Debug.Assert(L == Owner._L);
-			if (Reference == LUA.NOREF)
-				Owner.translator.pushFunction(L, function);
-			else
-			{
-				luaL.getref(L, Reference);
-				CheckType(L, LUA.T.FUNCTION);
-			}
+			luaL.getref(L, Reference);
+			CheckType(L, LUA.T.FUNCTION);
 		}
 
 		protected override void rawpush(lua.State L)
 		{
 			Debug.Assert(L == Owner._L);
-			if (Reference != LUA.NOREF)
-				luaL.getref(Owner._L, Reference);
-			else
-				Owner.translator.pushFunction(Owner._L, function);
-		}
-		public override bool Equals(object o)
-		{
-			var l = o as LuaFunction;
-			if (l == null) return false;
-			if (this.Reference != LUA.NOREF && l.Reference != LUA.NOREF)
-				return base.Equals(l);
-			else
-				return this.function == l.function;
-		}
-
-		public override int GetHashCode() {
-			return Reference == LUA.NOREF
-				? function.GetHashCode()
-				: base.GetHashCode();
+			luaL.getref(Owner._L, Reference);
 		}
 	}
 
