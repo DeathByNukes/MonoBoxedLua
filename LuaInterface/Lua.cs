@@ -49,7 +49,7 @@ namespace LuaInterface
 			luaL.checkstack(L, 1, "Lua.GetInstance");
 			lua.pushstring(L, _LuaInterfaceMarker);
 			lua.rawget(L, LUA.REGISTRYINDEX);
-			var ret = luaclr.isref(L, -1) ? luaclr.getref(L, -1) as Lua : null;
+			var ret = luaclr.toref(L, -1) as Lua;
 			lua.pop(L, 1);
 			return ret;
 		}
@@ -505,7 +505,6 @@ namespace LuaInterface
 		/// <summary>Calls <paramref name="function"/> in protected mode. If a Lua error occurs inside the function, it will be caught at this point and converted to a C# exception.</summary>
 		public void CPCall(Action function)
 		{
-			var L = _L;
 			if (function == null) throw new ArgumentNullException("function");
 			lua.CFunction wrapper = L =>
 			{
@@ -513,8 +512,11 @@ namespace LuaInterface
 				function();
 				return 0;
 			};
-			if (lua.cpcall(L, wrapper, default(IntPtr)) != LUA.ERR.Success)
-				throw ExceptionFromError(L, -2);
+			{
+				var L = _L;
+				if (lua.cpcall(L, wrapper, default(IntPtr)) != LUA.ERR.Success)
+					throw ExceptionFromError(L, -2);
+			}
 		}
 
 		#endregion
@@ -954,7 +956,7 @@ namespace LuaInterface
 			if (type == null) throw new ArgumentNullException("type");
 			var L = _L;
 			luanet.checkstack(L, 1, "Lua.ImportType");
-			translator.pushType(L, type);
+			ObjectTranslator.pushType(L, type);
 			return new LuaUserData(L, this);
 		}
 		/// <summary>Creates a type proxy object just like Lua import_type, assigning it to a global variable named after the type.</summary>

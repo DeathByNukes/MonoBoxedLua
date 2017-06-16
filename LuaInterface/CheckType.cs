@@ -109,7 +109,7 @@ namespace LuaInterface
 				luaL.checkstack(L, 1, "CheckType.checkType");
 				if (luaL.getmetafield(L, index, "__index"))
 				{
-					object indexer = translator.getNetObject(L, -1);
+					object indexer = luaclr.toref(L, -1);
 					lua.pop(L,1);
 					if (indexer != null && paramType.IsAssignableFrom(indexer.GetType()))
 						return extractNetObject;
@@ -122,7 +122,7 @@ namespace LuaInterface
 				break;
 
 			case LUA.T.USERDATA:
-				object obj = translator.getNetObject(L, index);
+				object obj = luaclr.toref(L, index);
 				if (obj != null && paramType.IsAssignableFrom(obj.GetType()))
 					return extractNetObject;
 				break;
@@ -153,12 +153,12 @@ namespace LuaInterface
 		public object asObject(lua.State L,int index)
 		{
 			Debug.Assert(translator.interpreter.IsSameLua(L));
-			if(lua.type(L,index)==LUA.T.TABLE)
+			if(lua.type(L,index)==LUA.T.TABLE) // todo: find what purpose this branch serves and document it
 			{
 				luaL.checkstack(L, 1, "CheckType.asObject");
 				if(luaL.getmetafield(L,index,"__index"))
 				{
-					if(luanet.checkmetatable(L,-1))
+					if(luaclr.isref(L,-1))
 					{
 						lua.insert(L,index);
 						lua.remove(L,index+1);
@@ -175,17 +175,17 @@ namespace LuaInterface
 		public object asNetObject(lua.State L,int index)
 		{
 			Debug.Assert(translator.interpreter.IsSameLua(L));
-			object obj=translator.getNetObject(L,index);
-			if(obj==null && lua.type(L,index)==LUA.T.TABLE)
+			object obj=luaclr.toref(L,index);
+			if(obj==null && lua.type(L,index)==LUA.T.TABLE) // todo: find what purpose this branch serves and document it
 			{
 				luaL.checkstack(L, 1, "CheckType.asNetObject");
 				if(luaL.getmetafield(L,index,"__index"))
 				{
-					if(luanet.checkmetatable(L,-1))
+					if(luaclr.isref(L,-1))
 					{
 						lua.insert(L,index);
 						lua.remove(L,index+1);
-						obj=translator.getNetObject(L,index);
+						obj=luaclr.toref(L,index);
 					}
 					else
 					{

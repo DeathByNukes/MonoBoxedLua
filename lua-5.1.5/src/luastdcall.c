@@ -37,6 +37,7 @@ LUA_DLLEXPORT void lua_pushstdcallcfunction(lua_State *L,lua_stdcallCFunction fn
 
 
 
+// obsolete
 // [-0, +0, -, requires checkstack(3)]
 LUA_DLLEXPORT int luaL_checkmetatable(lua_State *L,int index) {
   int retVal=0;
@@ -83,6 +84,7 @@ void *checkudata(lua_State *L, int ud, const char *tname)
 }
 
 
+// obsolete
 // [-0, +0, -, requires checkstack(3)]
 LUA_DLLEXPORT int luanet_tonetobject(lua_State *L,int index) {
   int *udata;
@@ -95,18 +97,20 @@ LUA_DLLEXPORT int luanet_tonetobject(lua_State *L,int index) {
     if(udata!=NULL) return *udata;
     udata=(int*)checkudata(L,index,"luaNet_searchbase");
     if(udata!=NULL) return *udata;
-    udata=(int*)checkudata(L,index,"luaNet_function"); // obsolete, can be removed
+    udata=(int*)checkudata(L,index,"luaNet_function");
     if(udata!=NULL) return *udata;
   }
   return -1;
 }
 
+// obsolete
 // [-0, +1, m]
 LUA_DLLEXPORT void luanet_newudata(lua_State *L,int val) {
   int* pointer=(int*)lua_newuserdata(L,sizeof(int));
   *pointer=val;
 }
 
+// obsolete
 // [-0, +0, -, requires checkstack(2)]
 LUA_DLLEXPORT int luanet_checkudata(lua_State *L,int index,const char *meta) {
   int *udata=(int*)checkudata(L,index,meta);
@@ -114,6 +118,7 @@ LUA_DLLEXPORT int luanet_checkudata(lua_State *L,int index,const char *meta) {
   return -1;
 }
 
+// obsolete
 // [-0, +0, -]
 LUA_DLLEXPORT int luanet_rawnetobj(lua_State *L,int index) {
   int *udata=lua_touserdata(L,index);

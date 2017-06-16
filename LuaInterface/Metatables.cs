@@ -16,14 +16,13 @@ namespace LuaInterface
 	class MetaFunctions
 	{
 		private readonly ObjectTranslator translator;
-		internal readonly lua.CFunction gcFunction, indexFunction, newindexFunction,
+		internal readonly lua.CFunction indexFunction, newindexFunction,
 			baseIndexFunction, classIndexFunction, classNewindexFunction,
 			callConstructorFunction, toStringFunction;
 
 		public MetaFunctions(ObjectTranslator translator)
 		{
 			this.translator = translator;
-			gcFunction = this.collectObject;
 			toStringFunction = this.toString;
 			indexFunction = this.index;
 			newindexFunction = this.setFieldOrProperty;
@@ -33,39 +32,11 @@ namespace LuaInterface
 			classNewindexFunction = this.setClassFieldOrProperty;
 		}
 
-		/// <summary>[-0, +0, v] Gets the first argument via <see cref="ObjectTranslator.getRawNetObject"/>, throwing a Lua error if it isn't one.</summary>
-		object getNetObj(lua.State L)
-		{
-			Debug.Assert(translator.interpreter.IsSameLua(L) && luanet.infunction(L));
-			var obj = translator.getRawNetObject(L, 1);
-			if (obj == null)
-				luaL.argerror(L, 1, lua.isnoneornil(L, 1) ? "value expected" : "CLR object expected");
-			return obj;
-		}
-		/// <summary>[-0, +0, v] Gets the first argument as type <typeparamref name="T"/> via <see cref="ObjectTranslator.getRawNetObject"/>, throwing a Lua error if it isn't one. If it is the wrong CLR type, <paramref name="extramsg"/> is used for the error message.</summary>
-		T getNetObj<T>(lua.State L, string extramsg) where T : class
-		{
-			var obj = getNetObj(L) as T;
-			if (obj == null)
-				luaL.argerror(L, 1, extramsg);
-			return obj;
-		}
-
-		/// <summary>__gc metafunction of CLR objects.</summary>
-		private int collectObject(lua.State L)
-		{
-			Debug.Assert(translator.interpreter.IsSameLua(L) && luanet.infunction(L));
-			int udata = luanet.rawnetobj(L, 1);
-			if (udata != -1)
-				translator.collectObject(udata);
-			// else Debug.WriteLine("not found: " + udata);
-			return 0;
-		}
 		/// <summary>__tostring metafunction of CLR objects.</summary>
 		private int toString(lua.State L)
 		{
 			Debug.Assert(translator.interpreter.IsSameLua(L) && luanet.infunction(L));
-			var obj = getNetObj(L);
+			var obj = luaclr.checkref(L, 1);
 			string s;
 			try { s = obj.ToString(); }
 			catch (Exception ex) { return translator.throwError(L, ex); }
@@ -113,7 +84,7 @@ namespace LuaInterface
 		private int getMethod(lua.State L)
 		{
 			Debug.Assert(translator.interpreter.IsSameLua(L) && luanet.infunction(L));
-			object obj = getNetObj(L);
+			object obj = luaclr.checkref(L, 1);
 
 			object index = translator.getObject(L, 2);
 			//Type indexType = index.GetType();
@@ -200,7 +171,7 @@ namespace LuaInterface
 		private int getBaseMethod(lua.State L)
 		{
 			Debug.Assert(translator.interpreter.IsSameLua(L) && luanet.infunction(L));
-			object obj = getNetObj(L);
+			object obj = luaclr.checkref(L, 1);
 
 			string methodName = lua.tostring(L, 2);
 			if (methodName == null)
@@ -312,7 +283,7 @@ namespace LuaInterface
 			case MemberTypes.NestedType:
 				var nestedType = (Type) member;
 				if (translator.FindType(nestedType)) // don't hand out class references unless loaded/whitelisted
-					translator.pushType(L, nestedType);
+					ObjectTranslator.pushType(L, nestedType);
 				else
 					lua.pushnil(L);
 				break;
@@ -358,7 +329,7 @@ namespace LuaInterface
 		private int setFieldOrProperty(lua.State L)
 		{
 			Debug.Assert(translator.interpreter.IsSameLua(L) && luanet.infunction(L));
-			object target = getNetObj(L);
+			object target = luaclr.checkref(L, 1);
 
 			Type type = target.GetType();
 
@@ -499,11 +470,16 @@ namespace LuaInterface
 			translator.throwError(L, e);
 		}
 
+		static ProxyType _checktyperef(lua.State L)
+		{
+			return luaclr.checkref<ProxyType>(L, 1, "type reference expected, got {1}");
+		}
+
 		/// <summary>__index metafunction of type references, works on static members.</summary>
 		private int getClassMethod(lua.State L)
 		{
 			Debug.Assert(translator.interpreter.IsSameLua(L) && luanet.infunction(L));
-			var klass = getNetObj<IReflect>(L, "type reference expected");
+			var klass = _checktyperef(L);
 
 			switch (lua.type(L, 2))
 			{
@@ -524,7 +500,7 @@ namespace LuaInterface
 		private int setClassFieldOrProperty(lua.State L)
 		{
 			Debug.Assert(translator.interpreter.IsSameLua(L) && luanet.infunction(L));
-			IReflect target = getNetObj<IReflect>(L, "type reference expected");
+			var target = _checktyperef(L);
 
 			string detail;
 			if (!trySetMember(L, target, null, BindingFlags.FlattenHierarchy | BindingFlags.Static, out detail))
@@ -542,7 +518,7 @@ namespace LuaInterface
 		{
 			Debug.Assert(translator.interpreter.IsSameLua(L) && luanet.infunction(L));
 			var validConstructor = new MethodCache();
-			var klass = getNetObj<IReflect>(L, "type reference expected");
+			var klass = _checktyperef(L);
 			lua.remove(L, 1);
 			var constructors = klass.UnderlyingSystemType.GetConstructors();
 

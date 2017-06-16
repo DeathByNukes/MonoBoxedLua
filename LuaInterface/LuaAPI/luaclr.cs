@@ -81,6 +81,19 @@ namespace LuaInterface.LuaAPI
 			lua.pop(L, 2);
 			return isref;
 		}
+		/// <summary>[-0, +0, m] Checks if the value at <paramref name="index"/> is a metatable made by <see cref="newrefmeta(lua.State,int)"/>. See also: <see cref="isref"/></summary>
+		public static bool isrefmeta(lua.State L, int index)
+		{
+			luaL.checkstack(L, 2, "luaclr.isrefmeta");
+			index = luanet.absoluteindex(L, index);
+			if (!lua.istable(L, index))
+				return false;
+			lua.pushlightuserdata(L, luanet.gettag());
+			lua.rawget(L, index);
+			bool isref = lua.type(L, -1) != LUA.T.NIL;
+			lua.pop(L, 1);
+			return isref;
+		}
 		/// <summary>
 		/// <para>[-0, +1, m] <see cref="luaL.newmetatable"/> variant that uses <see cref="newrefmeta(lua.State,int)"/> to create the metatable.</para>
 		/// <para>luaL.newmetatable: If the registry already has the key tname, returns false. Otherwise, creates a new table to be used as a metatable for userdata, adds it to the registry with key tname, and returns true. In both cases pushes onto the stack the final value associated with tname in the registry.</para>
@@ -96,6 +109,62 @@ namespace LuaInterface.LuaAPI
 			lua.pushvalue(L, -1);
 			lua.setfield(L, LUA.REGISTRYINDEX, tname);
 			return true;
+		}
+
+		/// <summary>[-0, +0, m] Converts a value at the given acceptable index to a CLR reference. That value must be a CLR reference; otherwise, returns <see langword="null"/>.</summary>
+		[MethodImpl(INLINE)] public static object toref(lua.State L, int index) { return luaclr.isref(L, index) ? luaclr.getref(L, index) : null; }
+
+		/// <summary><para>[-0, +0, v] Checks whether the function argument <paramref name="narg"/> is a CLR object and returns this object.</para></summary>
+		public static object checkref(lua.State L, int narg)
+		{
+			if (!luaclr.isref(L, narg))
+				return luaL.typerror(L, narg, "CLR object");
+			var o = luaclr.getref(L, narg);
+			if (o == null)
+				return luaL.argerror(L, narg, "CLR object reference has been freed");
+			return o;
+		}
+
+		/// <summary><para>[-0, +0, v] Checks whether the function argument <paramref name="narg"/> is a CLR object with metatable <paramref name="tname"/> and returns this object.</para><para>This function assumes that <paramref name="tname"/> is a metatable created by luaclr.newrefmeta and does not check it.</para></summary>
+		public static object checkref(lua.State L, int narg, string tname)
+		{
+			if (luaclr.isreflike(L, narg) && lua.getmetatable(L, narg))
+			{
+				lua.getfield(L, LUA.REGISTRYINDEX, tname);  /* get correct metatable */
+				if (lua.rawequal(L, -1, -2))  /* does it have the correct mt? */
+				{
+					Debug.Assert(luaclr.isrefmeta(L, -1));
+					lua.pop(L, 2);  /* remove both metatables */
+					var o = luaclr.getref(L, narg);
+					if (o == null)
+						return luaL.argerror(L, narg, "CLR object reference has been freed");
+					return o;
+				}
+			}
+			return luaL.typerror(L, narg, tname);
+		}
+
+		/// <summary><para>[-0, +0, v] Checks whether the function argument <paramref name="narg"/> is a class instance of type <typeparamref name="T"/> and returns this object.</para></summary>
+		public static T checkref<T>(lua.State L, int narg) where T : class { return luaclr.checkref<T>(L, narg, null); }
+		/// <summary><para>[-0, +0, v] Checks whether the function argument <paramref name="narg"/> is a class instance of type <typeparamref name="T"/> and returns this object.</para></summary>
+		public static T checkref<T>(lua.State L, int narg, string extramsg) where T : class
+		{
+			var o = luaclr.checkref(L, narg);
+			var ret = o as T;
+			if (ret == null)
+				luaL.argerror(L, narg, string.Format(extramsg ?? "{0} expected, got {1}", typeof(T).Name, o.GetType().FullName));
+			return ret;
+		}
+
+		/// <summary><para>[-0, +0, v] Checks whether the function argument <paramref name="narg"/> is a struct instance of type <typeparamref name="T"/> and returns this object.</para></summary>
+		public static T checkrefstruct<T>(lua.State L, int narg) where T : struct { return luaclr.checkrefstruct<T>(L, narg, null); }
+		/// <summary><para>[-0, +0, v] Checks whether the function argument <paramref name="narg"/> is a struct instance of type <typeparamref name="T"/> and returns this object.</para></summary>
+		public static T checkrefstruct<T>(lua.State L, int narg, string extramsg) where T : struct
+		{
+			var o = luaclr.checkref(L, narg);
+			if (o is T == false)
+				luaL.argerror(L, narg, string.Format(extramsg ?? "{0} expected, got {1}", typeof(T).Name, o.GetType().FullName));
+			return (T) o;
 		}
 
 		#endregion
