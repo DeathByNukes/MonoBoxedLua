@@ -7,10 +7,7 @@ using LuaInterface.LuaAPI;
 namespace LuaInterface
 {
 	/// <summary>Type checking and conversion functions.</summary>
-	/// <remarks>
-	/// Author: Fabio Mascarenhas
-	/// Version: 1.0
-	/// </remarks>
+	/// <remarks>Author: Fabio Mascarenhas</remarks>
 	class CheckType
 	{
 		readonly ObjectTranslator translator;

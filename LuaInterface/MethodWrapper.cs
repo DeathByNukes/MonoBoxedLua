@@ -141,7 +141,7 @@ namespace LuaInterface
 								object luaParamValue = type.extractValue(L, i + 1 + numStackToSkip);
 
 								args[type.index] = _LastCalledMethod.argTypes[i].isParamsArray
-									? MetaFunctions.TableToArray(luaParamValue,type.paramsArrayType)
+									? ObjectTranslator.TableToArray(luaParamValue,type.paramsArrayType)
 									: luaParamValue;
 
 								if (args[type.index] == null && !lua.isnil(L, i + 1 + numStackToSkip))

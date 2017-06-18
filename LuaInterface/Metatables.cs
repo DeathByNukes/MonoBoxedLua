@@ -1,5 +1,4 @@
 using System;
-using System.Collections;
 using System.Reflection;
 using System.Diagnostics;
 using System.Collections.Generic;
@@ -9,31 +8,59 @@ using LuaInterface.LuaAPI;
 namespace LuaInterface
 {
 	/// <summary>Functions used in the metatables of userdata representing CLR objects</summary>
-	/// <remarks>
-	/// Author: Fabio Mascarenhas
-	/// Version: 1.0
-	/// </remarks>
+	/// <remarks>Author: Fabio Mascarenhas</remarks>
 	class MetaFunctions
 	{
-		private readonly ObjectTranslator translator;
-		internal readonly lua.CFunction indexFunction, newindexFunction,
-			baseIndexFunction, classIndexFunction, classNewindexFunction,
-			callConstructorFunction, toStringFunction;
+		readonly ObjectTranslator translator;
+		readonly lua.CFunction _index, _newindex,
+			_baseIndex, _classIndex, _classNewindex,
+			_classCall, _toString;
 
-		public MetaFunctions(ObjectTranslator translator)
+		public MetaFunctions(lua.State L, ObjectTranslator translator)
 		{
+			Debug.Assert(translator.interpreter.IsSameLua(L));
 			this.translator = translator;
-			toStringFunction = this.toString;
-			indexFunction = this.index;
-			newindexFunction = this.setFieldOrProperty;
-			baseIndexFunction = this.getBaseMethod;
-			callConstructorFunction = this.callConstructor;
-			classIndexFunction = this.getClassMethod;
-			classNewindexFunction = this.setClassFieldOrProperty;
+
+			// used by BuildObjectMetatable
+			_toString = this.toString;
+			_index    = this.index;
+			_newindex = this.newIndex;
+
+			luaL.checkstack(L, 2, "new MetaFunctions");
+			StackAssert.Start(L);
+
+			// Creates the metatable for superclasses (the base field of registered tables)
+			bool didnt_exist = luaclr.newrefmeta(L, "luaNet_searchbase", 3);
+			Debug.Assert(didnt_exist);
+			lua.pushcfunction(L,_toString                  ); lua.setfield(L,-2,"__tostring");
+			lua.pushcfunction(L,_baseIndex = this.baseIndex); lua.setfield(L,-2,"__index");
+			lua.pushcfunction(L,_newindex                  ); lua.setfield(L,-2,"__newindex");
+			lua.pop(L,1);
+
+			// Creates the metatable for type references
+			didnt_exist = luaclr.newrefmeta(L, "luaNet_class", 4);
+			Debug.Assert(didnt_exist);
+			lua.pushcfunction(L,_toString                          ); lua.setfield(L,-2,"__tostring");
+			lua.pushcfunction(L,_classIndex    = this.classIndex   ); lua.setfield(L,-2,"__index");
+			lua.pushcfunction(L,_classNewindex = this.classNewIndex); lua.setfield(L,-2,"__newindex");
+			lua.pushcfunction(L,_classCall     = this.classCall    ); lua.setfield(L,-2,"__call");
+			lua.pop(L,1);
+
+			StackAssert.End();
+		}
+
+		/// <summary>[-0, +0, m, requires checkstack(1)] Add CLR object instance metatable entries to a new ref metatable at the top of the stack.</summary>
+		public void BuildObjectMetatable(lua.State L)
+		{
+			Debug.Assert(translator.interpreter.IsSameLua(L) && luaclr.isrefmeta(L, -1));
+			lua.newtable(L);                lua.setfield(L,-2,"cache");
+			lua.pushcfunction(L,_index   ); lua.setfield(L,-2,"__index");
+			lua.pushcfunction(L,_toString); lua.setfield(L,-2,"__tostring");
+			lua.pushcfunction(L,_newindex); lua.setfield(L,-2,"__newindex");
 		}
 
 		/// <summary>__tostring metafunction of CLR objects.</summary>
-		private int toString(lua.State L)
+		int toString(lua.State L)
 		{
 			Debug.Assert(translator.interpreter.IsSameLua(L) && luanet.infunction(L));
 			var obj = luaclr.checkref(L, 1);
@@ -45,7 +72,7 @@ namespace LuaInterface
 		}
 
 		/// <summary>__index metafunction of CLR objects. Checks metatable.cache for previously used functions before calling getMethod to look up the member.</summary>
-		private int index(lua.State L)
+		int index(lua.State L)
 		{
 			if (lua.gettop(L) != 2)
 				return luaL.error(L, "__index requires 2 arguments");
@@ -81,7 +108,7 @@ namespace LuaInterface
 		/// Receives the object and the member name as arguments and returns either the value of the member or a delegate to call it.
 		/// If the member does not exist returns nil.
 		/// </summary>
-		private int getMethod(lua.State L)
+		int getMethod(lua.State L)
 		{
 			Debug.Assert(translator.interpreter.IsSameLua(L) && luanet.infunction(L));
 			object obj = luaclr.checkref(L, 1);
@@ -168,7 +195,7 @@ namespace LuaInterface
 		/// __index metafunction of base classes (the base field of Lua tables).
 		/// Adds a prefix to the method name to call the base version of the method.
 		/// </summary>
-		private int getBaseMethod(lua.State L)
+		int baseIndex(lua.State L)
 		{
 			Debug.Assert(translator.interpreter.IsSameLua(L) && luanet.infunction(L));
 			object obj = luaclr.checkref(L, 1);
@@ -211,7 +238,7 @@ namespace LuaInterface
 		/// and stores the reflected MemberInfo object in a cache (indexed by <paramref name="objType"/> and <paramref name="methodName"/>).
 		/// </summary>
 		/// <exception cref="ArgumentNullException"><paramref name="objType"/> and <paramref name="methodName"/></exception>
-		private int getMember(lua.State L, IReflect objType, object obj, string methodName, BindingFlags bindingType)
+		int getMember(lua.State L, IReflect objType, object obj, string methodName, BindingFlags bindingType)
 		{
 			Debug.Assert(translator.interpreter.IsSameLua(L));
 			Debug.Assert(objType != null && methodName != null);
@@ -295,10 +322,10 @@ namespace LuaInterface
 			return 2;
 		}
 
-		private readonly Dictionary<IReflect, Dictionary<string, object>> memberCache = new Dictionary<IReflect, Dictionary<string, object>>();
+		readonly Dictionary<IReflect, Dictionary<string, object>> memberCache = new Dictionary<IReflect, Dictionary<string, object>>();
 
 		/// <summary>Checks if a MemberInfo object is cached, returning it or null.</summary><exception cref="ArgumentNullException">All arguments are required.</exception>
-		private object checkMemberCache(IReflect objType, string memberName)
+		object checkMemberCache(IReflect objType, string memberName)
 		{
 			Debug.Assert(objType != null && memberName != null);
 			Dictionary<string, object> members;
@@ -310,7 +337,7 @@ namespace LuaInterface
 				return null;
 		}
 		/// <summary>Stores a MemberInfo object in the member cache.</summary><exception cref="ArgumentNullException"><paramref name="objType"/> and <paramref name="memberName"/> are required. Null <paramref name="member"/> won't throw an exception but shouldn't be null.</exception>
-		private void setMemberCache(IReflect objType, string memberName, object member)
+		void setMemberCache(IReflect objType, string memberName, object member)
 		{
 			Debug.Assert(objType != null && memberName != null && member != null);
 			var memberCache = this.memberCache;
@@ -326,7 +353,7 @@ namespace LuaInterface
 		/// Receives the object, the member name and the value to be stored as arguments.
 		/// Throws and error if the assignment is invalid.
 		/// </summary>
-		private int setFieldOrProperty(lua.State L)
+		int newIndex(lua.State L)
 		{
 			Debug.Assert(translator.interpreter.IsSameLua(L) && luanet.infunction(L));
 			object target = luaclr.checkref(L, 1);
@@ -387,7 +414,7 @@ namespace LuaInterface
 
 		/// <summary>Tries to set a named property or field</summary>
 		/// <returns>false if unable to find the named member, true for success</returns>
-		private bool trySetMember(lua.State L, IReflect targetType, object target, BindingFlags bindingType, out string detailMessage)
+		bool trySetMember(lua.State L, IReflect targetType, object target, BindingFlags bindingType, out string detailMessage)
 		{
 			Debug.Assert(translator.interpreter.IsSameLua(L));
 			Debug.Assert(targetType != null);
@@ -476,7 +503,7 @@ namespace LuaInterface
 		}
 
 		/// <summary>__index metafunction of type references, works on static members.</summary>
-		private int getClassMethod(lua.State L)
+		int classIndex(lua.State L)
 		{
 			Debug.Assert(translator.interpreter.IsSameLua(L) && luanet.infunction(L));
 			var klass = _checktyperef(L);
@@ -497,7 +524,7 @@ namespace LuaInterface
 			}
 		}
 		/// <summary>__newindex function of type references, works on static members.</summary>
-		private int setClassFieldOrProperty(lua.State L)
+		int classNewIndex(lua.State L)
 		{
 			Debug.Assert(translator.interpreter.IsSameLua(L) && luanet.infunction(L));
 			var target = _checktyperef(L);
@@ -514,7 +541,7 @@ namespace LuaInterface
 		/// Returns nil if the constructor is not found or if the arguments are invalid.
 		/// Throws an error if the constructor generates an exception.
 		/// </summary>
-		private int callConstructor(lua.State L)
+		int classCall(lua.State L)
 		{
 			Debug.Assert(translator.interpreter.IsSameLua(L) && luanet.infunction(L));
 			var validConstructor = new MethodCache();
@@ -523,7 +550,7 @@ namespace LuaInterface
 			var constructors = klass.UnderlyingSystemType.GetConstructors();
 
 			foreach (ConstructorInfo constructor in constructors)
-			if (matchParameters(L, constructor, ref validConstructor))
+			if (translator.matchParameters(L, constructor, ref validConstructor))
 			{
 				try { translator.push(L, constructor.Invoke(validConstructor.args)); }
 				catch (TargetInvocationException e) { return translator.throwError(L, e.InnerException); }
@@ -531,176 +558,6 @@ namespace LuaInterface
 				return 1;
 			}
 			return luaL.error(L, klass.UnderlyingSystemType+" constructor arguments do not match");
-		}
-
-		private static bool IsInteger(double x) {
-			return Math.Ceiling(x) == x;
-		}
-
-
-		/// <summary>Note: this disposes <paramref name="luaParamValue"/> if it is a table.</summary>
-		internal static Array TableToArray(object luaParamValue, Type paramArrayType)
-		{
-			Array paramArray;
-
-			var table = luaParamValue as LuaTable;
-			if (table == null)
-			{
-				paramArray = Array.CreateInstance(paramArrayType, 1);
-				paramArray.SetValue(luaParamValue, 0);
-			}
-			else using (table)
-			{
-				paramArray = Array.CreateInstance(paramArrayType, table.Length);
-
-				table.ForEachI((i, o) =>
-				{
-					if (paramArrayType == typeof(object) && o is double)
-					{
-						var d = (double) o;
-						if (IsInteger(d))
-							o = Convert.ToInt32(d);
-					}
-					paramArray.SetValue(Convert.ChangeType(o, paramArrayType), i - 1);
-				});
-			}
-
-			return paramArray;
-		}
-
-		/// <summary>
-		/// Matches a method against its arguments in the Lua stack.
-		/// Returns if the match was successful.
-		/// It it was also returns the information necessary to invoke the method.
-		/// </summary>
-		internal bool matchParameters(lua.State L, MethodBase method, ref MethodCache methodCache)
-		{
-			Debug.Assert(translator.interpreter.IsSameLua(L));
-			bool isMethod = true;
-			int currentLuaParam = 1;
-			int nLuaParams = lua.gettop(L);
-			var paramList = new ArrayList();
-			var outList = new List<int>();
-			var argTypes = new List<MethodArgs>();
-			foreach (ParameterInfo currentNetParam in method.GetParameters())
-			{
-				if (!currentNetParam.IsIn && currentNetParam.IsOut)  // Skips out params
-				{
-					outList.Add(paramList.Add(null));
-					continue;
-				}
-
-				if (currentLuaParam > nLuaParams) // Adds optional parameters
-				{
-					if (currentNetParam.IsOptional)
-					{
-						paramList.Add(currentNetParam.DefaultValue);
-						continue;
-					}
-					else
-					{
-						isMethod = false;
-						break;
-					}
-				}
-
-				// Type checking
-				ExtractValue extractValue;
-				try { extractValue = translator.typeChecker.checkType(L, currentLuaParam, currentNetParam.ParameterType); }
-				catch
-				{
-					extractValue = null;
-					Debug.WriteLine("Type wasn't correct");
-				}
-				if (extractValue != null)  
-				{
-					int index = paramList.Add(extractValue(L, currentLuaParam));
-
-					argTypes.Add(new MethodArgs {index = index, extractValue = extractValue});
-
-					if (currentNetParam.ParameterType.IsByRef)
-						outList.Add(index);
-					currentLuaParam++;
-					continue;
-				}
-
-				// Type does not match, ignore if the parameter is optional
-				if (_IsParamsArray(L, currentLuaParam, currentNetParam, out extractValue))
-				{
-					object luaParamValue = extractValue(L, currentLuaParam);
-					Type paramArrayType = currentNetParam.ParameterType.GetElementType();
-
-					Array paramArray = TableToArray(luaParamValue, paramArrayType);
-					int index = paramList.Add(paramArray);
-
-					argTypes.Add(new MethodArgs
-					{
-						index = index,
-						extractValue = extractValue,
-						isParamsArray = true,
-						paramsArrayType = paramArrayType,
-					});
-
-					currentLuaParam++;
-					continue;
-				}
-
-				if (currentNetParam.IsOptional)
-				{
-					paramList.Add(currentNetParam.DefaultValue);
-					continue;
-				}
-
-				// No match
-				isMethod = false;
-				break;
-			}
-			if (currentLuaParam != nLuaParams + 1) // Number of parameters does not match
-				isMethod = false;
-			if (isMethod)
-			{
-				methodCache.args = paramList.ToArray();
-				methodCache.cachedMethod = method;
-				methodCache.outList = outList.ToArray();
-				methodCache.argTypes = argTypes.ToArray();
-			}
-			return isMethod;
-		}
-
-		private bool _IsParamsArray(lua.State L, int index, ParameterInfo param, out ExtractValue extractValue)
-		{
-			Debug.Assert(translator.interpreter.IsSameLua(L));
-			extractValue = null;
-
-			if (param.GetCustomAttributes(typeof(ParamArrayAttribute), false).Length > 0)
-			switch (lua.type(L, index))
-			{
-			case LUA.T.NONE:
-				Debug.WriteLine("_IsParamsArray: Could not retrieve lua type.");
-				return false;
-
-			case LUA.T.TABLE:
-				extractValue = translator.typeChecker.getExtractor(typeof(LuaTable));
-				if (extractValue != null)
-					return true;
-				break;
-
-			default:
-				Type elementType = param.ParameterType.GetElementType();
-				if (elementType == null)
-					break; // not an array; invalid ParamArrayAttribute
-				try
-				{
-					extractValue = translator.typeChecker.checkType(L, index, elementType);
-					if (extractValue != null)
-						return true;
-				}
-				catch (Exception ex) { Debug.WriteLine(String.Format("_IsParamsArray: checkType({0}) threw exception: {1}", elementType.FullName, ex.ToString())); }
-				break;
-			}
-
-			Debug.WriteLine("Type wasn't Params object.");
-			return false;
 		}
 	}
 }

@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Diagnostics;
 using System.Reflection;
 using System.Collections.Generic;
@@ -7,78 +8,39 @@ using LuaInterface.LuaAPI;
 namespace LuaInterface
 {
 	/// <summary>Passes objects from the CLR to Lua and vice-versa</summary>
-	/// <remarks>
-	/// Author: Fabio Mascarenhas
-	/// Version: 1.0
-	/// </remarks>
-	public class ObjectTranslator
+	/// <remarks>Author: Fabio Mascarenhas</remarks>
+	class ObjectTranslator
 	{
 		internal readonly CheckType typeChecker;
-
 		internal readonly Lua interpreter;
-		private readonly MetaFunctions metaFunctions;
-		private readonly lua.CFunction registerTableFunction,unregisterTableFunction,getMethodSigFunction,
-			getConstructorSigFunction,importTypeFunction,loadAssemblyFunction, ctypeFunction, enumFromIntFunction;
+
+		readonly MetaFunctions metaFunctions;
+		#if INSECURE
+		readonly lua.CFunction _loadAssembly, _makeObject,_freeObject;
+		#endif
+		readonly lua.CFunction _importType, _getMethodBysig, _getConstructorBysig,_ctype, _enum;
 
 		internal readonly EventHandlerContainer pendingEvents = new EventHandlerContainer();
 
 		public ObjectTranslator(lua.State L, Lua interpreter)
 		{
+			Debug.Assert(interpreter.IsSameLua(L));
 			this.interpreter=interpreter;
-			luanet.checkstack(L, 3, "new ObjectTranslator");
+			luanet.checkstack(L, 1, "new ObjectTranslator");
 			typeChecker = new CheckType(this);
-			metaFunctions = new MetaFunctions(this);
+			metaFunctions = new MetaFunctions(L, this);
 
-			importTypeFunction        = this.importType;
-			loadAssemblyFunction      = this.loadAssembly;
-			registerTableFunction     = this.registerTable;
-			unregisterTableFunction   = this.unregisterTable;
-			getMethodSigFunction      = this.getMethodSignature;
-			getConstructorSigFunction = this.getConstructorSignature;
-
-			ctypeFunction             = this.ctype;
-			enumFromIntFunction       = this.enumFromInt;
-
-			createBaseClassMetatable(L);
-			createClassMetatable(L);
-			setGlobalFunctions(L);
-		}
-
-		/// <summary>[requires checkstack(2)] Creates the metatable for superclasses (the base field of registered tables)</summary>
-		private void createBaseClassMetatable(lua.State L)
-		{
-			Debug.Assert(interpreter.IsSameLua(L)); StackAssert.Start(L);
-			bool didnt_exist = luaclr.newrefmeta(L, "luaNet_searchbase", 3);
-			Debug.Assert(didnt_exist);
-			lua.pushcfunction(L,metaFunctions.toStringFunction); lua.setfield(L,-2,"__tostring");
-			lua.pushcfunction(L,metaFunctions.baseIndexFunction);lua.setfield(L,-2,"__index");
-			lua.pushcfunction(L,metaFunctions.newindexFunction); lua.setfield(L,-2,"__newindex");
-			lua.pop(L,1);                      StackAssert.End();
-		}
-		/// <summary>[requires checkstack(2)] Creates the metatable for type references</summary>
-		private void createClassMetatable(lua.State L)
-		{
-			Debug.Assert(interpreter.IsSameLua(L)); StackAssert.Start(L);
-			bool didnt_exist = luaclr.newrefmeta(L, "luaNet_class", 4);
-			Debug.Assert(didnt_exist);
-			lua.pushcfunction(L,metaFunctions.toStringFunction);        lua.setfield(L,-2,"__tostring");
-			lua.pushcfunction(L,metaFunctions.classIndexFunction);      lua.setfield(L,-2,"__index");
-			lua.pushcfunction(L,metaFunctions.classNewindexFunction);   lua.setfield(L,-2,"__newindex");
-			lua.pushcfunction(L,metaFunctions.callConstructorFunction); lua.setfield(L,-2,"__call");
-			lua.pop(L,1);                      StackAssert.End();
-		}
-		/// <summary>[requires checkstack(1)] Registers the global functions used by LuaInterface</summary>
-		private void setGlobalFunctions(lua.State L)
-		{
-			Debug.Assert(interpreter.IsSameLua(L)); StackAssert.Start(L);
-			lua.pushcfunction(L,importTypeFunction);        lua.setglobal(L,"import_type");
-			//lua.pushcfunction(L,loadAssemblyFunction);      lua.setglobal(L,"load_assembly");
-			//lua.pushcfunction(L,registerTableFunction);     lua.setglobal(L,"make_object");
-			//lua.pushcfunction(L,unregisterTableFunction);   lua.setglobal(L,"free_object");
-			lua.pushcfunction(L,getMethodSigFunction);      lua.setglobal(L,"get_method_bysig");
-			lua.pushcfunction(L,getConstructorSigFunction); lua.setglobal(L,"get_constructor_bysig");
-			lua.pushcfunction(L,ctypeFunction);             lua.setglobal(L,"ctype");
-			lua.pushcfunction(L,enumFromIntFunction);       lua.setglobal(L,"enum");
+			StackAssert.Start(L);
+			#if INSECURE
+			lua.pushcfunction(L,_loadAssembly        = this.loadAssembly       ); lua.setglobal(L,"load_assembly");
+			lua.pushcfunction(L,_makeObject          = this.makeObject         ); lua.setglobal(L,"make_object");
+			lua.pushcfunction(L,_freeObject          = this.freeObject         ); lua.setglobal(L,"free_object");
+			#endif
+			lua.pushcfunction(L,_importType          = this.importType         ); lua.setglobal(L,"import_type");
+			lua.pushcfunction(L,_getMethodBysig      = this.getMethodBysig     ); lua.setglobal(L,"get_method_bysig");
+			lua.pushcfunction(L,_getConstructorBysig = this.getConstructorBysig); lua.setglobal(L,"get_constructor_bysig");
+			lua.pushcfunction(L,_ctype               = this.ctype              ); lua.setglobal(L,"ctype");
+			lua.pushcfunction(L,_enum                = this.@enum              ); lua.setglobal(L,"enum");
 			StackAssert.End();
 		}
 		/// <summary>[-0, +0, v] Passes errors (argument e) to the Lua interpreter. This function throws a Lua exception, and therefore never returns.</summary>
@@ -100,11 +62,11 @@ namespace LuaInterface
 			return lua.error(L);
 		}
 
-		private readonly List<Assembly> loaded_assemblies = new List<Assembly>();
-		private readonly Dictionary<string, Type> loaded_types = new Dictionary<string, Type>();
+		readonly List<Assembly> loaded_assemblies = new List<Assembly>();
+		readonly Dictionary<string, Type> loaded_types = new Dictionary<string, Type>();
 
 		/// <summary>Implementation of load_assembly. Throws an error if the assembly is not found.</summary>
-		private int loadAssembly(lua.State L)
+		int loadAssembly(lua.State L)
 		{
 			Debug.Assert(interpreter.IsSameLua(L) && luanet.infunction(L));
 			string assemblyName = luaL.checkstring(L,1);
@@ -166,7 +128,7 @@ namespace LuaInterface
 		}
 
 		/// <summary>Implementation of import_type. Returns nil if the type is not found.</summary>
-		private int importType(lua.State L)
+		int importType(lua.State L)
 		{
 			Debug.Assert(interpreter.IsSameLua(L) && luanet.infunction(L));
 			string className=lua.tostring(L,1);
@@ -181,7 +143,7 @@ namespace LuaInterface
 		/// Implementation of make_object.
 		/// Registers a table (first argument in the stack) as an object subclassing the type passed as second argument in the stack.
 		/// </summary>
-		private int registerTable(lua.State L)
+		int makeObject(lua.State L)
 		{
 			Debug.Assert(interpreter.IsSameLua(L) && luanet.infunction(L));
 #if __NOGEN__
@@ -219,7 +181,7 @@ namespace LuaInterface
 		/// Implementation of free_object.
 		/// Clears the metatable and the base field, freeing the created object for garbage-collection
 		/// </summary>
-		private int unregisterTable(lua.State L)
+		int freeObject(lua.State L)
 		{
 			Debug.Assert(interpreter.IsSameLua(L) && luanet.infunction(L));
 			if (!lua.getmetatable(L, 1))
@@ -245,7 +207,7 @@ namespace LuaInterface
 			return 0;
 		}
 		/// <summary>Implementation of get_method_bysig. Returns nil if no matching method is not found.</summary>
-		private int getMethodSignature(lua.State L)
+		int getMethodBysig(lua.State L)
 		{
 			Debug.Assert(interpreter.IsSameLua(L) && luanet.infunction(L));
 			object target = luaclr.checkref(L, 1);
@@ -275,7 +237,7 @@ namespace LuaInterface
 			return 1;
 		}
 		/// <summary>Implementation of get_constructor_bysig. Returns nil if no matching constructor is found.</summary>
-		private int getConstructorSignature(lua.State L)
+		int getConstructorBysig(lua.State L)
 		{
 			Debug.Assert(interpreter.IsSameLua(L) && luanet.infunction(L));
 			var klass = (ProxyType) luaclr.checkref(L, 1, "luaNet_class");
@@ -292,14 +254,14 @@ namespace LuaInterface
 			return 1;
 		}
 
-		private static Type _classType(lua.State L, int narg)
+		static Type _classType(lua.State L, int narg)
 		{
 			var pt = (ProxyType) luaclr.checkref(L,narg,"luaNet_class");
 			return pt.UnderlyingSystemType;
 		}
 
 		/// <summary>Implementation of ctype.</summary>
-		private int ctype(lua.State L)
+		int ctype(lua.State L)
 		{
 			Debug.Assert(interpreter.IsSameLua(L) && luanet.infunction(L));
 			pushObject(L, _classType(L,1));
@@ -307,7 +269,7 @@ namespace LuaInterface
 		}
 
 		/// <summary>Implementation of enum.</summary>
-		private int enumFromInt(lua.State L)
+		int @enum(lua.State L)
 		{
 			Debug.Assert(interpreter.IsSameLua(L) && luanet.infunction(L));
 			Type t = _classType(L,1);
@@ -342,7 +304,7 @@ namespace LuaInterface
 			lua.setmetatable(L, -2);
 		}
 		/// <summary>[-0, +1, m] Pushes a CLR object into the Lua stack as a userdata with the provided metatable</summary>
-		private void pushObject(lua.State L, object o)
+		void pushObject(lua.State L, object o)
 		{
 			Debug.Assert(interpreter.IsSameLua(L));
 			if (o == null)
@@ -357,12 +319,7 @@ namespace LuaInterface
 
 			// Gets or creates the metatable for the object's type
 			if (luaclr.newrefmeta(L, o.GetType().AssemblyQualifiedName, 4))
-			{
-				lua.newtable(L);                                     lua.setfield(L,-2,"cache");
-				lua.pushcfunction(L,metaFunctions.indexFunction);    lua.setfield(L,-2,"__index");
-				lua.pushcfunction(L,metaFunctions.toStringFunction); lua.setfield(L,-2,"__tostring");
-				lua.pushcfunction(L,metaFunctions.newindexFunction); lua.setfield(L,-2,"__newindex");
-			}
+				metaFunctions.BuildObjectMetatable(L);
 
 			lua.setmetatable(L,-2);
 			StackAssert.End(1);
@@ -562,12 +519,175 @@ namespace LuaInterface
 
 			pushObject(L,o);
 		}
+		
 
-		/// <summary>Checks if the method matches the arguments in the Lua stack, getting the arguments if it does.</summary>
-		internal bool matchParameters(lua.State L,MethodBase method,ref MethodCache methodCache)
+		static bool IsInteger(double x) {
+			return Math.Ceiling(x) == x;
+		}
+
+		/// <summary>Note: this disposes <paramref name="luaParamValue"/> if it is a table.</summary>
+		internal static Array TableToArray(object luaParamValue, Type paramArrayType)
+		{
+			Array paramArray;
+
+			var table = luaParamValue as LuaTable;
+			if (table == null)
+			{
+				paramArray = Array.CreateInstance(paramArrayType, 1);
+				paramArray.SetValue(luaParamValue, 0);
+			}
+			else using (table)
+			{
+				paramArray = Array.CreateInstance(paramArrayType, table.Length);
+
+				table.ForEachI((i, o) =>
+				{
+					if (paramArrayType == typeof(object) && o is double)
+					{
+						var d = (double) o;
+						if (IsInteger(d))
+							o = Convert.ToInt32(d);
+					}
+					paramArray.SetValue(Convert.ChangeType(o, paramArrayType), i - 1);
+				});
+			}
+
+			return paramArray;
+		}
+
+		/// <summary>
+		/// Matches a method against its arguments in the Lua stack.
+		/// Returns if the match was successful.
+		/// It it was also returns the information necessary to invoke the method.
+		/// </summary>
+		internal bool matchParameters(lua.State L, MethodBase method, ref MethodCache methodCache)
 		{
 			Debug.Assert(interpreter.IsSameLua(L));
-			return metaFunctions.matchParameters(L,method,ref methodCache);
+			bool isMethod = true;
+			int currentLuaParam = 1;
+			int nLuaParams = lua.gettop(L);
+			var paramList = new ArrayList();
+			var outList = new List<int>();
+			var argTypes = new List<MethodArgs>();
+			foreach (ParameterInfo currentNetParam in method.GetParameters())
+			{
+				if (!currentNetParam.IsIn && currentNetParam.IsOut)  // Skips out params
+				{
+					outList.Add(paramList.Add(null));
+					continue;
+				}
+
+				if (currentLuaParam > nLuaParams) // Adds optional parameters
+				{
+					if (currentNetParam.IsOptional)
+					{
+						paramList.Add(currentNetParam.DefaultValue);
+						continue;
+					}
+					else
+					{
+						isMethod = false;
+						break;
+					}
+				}
+
+				// Type checking
+				ExtractValue extractValue;
+				try { extractValue = typeChecker.checkType(L, currentLuaParam, currentNetParam.ParameterType); }
+				catch
+				{
+					extractValue = null;
+					Debug.WriteLine("Type wasn't correct");
+				}
+				if (extractValue != null)  
+				{
+					int index = paramList.Add(extractValue(L, currentLuaParam));
+
+					argTypes.Add(new MethodArgs {index = index, extractValue = extractValue});
+
+					if (currentNetParam.ParameterType.IsByRef)
+						outList.Add(index);
+					currentLuaParam++;
+					continue;
+				}
+
+				// Type does not match, ignore if the parameter is optional
+				if (_IsParamsArray(L, currentLuaParam, currentNetParam, out extractValue))
+				{
+					object luaParamValue = extractValue(L, currentLuaParam);
+					Type paramArrayType = currentNetParam.ParameterType.GetElementType();
+
+					Array paramArray = TableToArray(luaParamValue, paramArrayType);
+					int index = paramList.Add(paramArray);
+
+					argTypes.Add(new MethodArgs
+					{
+						index = index,
+						extractValue = extractValue,
+						isParamsArray = true,
+						paramsArrayType = paramArrayType,
+					});
+
+					currentLuaParam++;
+					continue;
+				}
+
+				if (currentNetParam.IsOptional)
+				{
+					paramList.Add(currentNetParam.DefaultValue);
+					continue;
+				}
+
+				// No match
+				isMethod = false;
+				break;
+			}
+			if (currentLuaParam != nLuaParams + 1) // Number of parameters does not match
+				isMethod = false;
+			if (isMethod)
+			{
+				methodCache.args = paramList.ToArray();
+				methodCache.cachedMethod = method;
+				methodCache.outList = outList.ToArray();
+				methodCache.argTypes = argTypes.ToArray();
+			}
+			return isMethod;
+		}
+
+		bool _IsParamsArray(lua.State L, int index, ParameterInfo param, out ExtractValue extractValue)
+		{
+			Debug.Assert(interpreter.IsSameLua(L));
+			extractValue = null;
+
+			if (param.GetCustomAttributes(typeof(ParamArrayAttribute), false).Length > 0)
+			switch (lua.type(L, index))
+			{
+			case LUA.T.NONE:
+				Debug.WriteLine("_IsParamsArray: Could not retrieve lua type.");
+				return false;
+
+			case LUA.T.TABLE:
+				extractValue = typeChecker.getExtractor(typeof(LuaTable));
+				if (extractValue != null)
+					return true;
+				break;
+
+			default:
+				Type elementType = param.ParameterType.GetElementType();
+				if (elementType == null)
+					break; // not an array; invalid ParamArrayAttribute
+				try
+				{
+					extractValue = typeChecker.checkType(L, index, elementType);
+					if (extractValue != null)
+						return true;
+				}
+				catch (Exception ex) { Debug.WriteLine(String.Format("_IsParamsArray: checkType({0}) threw exception: {1}", elementType.FullName, ex.ToString())); }
+				break;
+			}
+
+			Debug.WriteLine("Type wasn't Params object.");
+			return false;
 		}
 	}
 }
