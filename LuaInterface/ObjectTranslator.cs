@@ -196,7 +196,7 @@ namespace LuaInterface
 				if (luaTableField == null) return luaL.argerror(L, 1, "invalid table");
 
 				var table = luaTableField.GetValue(obj) as LuaTable;
-				if (table == null || table.Owner.IsSameLua(L)) return luaL.argerror(L, 1, "invalid table");
+				if (table == null || !table.Owner.IsSameLua(L)) return luaL.argerror(L, 1, "invalid table");
 				table.Dispose();
 				luaTableField.SetValue(obj,null);
 
