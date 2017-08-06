@@ -206,7 +206,7 @@ namespace LuaInterface
 			catch(Exception e) { return throwError(L,e); }
 			return 0;
 		}
-		/// <summary>Implementation of get_method_bysig. Returns nil if no matching method is not found.</summary>
+		/// <summary>Implementation of get_method_bysig.</summary>
 		int getMethodBysig(lua.State L)
 		{
 			Debug.Assert(interpreter.IsSameLua(L) && luanet.infunction(L));
@@ -231,12 +231,14 @@ namespace LuaInterface
 			{
 				var method = klass.GetMethod(method_name,BindingFlags.Static | BindingFlags.Instance |
 					BindingFlags.FlattenHierarchy | luanet.LuaBindingFlags, null, signature, null);
-				luaclr.pushcfunction(L,(new LuaMethodWrapper(this,target,klass,method)).call);
+				if (method == null)
+					return luaL.error(L, "Method with the specified name and signature was not found.");
+				luaclr.pushcfunction(L, new LuaMethodWrapper(this, target, klass, method).call);
 			}
 			catch (Exception e) { return throwError(L,e); }
 			return 1;
 		}
-		/// <summary>Implementation of get_constructor_bysig. Returns nil if no matching constructor is found.</summary>
+		/// <summary>Implementation of get_constructor_bysig.</summary>
 		int getConstructorBysig(lua.State L)
 		{
 			Debug.Assert(interpreter.IsSameLua(L) && luanet.infunction(L));
@@ -248,7 +250,9 @@ namespace LuaInterface
 			try
 			{
 				var constructor = klass.UnderlyingSystemType.GetConstructor(signature);
-				luaclr.pushcfunction(L,(new LuaMethodWrapper(this,null,klass,constructor)).call);
+				if (constructor == null)
+					return luaL.error(L, "Constructor with the specified signature was not found.");
+				luaclr.pushcfunction(L, new LuaMethodWrapper(this, null, klass, constructor).call);
 			}
 			catch(Exception e) { return throwError(L,e); }
 			return 1;
