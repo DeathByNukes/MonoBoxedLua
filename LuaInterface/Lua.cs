@@ -53,14 +53,17 @@ namespace LuaInterface
 			lua.pop(L, 1);
 			return ret;
 		}
+		/// <summary>[-0, +0, m] Test if the provided thread belongs to this Lua instance.</summary>
 		public bool IsSameLua(lua.State L)
 		{
-			return mainThread(L) == _mainthread;
+			return L == _mainthread || mainThread(L) == _mainthread;
 		}
+		/// <summary>[-0, +0, m] Test if the provided threads belong to the same Lua instance.</summary>
 		public static bool IsSameLua(lua.State L1, lua.State L2)
 		{
-			return mainThread(L1) == mainThread(L2);
+			return L1 == L2 || mainThread(L1) == mainThread(L2);
 		}
+		/// <summary>[-0, +0, m]</summary>
 		internal static lua.State mainThread(lua.State L)
 		{
 			// todo: modify the Lua API to expose G(L)->mainthread
@@ -760,11 +763,6 @@ namespace LuaInterface
 
 		#endregion
 
-		internal static LuaException NewCrossInterpreterError(LuaBase o)
-		{
-			return new LuaException(String.Format("Attempted to send a {0} from one Lua instance to another.", o.GetType().Name));
-		}
-
 
 		/// <summary>[-0, +0, e] Navigates a table in the top of the stack, returning the value of the specified field</summary>
 		internal object getNestedObject(lua.State L, int index, IEnumerable<string> fields)
@@ -846,7 +844,7 @@ namespace LuaInterface
 				lua.newuserdata(L, size);
 				if (metatable != null)
 				{
-					if (metatable.Owner != this) throw NewCrossInterpreterError(metatable);
+					if (metatable.Owner != this) throw new LuaException(metatable.CrossInterpreterError());
 					metatable.push(L);
 					lua.setmetatable(L, -2);
 				}

@@ -53,10 +53,10 @@ namespace LuaInterface
 		public Type paramsArrayType;
 	}
 
-	/// <summary>Argument extraction with type-conversion function</summary>
+	/// <summary>[-0, +0, m] Argument extraction with type-conversion function</summary>
 	delegate object ExtractValue(lua.State L, int index);
 
-	/// <summary>Argument checking function, returns true if the type can be extracted</summary>
+	/// <summary>[-0, +0, -] Argument checking function, returns true if the type can be extracted</summary>
 	delegate bool CheckValue(lua.State L, int index);
 
 	/// <summary>Wrapper class for methods/constructors accessed from Lua.</summary>
@@ -88,18 +88,17 @@ namespace LuaInterface
 
 			_BindingType = method.IsStatic ? BindingFlags.Static : BindingFlags.Instance;
 		}
-		/// <summary>Constructs the wrapper for a known method name</summary>
+		/// <summary>Constructs the wrapper for a known method name</summary><exception cref="NullReferenceException">All arguments are required</exception>
 		public LuaMethodWrapper(ObjectTranslator translator, IReflect targetType, string methodName, BindingFlags bindingType)
 		{
+			Debug.Assert(translator != null && targetType != null && methodName != null);
 			_Translator = translator;
 			_MethodName = methodName;
 
-			if (targetType != null)
-				_ExtractTarget = translator.typeChecker.getExtractor(targetType);
+			_ExtractTarget = translator.typeChecker.getExtractor(targetType);
 
 			_BindingType = bindingType;
 
-			// bug: targetType may be null? todo: inspect code that uses _Members and this constructor
 			_Members = targetType.UnderlyingSystemType.GetMember(methodName, MemberTypes.Method, bindingType | luanet.LuaBindingFlags);
 		}
 

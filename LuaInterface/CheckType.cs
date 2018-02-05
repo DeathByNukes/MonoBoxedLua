@@ -16,7 +16,9 @@ namespace LuaInterface
 		readonly Dictionary<RuntimeTypeHandle, Caster> _casters;
 		struct Caster
 		{
+			/// <summary>[-0, +0, -]</summary>
 			public readonly CheckValue   CheckValue;
+			/// <summary>[-0, +0, m]</summary>
 			public readonly ExtractValue ExtractValue;
 			public Caster(CheckValue c, ExtractValue e) { CheckValue = c; ExtractValue = e; }
 		}
@@ -63,12 +65,15 @@ namespace LuaInterface
 				? caster.ExtractValue : extractNetObject;
 		}
 
-		/// <summary>Checks if the value at the specified Lua stack index matches paramType, returning a conversion function if it does and null otherwise.</summary>
+		/// <summary>[-0, +0, m] Checks if the value at the specified Lua stack index matches paramType, returning a conversion function if it does and null otherwise.</summary>
+		/// <exception cref="NullReferenceException"><paramref name="paramType"/> is required</exception>
 		internal ExtractValue checkType(lua.State L,int index,Type paramType)
 		{
 			Debug.Assert(translator.interpreter.IsSameLua(L));
+			Debug.Assert(paramType != null);
 
 			if (paramType.IsByRef) paramType = paramType.GetElementType();
+			Debug.Assert(paramType != null);
 
 			Type underlyingType = Nullable.GetUnderlyingType(paramType);
 			if (underlyingType != null)
@@ -108,7 +113,7 @@ namespace LuaInterface
 				{
 					object indexer = luaclr.toref(L, -1);
 					lua.pop(L,1);
-					if (indexer != null && paramType.IsAssignableFrom(indexer.GetType()))
+					if (paramType.IsInstanceOfType(indexer))
 						return extractNetObject;
 				}
 				break;
@@ -120,14 +125,14 @@ namespace LuaInterface
 
 			case LUA.T.USERDATA:
 				object obj = luaclr.toref(L, index);
-				if (obj != null && paramType.IsAssignableFrom(obj.GetType()))
+				if (paramType.IsInstanceOfType(obj))
 					return extractNetObject;
 				break;
 			}
 			return null;
 		}
 
-		// The following functions return the value in the specified Lua stack index as the desired type if it can, or null otherwise.
+		// [-0, +0, m] The following functions return the value in the specified Lua stack index as the desired type if it can, or null otherwise.
 		static object asSbyte   (lua.State L,int index) { double num; return luanet.trygetnumber(L, index, out num) ? (object)(sbyte  ) num : null; } 
 		static object asByte    (lua.State L,int index) { double num; return luanet.trygetnumber(L, index, out num) ? (object)(byte   ) num : null; }
 		static object asShort   (lua.State L,int index) { double num; return luanet.trygetnumber(L, index, out num) ? (object)(short  ) num : null; }
@@ -147,15 +152,16 @@ namespace LuaInterface
 		       object asUserData(lua.State L,int index) { return lua.type(L, index) == LUA.T.USERDATA ? translator.getUserData (L, index) : null; }
 		       object asLString (lua.State L,int index) { return lua.type(L, index) == LUA.T.STRING   ? translator.getLuaString(L, index) : null; }
 
+		// [-0, +0, m]
 		public object asObject(lua.State L,int index)
 		{
 			Debug.Assert(translator.interpreter.IsSameLua(L));
-			if(lua.type(L,index)==LUA.T.TABLE) // todo: find what purpose this branch serves and document it
+			if (lua.type(L,index) == LUA.T.TABLE) // todo: find what purpose this branch serves and document it
 			{
 				luaL.checkstack(L, 1, "CheckType.asObject");
-				if(luaL.getmetafield(L,index,"__index"))
+				if (luaL.getmetafield(L,index,"__index"))
 				{
-					if(luaclr.isref(L,-1))
+					if (luaclr.isref(L,-1))
 					{
 						lua.insert(L,index);
 						lua.remove(L,index+1);
@@ -166,23 +172,24 @@ namespace LuaInterface
 					}
 				}
 			}
-			object obj=translator.getObject(L,index);
+			object obj = translator.getObject(L,index);
 			return obj;
 		}
+		// [-0, +0, m]
 		public object asNetObject(lua.State L,int index)
 		{
 			Debug.Assert(translator.interpreter.IsSameLua(L));
-			object obj=luaclr.toref(L,index);
-			if(obj==null && lua.type(L,index)==LUA.T.TABLE) // todo: find what purpose this branch serves and document it
+			object obj = luaclr.toref(L,index);
+			if (obj == null && lua.type(L,index) == LUA.T.TABLE) // todo: find what purpose this branch serves and document it
 			{
 				luaL.checkstack(L, 1, "CheckType.asNetObject");
-				if(luaL.getmetafield(L,index,"__index"))
+				if (luaL.getmetafield(L,index,"__index"))
 				{
-					if(luaclr.isref(L,-1))
+					if (luaclr.isref(L,-1))
 					{
 						lua.insert(L,index);
 						lua.remove(L,index+1);
-						obj=luaclr.toref(L,index);
+						obj = luaclr.toref(L,index);
 					}
 					else
 					{

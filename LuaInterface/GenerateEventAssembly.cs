@@ -33,8 +33,9 @@ namespace LuaInterface
 
 		public DelegateGenerator(ObjectTranslator translator,Type delegateType)
 		{
-			this.translator=translator;
-			this.delegateType=delegateType;
+			Debug.Assert(translator != null && delegateType != null);
+			this.translator = translator;
+			this.delegateType = delegateType;
 		}
 		public object extractGenerated(lua.State L,int index)
 		{
@@ -601,6 +602,7 @@ namespace LuaInterface
 		/// <summary>Gets a delegate with delegateType that calls the luaFunc Lua function. Caches the generated type.</summary>
 		public Delegate GetDelegate(Type delegateType, LuaFunction luaFunc)
 		{
+			Debug.Assert(delegateType != null && luaFunc != null);
 			List<Type> returnTypes=new List<Type>();
 			Type luaDelegateType;
 			if (!delegateCollection.TryGetValue(delegateType, out luaDelegateType))
@@ -623,6 +625,7 @@ namespace LuaInterface
 		/// Gets an instance of an implementation of the klass interface or subclass of klass that
 		/// delegates public virtual methods to the luaTable table. Caches the generated type.
 		/// </summary>
+		/// <exception cref="ArgumentNullException"><paramref name="klass"/> is null</exception>
 		public object GetClassInstance(Type klass, LuaTable luaTable)
 		{
 			LuaClassType luaClassType;

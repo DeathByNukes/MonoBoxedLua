@@ -19,7 +19,7 @@ namespace LuaInterface
 		/// <summary>Provide human readable short hand for this proxy object</summary>
 		public override string ToString()
 		{
-			return "ProxyType(" + proxy.Name + ")";
+			return "ProxyType(" + proxy.ToString() + ")";
 		}
 
 		#region forward IReflect implementation to proxy

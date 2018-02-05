@@ -44,7 +44,7 @@ namespace LuaInterface
 
 		#region Implementation
 
-		/// <summary>Makes a new reference the same userdata.</summary>
+		/// <summary>Makes a new reference the same string.</summary>
 		public LuaString NewReference()
 		{
 			var L = Owner._L;

@@ -1,7 +1,7 @@
 using System;
-using System.Reflection;
-using System.Diagnostics;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using LuaInterface.LuaAPI;
 
@@ -103,8 +103,8 @@ namespace LuaInterface
 			return 1;
 		}
 
-		/// <summary>
-		/// Implementation of get_object_member. Called by the __index metafunction of CLR objects in case the method is not cached or it is a field/property/event.
+		/// <summary>[-0, +2, e]
+		/// Called by the __index metafunction of CLR objects in case the method is not cached or it is a field/property/event.
 		/// Receives the object and the member name as arguments and returns either the value of the member or a delegate to call it.
 		/// If the member does not exist returns nil.
 		/// </summary>
@@ -123,70 +123,52 @@ namespace LuaInterface
 
 			// CP: This will fail when using indexers and attempting to get a value with the same name as a property of the object,
 			// ie: xmlelement['item'] <- item is a property of xmlelement
-			try
-			{
-				// todo: investigate: getMember throws lua errors. all other call sites are also CFunctions and do not use try{}.
-				// possible reasons: (1) the author didn't know that Lua errors pass through catch{}
-				//                   (2) it is passing unusual input that might generate exceptions not seen in the other use cases
-				//                   (3) it is a hasty fix for a bug
-				if (methodName != null && isMemberPresent(objType, methodName))
-					return getMember(L, objType, obj, methodName, BindingFlags.Instance);
-			}
-			catch { }
+			if (methodName != null && isMemberPresent(objType, methodName))
+				return getMember(L, objType, obj, methodName, BindingFlags.Instance);
 			bool failed = true;
 
 			// Try to access by array if the type is right and index is an int (lua numbers always come across as double)
 			if (objType.IsArray && index is double)
 			{
-				int intIndex = (int)((double)index);
-				var aa = (Array) obj;
-				if (intIndex >= aa.Length) {
-					return pushError(L,"array index out of bounds: "+intIndex + " " + aa.Length);
-				}
-				object val = aa.GetValue(intIndex);
-				translator.push (L,val);
+				object val;
+				try { val = ((Array) obj).GetValue((int)(double) index); }
+				catch (Exception ex) { return translator.throwError(L, ex); }
+				translator.push(L,val);
 				failed = false;
 			}
 			else
 			{
-				// Try to use get_Item to index into this .net object
-				//MethodInfo getter = objType.GetMethod("get_Item");
-				// issue here is that there may be multiple indexers..
-				foreach (MethodInfo mInfo in objType.GetMethods())
-				if (mInfo.Name == "get_Item") 
+				try
 				{
-					ParameterInfo[] actualParms = mInfo.GetParameters();
-					if (actualParms.Length != 1) //check if the signature matches the input
-						continue;
-					// Get the index in a form acceptable to the getter
-					index = translator.getAsType(L, 2, actualParms[0].ParameterType);
-					// Just call the indexer - if out of bounds an exception will happen
-					try
+					// Try to use get_Item to index into this .net object
+					//MethodInfo getter = objType.GetMethod("get_Item");
+					// issue here is that there may be multiple indexers..
+					foreach (MethodInfo mInfo in objType.GetMethods())
+					if (mInfo.Name == "get_Item")
 					{
-						translator.push(L, mInfo.Invoke(obj, new[]{index}));
+						ParameterInfo[] actualParms = mInfo.GetParameters();
+						if (actualParms.Length != 1) //check if the signature matches the input
+							continue;
+						// Get the index in a form acceptable to the getter
+						index = translator.getAsType(L, 2, actualParms[0].ParameterType);
+						// Just call the indexer - if out of bounds an exception will happen
+						object o = mInfo.Invoke(obj, new[]{index});
 						failed = false;
+						translator.push(L, o);
+						break;
 					}
-					catch (TargetInvocationException e)
-					{
-						// Provide a more readable description for the common case of key not found
-						if (e.InnerException is KeyNotFoundException)
-							return pushError(L, "key '" + index + "' not found ");
-						else
-							return pushError(L, "exception indexing '" + index + "' " + e.InnerException.Message);
-					}
+				}
+				catch (TargetInvocationException ex) {
+					return translator.throwError(L, ex.InnerException);
+				}
+				catch (Exception ex) {
+					return luaL.error(L, "unable to index {0}: {1}", objType, ex.Message);
 				}
 			}
 			if (failed) {
-				return pushError(L,"cannot find " + index);
+				return luaL.error(L,"cannot find " + index);
 			}
 			lua.pushboolean(L, false);
-			return 2;
-		}
-		/// <summary>Push an error to be read by __index</summary>
-		static int pushError(lua.State L, string msg)
-		{
-			lua.pushnil(L);
-			lua.pushstring(L,msg);
 			return 2;
 		}
 
@@ -219,7 +201,7 @@ namespace LuaInterface
 		}
 
 
-		/// <summary>Does this method exist as either an instance or static?</summary>
+		/// <summary>Does this method exist as either an instance or static?</summary><exception cref="ArgumentNullException">All arguments are required.</exception>
 		bool isMemberPresent(IReflect objType, string methodName)
 		{
 			Debug.Assert(objType != null && methodName != null);
@@ -229,15 +211,15 @@ namespace LuaInterface
 				return true;
 
 			MemberInfo[] members = objType.GetMember(methodName, BindingFlags.Static | BindingFlags.Instance | luanet.LuaBindingFlags);
-			return (members.Length > 0);
+			return (members.Length != 0);
 		}
 
-		/// <summary>
+		/// <summary>[-0, +2, e]
 		/// Returns to Lua the value of a member or a delegate to call it, depending on the type of the member.
 		/// Works with static or instance members. Uses reflection to find members,
 		/// and stores the reflected MemberInfo object in a cache (indexed by <paramref name="objType"/> and <paramref name="methodName"/>).
 		/// </summary>
-		/// <exception cref="ArgumentNullException"><paramref name="objType"/> and <paramref name="methodName"/></exception>
+		/// <exception cref="ArgumentNullException"><paramref name="objType"/> and <paramref name="methodName"/> are required</exception>
 		int getMember(lua.State L, IReflect objType, object obj, string methodName, BindingFlags bindingType)
 		{
 			Debug.Assert(translator.interpreter.IsSameLua(L));
@@ -259,21 +241,28 @@ namespace LuaInterface
 					lua.pushboolean(L, true);
 					return 2;
 				}
+				Debug.Assert(cachedMember is MemberInfo);
 				member = (MemberInfo)cachedMember;
 			}
 			else
 			{
 				MemberInfo[] members = objType.GetMember(methodName, bindingType | luanet.LuaBindingFlags);
 				if (members.Length != 0)
+				{
 					member = members[0];
+					#if DEBUG
+					if (!(members.Length == 1 || member is MethodBase)) // todo
+						return luaL.error(L, "Overloads for members other than methods are not implemented.");
+					#endif
+				}
 			}
-			
+
 			object value = null;
 
 			switch (member == null ? MemberTypes.All : member.MemberType)
 			{
 			default: // not found or found a constructor
-				// kevinh - we want to throw an exception because merely returning 'nil' in this case
+				// kevinh - we want to throw an error because merely returning 'nil' in this case
 				// is not sufficient.  valid data members may return nil and therefore there must be some
 				// way to know the member just doesn't exist.
 				return luaL.error(L, string.Format("'{0}' does not contain a definition for '{1}'", objType.UnderlyingSystemType.FullName, methodName));
@@ -287,24 +276,22 @@ namespace LuaInterface
 				return 2;
 
 			case MemberTypes.Field:
-				var field = (FieldInfo) member;
-				try { value = field.GetValue(obj); }
+				try { value = ((FieldInfo) member).GetValue(obj); }
 				catch { goto default; }
 				translator.push(L, value);
 				break;
 
 			case MemberTypes.Property:
 				// todo: support indexed properties
-				var property = (PropertyInfo) member;
-				try { value = property.GetValue(obj, null); }
+				try { value = ((PropertyInfo) member).GetValue(obj, null); }
 				catch (TargetInvocationException e) { return translator.throwError(L, e.InnerException); }
 				catch { goto default; }
 				translator.push(L, value);
 				break;
 
 			case MemberTypes.Event:
-				var eventInfo = (EventInfo) member;
-				translator.push(L, new RegisterEventHandler(translator.pendingEvents, obj, eventInfo));
+				value = new RegisterEventHandler(translator.pendingEvents, obj, (EventInfo) member);
+				translator.push(L, value);
 				break;
 
 			case MemberTypes.NestedType:
@@ -315,7 +302,7 @@ namespace LuaInterface
 					lua.pushnil(L);
 				break;
 			}
-			
+
 			if (cachedMember == null) setMemberCache(objType, methodName, member);
 			// push false because we are NOT returning a function (see luaIndexFunction)
 			lua.pushboolean(L, false);
@@ -340,6 +327,7 @@ namespace LuaInterface
 		void setMemberCache(IReflect objType, string memberName, object member)
 		{
 			Debug.Assert(objType != null && memberName != null && member != null);
+			Debug.Assert(member is lua.CFunction || member is MemberInfo);
 			var memberCache = this.memberCache;
 			Dictionary<string, object> members;
 			if (!memberCache.TryGetValue(objType, out members))
@@ -357,25 +345,22 @@ namespace LuaInterface
 		{
 			Debug.Assert(translator.interpreter.IsSameLua(L) && luanet.infunction(L));
 			object target = luaclr.checkref(L, 1);
-
 			Type type = target.GetType();
 
 			// First try to look up the parameter as a property name
 			string detailMessage;
-			bool didMember = trySetMember(L, type, target, BindingFlags.Instance, out detailMessage);
-
-			if (didMember)
-				return 0;       // Must have found the property name
+			if (trySetMember(L, type, target, BindingFlags.Instance, out detailMessage))
+				return 0;       // found and set the property
 
 			// We didn't find a property name, now see if we can use a [] style this accessor to set array contents
 			try
 			{
 				if (type.IsArray && lua.type(L, 2) == LUA.T.NUMBER)
 				{
-					int index = (int)lua.tonumber(L, 2);
+					int index = (int) lua.tonumber(L, 2);
 
-					Array arr = (Array)target;
-					object val = translator.getAsType(L, 3, arr.GetType().GetElementType());
+					var arr = (Array) target;
+					object val = translator.getAsType(L, 3, type.GetElementType());
 					arr.SetValue(val, index);
 				}
 				else
@@ -386,38 +371,50 @@ namespace LuaInterface
 						return luaL.error(L, detailMessage); // Pass the original message from trySetMember because it is probably best
 
 					ParameterInfo[] args = setter.GetParameters();
-					Type valueType = args[1].ParameterType;
+					if (args.Length != 2) // avoid throwing IndexOutOfRangeException for functions that take less than 2 arguments. that would be confusing in this context.
+						return luaL.error(L, detailMessage);
 
-					// The new val ue the user specified
-					object val = translator.getAsType(L, 3, valueType);
-
-					Type indexType = args[0].ParameterType;
-					object index = translator.getAsType(L, 2, indexType);
-
-					object[] methodArgs = new object[2];
+					object index = translator.getAsType(L, 2, args[0].ParameterType);
+					// The new value the user specified
+					object val   = translator.getAsType(L, 3, args[1].ParameterType);
 
 					// Just call the indexer - if out of bounds an exception will happen
-					methodArgs[0] = index;
-					methodArgs[1] = val;
-
-					setter.Invoke(target, methodArgs);
+					setter.Invoke(target, new object[] { index, val });
 				}
+				return 0;
 			}
 			catch (SEHException)
 			{
 				// If we are seeing a C++ exception - this must actually be for Lua's private use.  Let it handle it
+				Debug.Assert(false); // SEHException isn't cross-platform. most of the code doesn't properly handle this. do not use the C++ Lua build.
+				                     // todo: fix the unit tests and add a test that checks for the c++ builds, then remove this block
 				throw;
 			}
-			catch (Exception e) { ThrowError(L, e); }
-			return 0;
+			catch (IndexOutOfRangeException ex)
+			{
+				return translator.throwError(L, ex);
+			}
+			catch (TargetInvocationException ex)
+			{
+				return translator.throwError(L, ex.InnerException);
+			}
+			catch (Exception ex)
+			{
+				return luaL.error(L, "Index setter call failed: "+ex.Message);
+			}
 		}
 
-		/// <summary>Tries to set a named property or field</summary>
-		/// <returns>false if unable to find the named member, true for success</returns>
+		/// <summary>[-0, +0, e]
+		/// Tries to set a named property or field.
+		/// Returns false if unable to find the named member, true for success
+		/// </summary>
+		/// <exception cref="ArgumentNullException"><paramref name="targetType"/> is required</exception>
 		bool trySetMember(lua.State L, IReflect targetType, object target, BindingFlags bindingType, out string detailMessage)
 		{
 			Debug.Assert(translator.interpreter.IsSameLua(L));
 			Debug.Assert(targetType != null);
+			Debug.Assert((target == null) == ((bindingType & BindingFlags.Static  ) == BindingFlags.Static));
+			Debug.Assert((target == null) != ((bindingType & BindingFlags.Instance) == BindingFlags.Instance));
 			detailMessage = null;   // No error yet
 
 			// If not already a string just return - we don't want to call tostring - which has the side effect of
@@ -443,59 +440,60 @@ namespace LuaInterface
 			if (member == null)
 			{
 				MemberInfo[] members = targetType.GetMember(fieldName, bindingType | luanet.LuaBindingFlags);
-				if (members.Length > 0)
-				{
-					member = members[0];
-					setMemberCache(targetType, fieldName, member);
-				}
-				else
+				if (members.Length == 0)
 				{
 					detailMessage = "member '" + fieldName + "' does not exist";
 					return false;
 				}
+				member = members[0];
+				if (!(member is MethodBase))
+					setMemberCache(targetType, fieldName, member);
 			}
 
 			object val;
 			switch (member.MemberType)
 			{
 			case MemberTypes.Field:
-				FieldInfo field = (FieldInfo)member;
+				var field = (FieldInfo) member;
 				val = translator.getAsType(L, 3, field.FieldType);
 
-				try { field.SetValue(target, val); }
-				catch (Exception e) { ThrowError(L, e); }
-				// We did a call
-				return true;
+				try
+				{
+					field.SetValue(target, val);
+					return true;
+				}
+				catch (Exception ex)
+				{
+					detailMessage = "Field write failed: "+ex.Message;
+					return false;
+				}
 
 			case MemberTypes.Property:
 				PropertyInfo property = (PropertyInfo)member;
 				val = translator.getAsType(L, 3, property.PropertyType);
 
-				try { property.SetValue(target, val, null); }
-				catch (Exception e) { ThrowError(L, e); }
-				// We did a call
-				return true;
+				try
+				{
+					property.SetValue(target, val, null);
+					return true;
+				}
+				catch (MemberAccessException ex)
+				{
+					translator.throwError(L, ex.InnerException);
+					return false; // never returns
+				}
+				catch (Exception ex)
+				{
+					detailMessage = "Property setter call failed: "+ex.Message;
+					return false;
+				}
 
 			default:
-				detailMessage = "'" + fieldName + "' is not a .net field or property";
+				detailMessage = "'" + fieldName + "' is not a CLR field or property";
 				return false;
 			}
 		}
 
-
-		/// <summary><para>[-0, +0, v] Convert a C# exception into a Lua error. Never returns.</para><para>We try to look into the exception to give the most meaningful description</para></summary>
-		void ThrowError(lua.State L, Exception e)
-		{
-			Debug.Assert(translator.interpreter.IsSameLua(L));
-			Debug.Assert(e != null);
-
-			// If we got inside a reflection show what really happened
-			var te = e as TargetInvocationException;
-			if (te != null)
-				e = te.InnerException;
-
-			translator.throwError(L, e);
-		}
 
 		static ProxyType _checktyperef(lua.State L)
 		{
@@ -511,8 +509,11 @@ namespace LuaInterface
 			switch (lua.type(L, 2))
 			{
 			case LUA.T.NUMBER:
-				int size = (int)lua.tonumber(L, 2);
-				translator.push(L, Array.CreateInstance(klass.UnderlyingSystemType, size));
+				var size = lua.tonumber(L, 2);
+				Array array;
+				try { array = Array.CreateInstance(klass.UnderlyingSystemType, checked((int) size)); }
+				catch (Exception ex) { return translator.throwError(L, ex); }
+				translator.push(L, array);
 				return 1;
 
 			case LUA.T.STRING:
@@ -544,17 +545,19 @@ namespace LuaInterface
 		int classCall(lua.State L)
 		{
 			Debug.Assert(translator.interpreter.IsSameLua(L) && luanet.infunction(L));
-			var validConstructor = new MethodCache();
 			var klass = _checktyperef(L);
+			var validConstructor = new MethodCache();
 			lua.remove(L, 1);
 			var constructors = klass.UnderlyingSystemType.GetConstructors();
 
 			foreach (ConstructorInfo constructor in constructors)
 			if (translator.matchParameters(L, constructor, ref validConstructor))
 			{
-				try { translator.push(L, constructor.Invoke(validConstructor.args)); }
+				object result;
+				try { result = constructor.Invoke(validConstructor.args); }
 				catch (TargetInvocationException e) { return translator.throwError(L, e.InnerException); }
-				catch { lua.pushnil(L); }
+				catch (Exception ex) { return luaL.error(L, "Constructor call failed: "+ex.Message); }
+				translator.push(L, result);
 				return 1;
 			}
 			return luaL.error(L, klass.UnderlyingSystemType+" constructor arguments do not match");

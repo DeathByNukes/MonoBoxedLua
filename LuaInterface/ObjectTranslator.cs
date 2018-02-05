@@ -16,9 +16,9 @@ namespace LuaInterface
 
 		readonly MetaFunctions metaFunctions;
 		#if INSECURE
-		readonly lua.CFunction _loadAssembly, _makeObject,_freeObject;
+		readonly lua.CFunction _loadAssembly, _makeObject, _freeObject;
 		#endif
-		readonly lua.CFunction _importType, _getMethodBysig, _getConstructorBysig,_ctype, _enum;
+		readonly lua.CFunction _importType, _getMethodBysig, _getConstructorBysig, _ctype, _enum;
 
 		internal readonly EventHandlerContainer pendingEvents = new EventHandlerContainer();
 
@@ -48,7 +48,6 @@ namespace LuaInterface
 		{
 			Debug.Assert(interpreter.IsSameLua(L));
 			Debug.Assert(ex != null);
-			luaL.checkstack(L, 1, "ObjectTranslator.throwError");
 			// Determine the position in the script where the exception was triggered
 			// Stack frame #0 is our C# wrapper, so not very interesting to the user
 			// Stack frame #1 must be the lua code that called us, so that's what we want to use
@@ -86,10 +85,10 @@ namespace LuaInterface
 
 				if (assembly != null)
 					LoadAssembly(assembly);
-			}
-			catch (Exception e) { return throwError(L,e); }
 
-			return 0;
+				return 0;
+			}
+			catch (Exception ex) { return throwError(L,ex); }
 		}
 		internal void LoadAssembly(Assembly assembly)
 		{
@@ -97,6 +96,8 @@ namespace LuaInterface
 			if (!loaded_assemblies.Contains(assembly))
 				loaded_assemblies.Add(assembly);
 		}
+		/// <exception cref="NullReferenceException"><paramref name="t"/> is required</exception>
+		/// <exception cref="ArgumentException">The type is already registered or another type with the same <see cref="Type.FullName"/> is already registered.</exception>
 		internal void LoadType(Type t, bool and_nested)
 		{
 			Debug.Assert(t != null);
@@ -106,6 +107,7 @@ namespace LuaInterface
 				LoadType(nested, true);
 		}
 
+		/// <exception cref="NullReferenceException"><paramref name="t"/> is required</exception>
 		internal bool FindType(Type t)
 		{
 			Debug.Assert(t != null);
@@ -116,24 +118,29 @@ namespace LuaInterface
 				return false;
 			return t == found;
 		}
-		internal Type FindType(string className)
+		/// <summary>[-0, +0, e]</summary>
+		internal Type FindType(lua.State L, string className)
 		{
-			Type t;
-			foreach (var assembly in loaded_assemblies)
-				if ((t = assembly.GetType(className)) != null)
-					return t;
+			try
+			{
+				Type t;
+				foreach (var assembly in loaded_assemblies)
+					if ((t = assembly.GetType(className)) != null) // can throw exceptions in circumstances we cannot control
+						return t;
 
-			loaded_types.TryGetValue(className, out t); // null if not found
-			return t;
+				loaded_types.TryGetValue(className, out t); // null if not found
+				return t;
+			}
+			catch (Exception ex) { throwError(L, ex); return null; }
 		}
 
 		/// <summary>Implementation of import_type. Returns nil if the type is not found.</summary>
 		int importType(lua.State L)
 		{
 			Debug.Assert(interpreter.IsSameLua(L) && luanet.infunction(L));
-			string className=lua.tostring(L,1);
-			Type klass = FindType(className);
-			if(klass != null)
+			string className = luaL.checkstring(L,1);
+			Type klass = FindType(L, className);
+			if (klass != null)
 				pushType(L,klass);
 			else
 				lua.pushnil(L);
@@ -152,7 +159,7 @@ namespace LuaInterface
 			luaL.checktype(L, 1, LUA.T.TABLE);
 
 			var superclassName = luaL.checkstring(L, 2);
-			Type klass = FindType(superclassName);
+			Type klass = FindType(L, superclassName);
 			if (klass == null)
 				return luaL.argerror(L, 2, "can not find superclass '" + superclassName + "'");
 
@@ -160,7 +167,7 @@ namespace LuaInterface
 			// it as the indexer of the first argument
 			object obj = CodeGeneration.Instance.GetClassInstance(klass, getTable(L,1));
 			pushObject(L, obj);
-			lua.newtable(L);
+			lua.createtable(L, 0, 2);
 			lua.pushvalue(L, -2); lua.setfield(L, -2, "__index");
 			lua.pushvalue(L, -2); lua.setfield(L, -2, "__newindex");
 			lua.setmetatable(L, 1);
@@ -173,7 +180,7 @@ namespace LuaInterface
 			Debug.Assert(luaclr.isrefmeta(L, -1));
 			lua.setmetatable(L, -2);
 
-			lua.rawset(L, 1);
+			lua.rawset(L, 1); // t["base"] = new luaNet_searchbase(obj)
 			return 0;
 #endif
 		}
@@ -203,7 +210,7 @@ namespace LuaInterface
 				lua.pushnil(L); lua.setmetatable(L,1);
 				lua.pushnil(L); lua.setfield(L,1,"base");
 			}
-			catch(Exception e) { return throwError(L,e); }
+			catch(Exception ex) { return throwError(L,ex); }
 			return 0;
 		}
 		/// <summary>Implementation of get_method_bysig.</summary>
@@ -216,6 +223,7 @@ namespace LuaInterface
 			IReflect klass;
 			if (luanet.hasmetatable(L, 1, "luaNet_class"))
 			{
+				Debug.Assert(target is ProxyType);
 				klass = (ProxyType) target;
 				target = null;
 			}
@@ -226,7 +234,7 @@ namespace LuaInterface
 
 			var signature = new Type[lua.gettop(L)-2];
 			for (int i = 0; i < signature.Length; ++i)
-				signature[i] = FindType(luaL.checkstring(L,i+3));
+				signature[i] = FindType(L, luaL.checkstring(L,i+3)); // todo: would be useful to also accept type references
 			try
 			{
 				var method = klass.GetMethod(method_name,BindingFlags.Static | BindingFlags.Instance |
@@ -234,9 +242,9 @@ namespace LuaInterface
 				if (method == null)
 					return luaL.error(L, "Method with the specified name and signature was not found.");
 				luaclr.pushcfunction(L, new LuaMethodWrapper(this, target, klass, method).call);
+				return 1;
 			}
-			catch (Exception e) { return throwError(L,e); }
-			return 1;
+			catch (Exception ex) { return throwError(L,ex); }
 		}
 		/// <summary>Implementation of get_constructor_bysig.</summary>
 		int getConstructorBysig(lua.State L)
@@ -246,22 +254,23 @@ namespace LuaInterface
 
 			var signature = new Type[lua.gettop(L)-1];
 			for (int i = 0; i < signature.Length; ++i)
-				signature[i] = FindType(lua.tostring(L,i+2));
+				signature[i] = FindType(L, lua.tostring(L,i+2));
 			try
 			{
 				var constructor = klass.UnderlyingSystemType.GetConstructor(signature);
 				if (constructor == null)
 					return luaL.error(L, "Constructor with the specified signature was not found.");
 				luaclr.pushcfunction(L, new LuaMethodWrapper(this, null, klass, constructor).call);
+				return 1;
 			}
-			catch(Exception e) { return throwError(L,e); }
-			return 1;
+			catch (Exception ex) { return throwError(L,ex); }
 		}
 
 		static Type _classType(lua.State L, int narg)
 		{
-			var pt = (ProxyType) luaclr.checkref(L,narg,"luaNet_class");
-			return pt.UnderlyingSystemType;
+			var pt = luaclr.checkref(L, narg, "luaNet_class");
+			Debug.Assert(pt is ProxyType);
+			return ((ProxyType) pt).UnderlyingSystemType;
 		}
 
 		/// <summary>Implementation of ctype.</summary>
@@ -284,7 +293,7 @@ namespace LuaInterface
 			switch (lua.type(L,2))
 			{
 			case LUA.T.NUMBER:
-				res = Enum.ToObject(t,(int) lua.tonumber(L,2));
+				res = Enum.ToObject(t, (int) lua.tonumber(L,2));
 				break;
 			case LUA.T.STRING:
 				try { res = Enum.Parse(t, lua.tostring(L,2)); }
@@ -304,10 +313,10 @@ namespace LuaInterface
 			luaL.checkstack(L, 2, "ObjectTranslator.pushType");
 			luaclr.newref(L, new ProxyType(t));
 			luaL.getmetatable(L, "luaNet_class");
-			Debug.Assert(lua.istable(L,-1));
+			Debug.Assert(luaclr.isrefmeta(L,-1));
 			lua.setmetatable(L, -2);
 		}
-		/// <summary>[-0, +1, m] Pushes a CLR object into the Lua stack as a userdata with the provided metatable</summary>
+		/// <summary>[-0, +1, m] Pushes a CLR object into the Lua stack as a standard LuaInterface userdata</summary>
 		void pushObject(lua.State L, object o)
 		{
 			Debug.Assert(interpreter.IsSameLua(L));
@@ -328,10 +337,12 @@ namespace LuaInterface
 			lua.setmetatable(L,-2);
 			StackAssert.End(1);
 		}
-		/// <summary>Gets an object from the Lua stack with the desired type, if it matches, otherwise returns null.</summary>
+		/// <summary>[-0, +0, m] Gets an object from the Lua stack with the desired type, if it matches, otherwise returns null.</summary>
+		/// <exception cref="NullReferenceException"><paramref name="paramType"/> is required</exception>
 		internal object getAsType(lua.State L,int index,Type paramType)
 		{
 			Debug.Assert(interpreter.IsSameLua(L));
+			Debug.Assert(paramType != null);
 			ExtractValue extractor = typeChecker.checkType(L,index,paramType);
 			if (extractor == null) return null;
 			return extractor(L, index);
@@ -346,7 +357,7 @@ namespace LuaInterface
 			switch(lua.type(L,index))
 			{
 			case LUA.T.NONE:
-				throw new ArgumentException("index points to an empty stack position", "index");
+				return luaL.error(L, "index points to an empty stack position");
 
 			case LUA.T.NIL:
 				return null;
@@ -377,7 +388,7 @@ namespace LuaInterface
 
 			default:
 				// all LUA.Ts have a case, so this shouldn't happen
-				throw new Exception("incorrect or corrupt program");
+				return luaL.error(L, "incorrect or corrupt program");
 			}
 		}
 		/// <summary>[-0, +0, m] Gets the table in the <paramref name="index"/> position of the Lua stack.</summary>
@@ -435,6 +446,8 @@ namespace LuaInterface
 			else
 			{
 				int iTypes = popTypes[0] == typeof(void) ? 1 : 0;
+				if (popTypes.Length + iTypes < values.Length)
+					luaL.error(L, "too many arguments"); // avoid index out of bounds exception
 				for(int i = oldTop+1; i <= newTop; ++i)
 					values[j++] = getAsType(L,i,popTypes[iTypes++]);
 			}
@@ -502,11 +515,11 @@ namespace LuaInterface
 			#if ! __NOGEN__
 			{	var x = AsILua(o);
 				if(x!=null) { var t = x.__luaInterface_getLuaTable();
-				              if (t.Owner != interpreter) throw Lua.NewCrossInterpreterError(t);
+				              if (t.Owner != interpreter) luaL.error(L, t.CrossInterpreterError());
 				              t.push(L); return; }  }
 			#endif
 			{	var x = o as LuaBase;
-				if(x!=null) { if (x.Owner != interpreter) throw Lua.NewCrossInterpreterError(x);
+				if(x!=null) { if (x.Owner != interpreter) luaL.error(L, x.CrossInterpreterError());
 				              x.push(L); return; }  }
 
 			{	var x = o as lua.CFunction;

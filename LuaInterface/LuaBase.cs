@@ -35,6 +35,11 @@ namespace LuaInterface
 		public bool IsDisposed { get { return _interpreter == null; } }
 		private Lua _interpreter; // should only be directly accessed by the above two members
 
+		internal string CrossInterpreterError()
+		{
+			return string.Format("Attempted to send a {0} from one Lua instance to another.", this.GetType().Name);
+		}
+
 		~LuaBase()
 		{
 			Dispose(false);
