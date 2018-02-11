@@ -8,12 +8,6 @@ namespace LuaInterface
 {
 	public sealed class LuaFunction : LuaBase
 	{
-		/// <summary>[-1, +0, e] Pops a function from the top of the stack and creates a new reference. The value is discarded if a type exception is thrown.</summary>
-		public LuaFunction(lua.State L, Lua interpreter)
-		: base(TryRef(L, interpreter, LUA.T.FUNCTION), interpreter)
-		{
-		}
-
 		/// <summary>Dumps a binary chunk that, if loaded again, results in a function equivalent to the one dumped.</summary>
 		/// <exception cref="InvalidOperationException">The function is not implemented in Lua.</exception>
 		public byte[] Dump()
@@ -56,28 +50,22 @@ namespace LuaInterface
 			throw new InvalidOperationException("Only native Lua functions can be dumped.");
 		}
 
-		/// <summary>Makes a new reference to the same function.</summary>
+		#region Implementation
+
+		/// <summary>Makes a new reference the same function.</summary>
 		public LuaFunction NewReference()
 		{
 			var L = Owner._L;
-			luanet.checkstack(L, 1, "LuaFunction.NewReference");
 			rawpush(L);
-			try { return new LuaFunction(L, Owner); } catch (InvalidCastException) { Dispose(); throw; }
+			return new LuaFunction(L, Owner);
 		}
 
+		protected override LUA.T Type { get { return LUA.T.FUNCTION; } }
 
-		protected internal override void push(lua.State L)
-		{
-			Debug.Assert(L == Owner._L);
-			luaL.getref(L, Reference);
-			CheckType(L, LUA.T.FUNCTION);
-		}
+		/// <summary>[-1, +0, v] Pops a function from the top of the stack and creates a new reference. Raises a Lua error if the value isn't a function.</summary>
+		public LuaFunction(lua.State L, Lua interpreter) : base(L, interpreter) {}
 
-		protected override void rawpush(lua.State L)
-		{
-			Debug.Assert(L == Owner._L);
-			luaL.getref(Owner._L, Reference);
-		}
+		#endregion
 	}
 
 }

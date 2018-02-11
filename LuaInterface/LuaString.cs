@@ -49,26 +49,13 @@ namespace LuaInterface
 		{
 			var L = Owner._L;
 			rawpush(L);
-			try { return new LuaString(L, Owner); } catch (InvalidCastException) { Dispose(); throw; }
+			return new LuaString(L, Owner);
 		}
 
-		/// <summary>[-1, +0, e] Pops a userdata from the top of the stack and creates a new reference. The value is discarded if a type exception is thrown.</summary>
-		public LuaString(lua.State L, Lua interpreter)
-		: base(TryRef(L, interpreter, LUA.T.STRING), interpreter)
-		{
-		}
-		public LuaString(int reference, Lua interpreter)
-		: base(reference, interpreter)
-		{
-			CheckType(LUA.T.STRING);
-		}
+		protected override LUA.T Type { get { return LUA.T.STRING; } }
 
-		protected internal override void push(lua.State L)
-		{
-			Debug.Assert(L == Owner._L);
-			luaL.getref(L, Reference);
-			CheckType(L, LUA.T.STRING);
-		}
+		/// <summary>[-1, +0, v] Pops a string from the top of the stack and creates a new reference. Raises a Lua error if the value isn't a string.</summary>
+		public LuaString(lua.State L, Lua interpreter) : base(L, interpreter) {}
 
 		#endregion
 	}

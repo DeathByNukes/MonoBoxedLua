@@ -62,10 +62,16 @@ namespace LuaInterface.LuaAPI
 			return interpreter._L;
 		}
 		/// <summary>[-0, +1, e] Pushes the referenced object onto its owner's stack.</summary>
-		[MethodImpl(INLINE)] public static void pushobject<T>(T o)
-		where T : LuaBase // generic method rather than just taking a LuaBase parameter might make it easier to do sealed class optimizations
+		[MethodImpl(INLINE)] public static void pushobject(lua.State L, LuaBase o)
 		{
-			o.push(o.Owner._L);
+			if (o == null)
+				lua.pushnil(L);
+			else if (o.IsDisposed)
+				luaL.error(L, "Attempted to use a disposed {0}.", o.GetType().Name);
+			else if (!o.Owner.IsSameLua(L))
+				luaL.error(L, o.CrossInterpreterError());
+			else
+				o.push(L);
 		}
 		/// <summary>[-0, +1, e] Pushes an arbitrary CLR object onto the stack.</summary>
 		[MethodImpl(INLINE)] public static void pushobject(Lua lua, object o)

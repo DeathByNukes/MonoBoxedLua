@@ -9,16 +9,20 @@ namespace LuaInterface
 	{
 		#region Constructor / State
 
-		protected LuaBase(int reference, Lua interpreter)
+		protected LuaBase(lua.State L, Lua interpreter)
 		{
-			Debug.Assert(interpreter != null);
-			Reference = reference;
-			Owner = interpreter;
+			Debug.Assert(interpreter != null && interpreter.IsSameLua(L));
+			var actual = lua.type(L,-1);
+			if (actual != this.Type)
+				luaL.error(L, FormatTypeError(actual));
+			this.Reference = luaL.@ref(L);
+			this.Owner = interpreter;
 		}
 
 		protected readonly int Reference;
 
 		/// <summary>The Lua instance that contains the referenced object.</summary>
+		/// <exception cref="ObjectDisposedException"></exception>
 		public Lua Owner
 		{
 			get
@@ -44,109 +48,57 @@ namespace LuaInterface
 		{
 			Dispose(false);
 		}
-
 		public void Dispose()
 		{
 			Dispose(true);
 			GC.SuppressFinalize(this);
 		}
-
 		protected virtual void Dispose(bool disposing)
 		{
 			if (this.IsDisposed) return;
 			var owner = Owner;
-			var L = owner._L;
-			if (Reference >= LUA.MinRef && !L.IsNull)
+
+			if (!disposing)
+				owner.Leaked(this.Reference); // it's not safe to do this from the finalizer thread
+			else
 			{
-				// it's not safe to do this from the finalizer thread
-				if (disposing)
-					luaL.unref(L, Reference);
-				else
-					owner.Leaked(Reference);
+				var L = owner._L;
+				if (!L.IsNull)
+					luaL.unref(L, this.Reference);
 			}
 			Owner = null;
 			//if (disposing)
 			//	/* dispose managed objects here */;
 		}
 
-		#endregion
-
-		#region Type Safety
-
-		/// <summary>[-0, +1, m] Push the referenced object onto the stack.</summary>
-		/// <remarks>
-		/// No default implementation is provided because all implementers should be validating the type (see <see cref="CheckType(lua.State,LUA.T)"/>)
-		/// If you throw an exception you should leave the stack how it was.
-		/// DO NOT call <see cref="rawpush"/> from within your implementation; <see cref="rawpush"/> redirects to <see cref="push"/> in debug builds.
-		/// </remarks>
-		/// <exception cref="InvalidCastException">Might be thrown if the registry was tampered with or <paramref name="L"/> isn't this reference's owner. Don't bother catching this exception. It should never happen unless you're doing it wrong or there was a security breach.</exception>
-		protected internal abstract void push(lua.State L);
+		/// <summary>[-0, +1, -] Push the referenced object onto the stack. The type of the value is guaranteed to match the class.</summary>
+		protected internal void push(lua.State L)
+		{
+			Debug.Assert(Owner.IsSameLua(L));
+			luaL.getref(L, this.Reference);
+			var actual = lua.type(L,-1);
+			if (actual != this.Type) // the type shouldn't change unless we have the wrong lua_State, the registry has been corrupted, or we are being hacked
+				System.Environment.FailFast(FormatTypeError(actual)); // this is not overkill
+		}
 
 		/// <summary>[-0, +1, -] Push the referenced object onto the stack without verifying its type matches the class. For internal use only. Should only be used when calling lua functions that can safely accept any type.</summary>
-		/// <remarks>DO NOT call this from within your <see cref="push"/> implementation; it redirects to <see cref="push"/> in debug builds.</remarks>
-		protected virtual void rawpush(lua.State L)
+		protected void rawpush(lua.State L)
 		{
 			#if DEBUG
-			try { push(L); return; }
-			catch (Exception ex) { Debug.Fail(ex.ToString()); }
-			#endif
+			push(L);
+			#else
+			Debug.Assert(Owner.IsSameLua(L));
 			luaL.getref(L, Reference);
+			#endif
 		}
 
-		/// <summary>
-		/// [-1, +0, v] Pops a value from the top of the stack and returns a reference or throws if it doesn't match the provided type.
-		/// Validating the type is critically important because some Lua functions don't check the type at all, potentially corrupting memory when given unexpected input.
-		/// </summary>
-		protected static int TryRef(lua.State L, Lua interpreter, LUA.T t)
-		{
-			Debug.Assert(L == interpreter._L);
-			var actual = lua.type(L,-1);
-			if (actual == t)
-				return luaL.@ref(L);
-			else
-			{
-				lua.pop(L, 1);
-				throw NewBadTypeError(typeof(LuaBase).Name, t, actual);
-			}
-		}
-		/// <summary>
-		/// [-0, +0, v] Checks that the instance references the given type. If it doesn't, the instance is disposed and an exception is thrown.
-		/// Validating the type is critically important because some Lua functions don't check the type at all, potentially corrupting memory when given unexpected input.
-		/// </summary>
-		protected void CheckType(LUA.T t)
-		{
-			var L = Owner._L;
-			luanet.checkstack(L, 1, "LuaBase.CheckType");
-			luaL.getref(L, Reference);
-			var actual = lua.type(L,-1);
-			lua.pop(L,1);
-			if (actual != t)
-			{
-				Dispose();
-				throw NewBadTypeError(t, actual);
-			}
-		}
-		/// <summary>
-		/// [-(0|1), +0, v] Checks that the value on top of the stack is the given type. If it isn't then the value is popped, the instance is disposed, and an exception is thrown.
-		/// Validating the type is critically important because some Lua functions don't check the type at all, potentially corrupting memory when given unexpected input.
-		/// </summary>
-		protected void CheckType(lua.State L, LUA.T t)
-		{
-			Debug.Assert(L == Owner._L);
-			var actual = lua.type(L,-1);
-			if (actual == t) return;
-			lua.pop(L, 1);
-			Dispose();
-			throw NewBadTypeError(t, actual);
-		}
 		/// <summary>Exception factory for use when a <see cref="LuaBase"/> object references a Lua value of an incorrect type.</summary>
-		protected static InvalidCastException NewBadTypeError(string type, object expected, object actual) {
-			return new InvalidCastException(string.Format("{0} created with a {2} reference. ({1} expected)", type, expected, actual));
+		protected string FormatTypeError(object actual) {
+			return string.Format("{0} created with a {2} reference. ({1} expected)", this.GetType().Name, this.Type, actual);
 		}
-		/// <summary>Exception factory for use when a <see cref="LuaBase"/> object references a Lua value of an incorrect type.</summary>
-		protected InvalidCastException NewBadTypeError(object expected, object actual) {
-			return NewBadTypeError(this.GetType().Name, expected, actual);
-		}
+
+		/// <summary>The Lua type your object wraps.</summary>
+		protected abstract LUA.T Type { get; }
 
 		#endregion
 

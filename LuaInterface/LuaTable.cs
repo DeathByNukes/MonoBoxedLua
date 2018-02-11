@@ -19,15 +19,6 @@ namespace LuaInterface
 		/// <seealso cref="Lua.NewTable()"/>
 		public bool IsOrphaned;
 
-		/// <summary>Makes a new reference the same table.</summary>
-		public LuaTable NewReference()
-		{
-			var L = Owner._L;
-			luanet.checkstack(L, 1, "LuaTable.NewReference");
-			rawpush(L);
-			try { return new LuaTable(L, Owner); } catch (InvalidCastException) { Dispose(); throw; }
-		}
-
 		/// <summary>Counts the number of entries in the table.</summary>
 		public int Count() { return checked((int)this.LongCount()); }
 		/// <summary>Counts the number of entries in the table.</summary>
@@ -718,24 +709,18 @@ namespace LuaInterface
 
 		#region Implementation
 
-		/// <summary>[-1, +0, e] Pops a table from the top of the stack and creates a new reference. The value is discarded if a type exception is thrown.</summary>
-		public LuaTable(lua.State L, Lua interpreter)
-		: base(TryRef(L, interpreter, LUA.T.TABLE), interpreter)
+		/// <summary>Makes a new reference the same table.</summary>
+		public LuaTable NewReference()
 		{
+			var L = Owner._L;
+			rawpush(L);
+			return new LuaTable(L, Owner);
 		}
 
-		public LuaTable(int reference, Lua interpreter)
-		: base(reference, interpreter)
-		{
-			CheckType(LUA.T.TABLE);
-		}
+		protected override LUA.T Type { get { return LUA.T.TABLE; } }
 
-		protected internal override void push(lua.State L)
-		{
-			Debug.Assert(L == Owner._L);
-			luaL.getref(Owner._L, Reference);
-			CheckType(Owner._L, LUA.T.TABLE);
-		}
+		/// <summary>[-1, +0, v] Pops a table from the top of the stack and creates a new reference. Raises a Lua error if the value isn't a table.</summary>
+		public LuaTable(lua.State L, Lua interpreter) : base(L, interpreter) {}
 
 		#endregion
 	}
