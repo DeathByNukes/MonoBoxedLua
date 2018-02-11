@@ -1065,20 +1065,20 @@ namespace LuaInterface
 				return count;
 			}
 		}
-		internal void Leaked(int reference)
+		internal bool Leaked(int reference)
 		{
 			Debug.Assert(reference >= LUA.MinRef);
+			if (_L.IsNull)
+				return true;
 			var refs = _leaked_refs;
 			if (!Monitor.TryEnter(refs)) // avoid deadlock if the main thread is suspended and is holding the lock
-			{
-				GC.ReRegisterForFinalize(this); // try again later
-				return;
-			}
+				return false;
 			try
 			{
 				refs.Add(reference);
 				_has_leaked_refs = true;
 				Lua.leaked();
+				return true;
 			}
 			finally { Monitor.Exit(refs); }
 		}

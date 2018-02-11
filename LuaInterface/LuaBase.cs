@@ -58,13 +58,17 @@ namespace LuaInterface
 			if (this.IsDisposed) return;
 			var owner = Owner;
 
-			if (!disposing)
-				owner.Leaked(this.Reference); // it's not safe to do this from the finalizer thread
-			else
+			if (disposing)
 			{
+				// it's not safe to do this from the finalizer thread
 				var L = owner._L;
 				if (!L.IsNull)
 					luaL.unref(L, this.Reference);
+			}
+			else
+			{
+				if (!owner.Leaked(this.Reference))
+					GC.ReRegisterForFinalize(this); // try again later
 			}
 			Owner = null;
 			//if (disposing)
