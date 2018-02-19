@@ -48,12 +48,13 @@ namespace LuaInterface.LuaAPI
 		}
 
 		// debug extensions
-		[DebuggerDisplay("{_L} Top = {_DebuggerTop}, Status = {_DebuggerStatus}")]
+		[DebuggerDisplay("{_L} Top = {_DebuggerTop}, Status = {_DebuggerStatus}, Free = {_DebuggerFree}")]
 		public partial struct State : IEnumerable<StackIndex>
 		{
 			[DebuggerBrowsable(DebuggerBrowsableState.Never)]
-			object _DebuggerTop { get { return _L == null ? null : (object)lua.gettop(this); } }
+			object _DebuggerTop    { get { return _L == null ? null : (object)lua.gettop(this); } }
 			object _DebuggerStatus { get { return _L == null ? null : (object)lua.status(this); } }
+			object _DebuggerFree   { get { return _L == null ? null : (object)luaclr.getfreestack(this); } }
 
 			IEnumerable<StackIndex> _enumerate(bool empty_slots)
 			{

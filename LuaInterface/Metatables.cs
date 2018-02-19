@@ -66,7 +66,7 @@ namespace LuaInterface
 			var obj = luaclr.checkref(L, 1);
 			string s;
 			try { s = obj.ToString(); }
-			catch (Exception ex) { return translator.throwError(L, ex); }
+			catch (Exception ex) { return translator.throwError(L, luaclr.verifyex(ex)); }
 			lua.pushstring(L, s ?? "");
 			return 1;
 		}
@@ -159,7 +159,7 @@ namespace LuaInterface
 					}
 				}
 				catch (TargetInvocationException ex) {
-					return translator.throwError(L, ex.InnerException);
+					return translator.throwError(L, luaclr.verifyex(ex.InnerException));
 				}
 				catch (Exception ex) {
 					return luaL.error(L, "unable to index {0}: {1}", objType, ex.Message);
@@ -284,7 +284,7 @@ namespace LuaInterface
 			case MemberTypes.Property:
 				// todo: support indexed properties
 				try { value = ((PropertyInfo) member).GetValue(obj, null); }
-				catch (TargetInvocationException e) { return translator.throwError(L, e.InnerException); }
+				catch (TargetInvocationException ex) { return translator.throwError(L, luaclr.verifyex(ex.InnerException)); }
 				catch { goto default; }
 				translator.push(L, value);
 				break;
@@ -383,25 +383,8 @@ namespace LuaInterface
 				}
 				return 0;
 			}
-			catch (SEHException)
-			{
-				// If we are seeing a C++ exception - this must actually be for Lua's private use.  Let it handle it
-				Debug.Assert(false); // SEHException isn't cross-platform. most of the code doesn't properly handle this. do not use the C++ Lua build.
-				                     // todo: fix the unit tests and add a test that checks for the c++ builds, then remove this block
-				throw;
-			}
-			catch (IndexOutOfRangeException ex)
-			{
-				return translator.throwError(L, ex);
-			}
-			catch (TargetInvocationException ex)
-			{
-				return translator.throwError(L, ex.InnerException);
-			}
-			catch (Exception ex)
-			{
-				return luaL.error(L, "Index setter call failed: "+ex.Message);
-			}
+			catch (TargetInvocationException ex) { return translator.throwError(L, luaclr.verifyex(ex.InnerException)); }
+			catch (Exception ex) { return luaL.error(L, "Index setter call failed: "+ex.Message); }
 		}
 
 		/// <summary>[-0, +0, e]
@@ -477,9 +460,9 @@ namespace LuaInterface
 					property.SetValue(target, val, null);
 					return true;
 				}
-				catch (MemberAccessException ex)
+				catch (TargetInvocationException ex)
 				{
-					translator.throwError(L, ex.InnerException);
+					translator.throwError(L, luaclr.verifyex(ex.InnerException));
 					return false; // never returns
 				}
 				catch (Exception ex)
@@ -555,7 +538,7 @@ namespace LuaInterface
 			{
 				object result;
 				try { result = constructor.Invoke(validConstructor.args); }
-				catch (TargetInvocationException e) { return translator.throwError(L, e.InnerException); }
+				catch (TargetInvocationException ex) { return translator.throwError(L, luaclr.verifyex(ex.InnerException)); }
 				catch (Exception ex) { return luaL.error(L, "Constructor call failed: "+ex.Message); }
 				translator.push(L, result);
 				return 1;

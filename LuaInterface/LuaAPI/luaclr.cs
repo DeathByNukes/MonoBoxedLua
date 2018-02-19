@@ -7,8 +7,10 @@ namespace LuaInterface.LuaAPI
 {
 	using size_t = System.UIntPtr;
 
-	public static class luaclr
+	public static partial class luaclr
 	{
+		const string DLL = "lua51.dll";
+		const CallingConvention CC = CallingConvention.Cdecl;
 		/// <summary>.NET 4.5 AggressiveInlining. Should be auto discarded on older build targets or otherwise ignored.</summary>
 		const MethodImplOptions INLINE = (MethodImplOptions) 0x0100;
 
@@ -165,6 +167,35 @@ namespace LuaInterface.LuaAPI
 			if (o is T == false)
 				luaL.argerror(L, narg, string.Format(extramsg ?? "{0} expected, got {1}", typeof(T).Name, o.GetType().FullName));
 			return (T) o;
+		}
+
+		#endregion
+
+		#region error handling
+
+		/// <summary>[-?, +?, e] Function called internally by <see cref="Try"/>.</summary>
+		[UnmanagedFunctionPointer(CC)] public delegate void Pfunc(lua.State L, IntPtr ud);
+		/// <summary>[-0, +0, -] Calls <paramref name="f"/> with the argument <paramref name="ud"/> and catches any custom errors thrown by the corresponding <see cref="Throw"/> function. Should return -1 if an error was caught or 0 for success. If an error wasn't caught, the function can cautiously push a value to the stack and return LUA_ERRRUN to fabricate a lua_error style error.</summary>
+		[UnmanagedFunctionPointer(CC)] public delegate int Try(lua.State L, Pfunc f, IntPtr ud);
+		/// <summary>[-0, +0, -] Jump execution to the corresponding <see cref="Try"/> function which is guaranteed to exist further up the stack.</summary>
+		[UnmanagedFunctionPointer(CC)] public delegate void Throw(lua.State L, LUA.ERR errcode);
+
+		/// <summary>[-0, +0, -] Retrieve the main thread of a given state.</summary>
+		[DllImport(DLL,CallingConvention=CC,EntryPoint="luaclr_mainthread")] public static extern lua.State mainthread(lua.State L);
+
+		/// <summary>[-0, +0, -] Changes the try/throw function of a given state. If null, the standard Lua error system will be used. Do not call this function while a try statement is already running.</summary>
+		[DllImport(DLL,CallingConvention=CC,EntryPoint="luaclr_settrythrowf")] public static extern void settrythrowf(lua.State L, luaclr.Try ftry, luaclr.Throw fthrow);
+
+		/// <summary>[-0, +0, -] Returns how many free slots are currently allocated on the stack.</summary>
+		[DllImport(DLL,CallingConvention=CC,EntryPoint="luaclr_getfreestack")] public static extern int getfreestack(lua.State L);
+
+		/// <summary>Returns <paramref name="ex"/> or rethrows it if it is an instance of <see cref="LuaInternalException"/>.</summary>
+		public static Exception verifyex(Exception ex)
+		{
+			var cast = ex as LuaInternalException;
+			if (cast != null)
+				cast.Rethrow();
+			return ex;
 		}
 
 		#endregion

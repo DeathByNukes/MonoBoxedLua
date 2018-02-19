@@ -259,28 +259,5 @@ namespace LuaInterface.LuaAPI
 		}
 
 		#endregion
-
-		#region obsolete
-		#if false
-		/// <summary>[-0, +1, m] Pushes a delegate onto the stack as a callable userdata.</summary>
-		[Obsolete("Use lua.pushcfunction")]
-		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_pushstdcallcfunction")] public static extern void pushstdcallcfunction(lua.State L, luanet.CSFunction function);
-
-		/// <summary>Delegate for functions passed to Lua as function pointers</summary>
-		[Obsolete("Use lua.CFunction")]
-		[UnmanagedFunctionPointer(CallingConvention.StdCall)] public delegate int CSFunction(lua.State L);
-
-		/// <summary>[-0, +0, -, requires checkstack(3)] Checks if the object at <paramref name="index"/> has a metatable containing a field with a light userdata key matching <see cref="luanet.gettag"/>.</summary>
-		[Obsolete("Use luaclr")] [DllImport(DLL,CallingConvention=CC,EntryPoint="luaL_checkmetatable")] public static extern bool   checkmetatable(lua.State L, int index);
-		/// <summary>[-0, +1, m] Pushes a new luanet userdata object, which stores a single integer, onto the stack. The object does not have a metatable by default.</summary>
-		[Obsolete("Use luaclr")] [DllImport(DLL,CallingConvention=CC,EntryPoint="luanet_newudata"    )] public static extern int    newudata      (lua.State L, int val);
-		/// <summary>[-0, +0, -, requires checkstack(3)] Retrieves the int stored in a luanet userdata object. Returns -1 if <see cref="luanet.checkmetatable"/> fails and the object's metatable isn't luaNet_class, luaNet_searchbase, or luaNet_function.</summary>
-		[Obsolete("Use luaclr")] [DllImport(DLL,CallingConvention=CC,EntryPoint="luanet_tonetobject" )] public static extern int    tonetobject   (lua.State L, int index);
-		/// <summary>[-0, +0, -] Like <see cref="luanet.tonetobject"/>, but doesn't perform the safety checks. Only use this if you're completely sure the value is a luanet userdata.</summary>
-		[Obsolete("Use luaclr")] [DllImport(DLL,CallingConvention=CC,EntryPoint="luanet_rawnetobj"   )] public static extern int    rawnetobj     (lua.State L, int index);
-		/// <summary>[-0, +0, -, requires checkstack(2)] Checks if the specified userdata object uses the specified metatable. If so, it does the same thing as <see cref="luanet.rawnetobj"/>. Otherwise, returns -1.</summary>
-		[Obsolete("Use luaclr")] [DllImport(DLL,CallingConvention=CC,EntryPoint="luanet_checkudata"  )] public static extern int    checkudata    (lua.State L, int index, string meta);
-		#endif
-		#endregion
 	}
 }

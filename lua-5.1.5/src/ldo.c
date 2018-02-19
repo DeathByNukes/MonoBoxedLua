@@ -94,6 +94,10 @@ static void resetstack (lua_State *L, int status) {
 void luaD_throw (lua_State *L, int errcode) {
   if (L->errorJmp) {
     L->errorJmp->status = errcode;
+    if (G(L)->fthrow != NULL) {
+      G(L)->fthrow(L, errcode);
+      exit(EXIT_FAILURE);
+    }
     LUAI_THROW(L, L->errorJmp);
   }
   else {
@@ -110,12 +114,20 @@ void luaD_throw (lua_State *L, int errcode) {
 
 int luaD_rawrunprotected (lua_State *L, Pfunc f, void *ud) {
   struct lua_longjmp lj;
+  int ftrystatus;
   lj.status = 0;
   lj.previous = L->errorJmp;  /* chain new error handler */
   L->errorJmp = &lj;
-  LUAI_TRY(L, &lj,
-    (*f)(L, ud);
-  );
+  if (G(L)->ftry != NULL) {
+    ftrystatus = G(L)->ftry(L, f, ud);
+    if (ftrystatus && lj.status == 0)
+      lj.status = ftrystatus == LUA_ERRRUN ? LUA_ERRRUN : -1;
+  }
+  else {
+    LUAI_TRY(L, &lj,
+      (*f)(L, ud);
+    );
+  }
   L->errorJmp = lj.previous;  /* restore old error handler */
   return lj.status;
 }

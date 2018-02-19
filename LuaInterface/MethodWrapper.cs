@@ -152,12 +152,11 @@ namespace LuaInterface
 
 							failedCall = false;
 						}
-						catch (TargetInvocationException e) { return _Translator.throwError(L, e.InnerException); }
-						catch (Exception e)
+						catch (TargetInvocationException ex) { return _Translator.throwError(L, luaclr.verifyex(ex.InnerException)); }
+						catch (Exception ex)
 						{
 							if (_Members.Length == 1) // Is the method overloaded?
-								// No, throw error
-								return _Translator.throwError(L, e);
+								return luaL.error(L, "method call failed ({0})", ex.Message); // No, throw error
 						}
 					}
 				}
@@ -247,8 +246,8 @@ namespace LuaInterface
 						? ((ConstructorInfo) _LastCalledMethod.cachedMethod).Invoke(_LastCalledMethod.args)
 						: _LastCalledMethod.cachedMethod.Invoke(isStatic ? null : targetObject, _LastCalledMethod.args)  );
 				}
-				catch (TargetInvocationException e) { return _Translator.throwError(L, e.InnerException); }
-				catch (                Exception e) { return _Translator.throwError(L, e); }
+				catch (TargetInvocationException ex) { return _Translator.throwError(L, luaclr.verifyex(ex.InnerException)); }
+				catch (Exception ex) { return luaL.error(L, "method call failed ({0})", ex.Message); }
 			}
 
 			// Pushes out and ref return values

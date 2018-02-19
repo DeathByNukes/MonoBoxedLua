@@ -210,6 +210,7 @@ namespace LuaInterface
 				lua.pushnil(L); lua.setmetatable(L,1);
 				lua.pushnil(L); lua.setfield(L,1,"base");
 			}
+			catch (LuaInternalException) { throw; }
 			catch(Exception ex) { return throwError(L,ex); }
 			return 0;
 		}
@@ -244,6 +245,7 @@ namespace LuaInterface
 				luaclr.pushcfunction(L, new LuaMethodWrapper(this, target, klass, method).call);
 				return 1;
 			}
+			catch (LuaInternalException) { throw; }
 			catch (Exception ex) { return throwError(L,ex); }
 		}
 		/// <summary>Implementation of get_constructor_bysig.</summary>
@@ -263,6 +265,7 @@ namespace LuaInterface
 				luaclr.pushcfunction(L, new LuaMethodWrapper(this, null, klass, constructor).call);
 				return 1;
 			}
+			catch (LuaInternalException) { throw; }
 			catch (Exception ex) { return throwError(L,ex); }
 		}
 

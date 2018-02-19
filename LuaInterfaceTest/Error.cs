@@ -1,7 +1,5 @@
 ﻿using System;
 using System.Reflection;
-using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
 using LuaInterface;
 
 namespace LuaInterfaceTest
@@ -85,11 +83,18 @@ namespace LuaInterfaceTest
 			Assert.AreEqual(false, results[0]);
 			Assert.AreEqual(expected, results[1]);
 		}
-		static LuaScriptException GetPCallException(object[] results) {
+		static object GetPCallError(object[] results) {
 			Assert.AreEqual(2, results.Length);
 			Assert.AreEqual(false, results[0]);
-			UAssert.IsInstanceOf<LuaScriptException>(results[1]);
-			return (LuaScriptException) results[1];
+			return results[1];
+		}
+		static T GetPCallError<T>(object[] results) {
+			var err = GetPCallError(results);
+			UAssert.IsInstanceOf<T>(err);
+			return (T) err;
+		}
+		static LuaScriptException GetPCallException(object[] results) {
+			return GetPCallError<LuaScriptException>(results);
 		}
 		class TestException : Exception {
 			public TestException() {}
@@ -142,9 +147,7 @@ namespace LuaInterfaceTest
 		{
 			using (var lua = NewTest())
 			{
-				// this test shows that if your code is running as a callback from a lua protected call, you are completely incapable of catching metamethod errors
-				// the error will always jump directly back to the lua VM. all you can reliably do is cleanup code in finally blocks
-				int hit_finally = 0;
+				int hit_catch = 0, hit_finally = 0;
 				lua["callback"] = new Action(() =>
 				{
 					try
@@ -152,13 +155,9 @@ namespace LuaInterfaceTest
 						using (var t = lua.GetTable("badtable"))
 							GC.KeepAlive(t["foo"]);
 					}
-					// one does not simply catch a lua error
-					catch (SEHException)            { Assert.Fail("lua protected error caught as SEH exception"); }
-					catch (ExternalException)       { Assert.Fail("lua protected error caught as external exception"); }
-					catch (RuntimeWrappedException) { Assert.Fail("lua protected error caught as object"); }
-					catch                           { Assert.Fail("lua protected error caught in general catch"); }
-					// yet, through some magic, 'finally' still works
-					finally { ++hit_finally; lua["hit_finally"] = true; }
+					catch (LuaInterface.LuaAPI.LuaInternalException) { ++hit_catch; throw; }
+					catch { Assert.Fail("lua error caught as something other than LuaInternalException"); }
+					finally { ++hit_finally; }
 					Assert.Fail("didn't throw (inner)");
 				});
 
@@ -168,33 +167,15 @@ namespace LuaInterfaceTest
 					Assert.Fail("didn't throw (outer)");
 				}
 				catch (LuaScriptException ex) { CheckException(ex); }
+				Assert.AreEqual(1, hit_catch, "catch{} wasn't called during Lua error or was called more than once");
 				Assert.AreEqual(1, hit_finally, "finally{} wasn't called during Lua error or was called more than once");
-				Assert.AreEqual(true, (bool)lua["hit_finally"], "finally{} didn't write Lua value");
-
-				// suspicious that the "magic finally" might involve the CLR backtracking once it regains control much later
-				// so added this test to confirm the side-effects entirely within Lua
-
-				hit_finally = 0;
-				lua["hit_finally"] = null;
-				Assert.AreEqual(null, lua["hit_finally"]);
-
-				Assert.AreEqual("success", lua.DoString(@"
-					local status, msg = pcall(function() callback:Invoke() end)
-
-					if status then                  error(""didn't throw"")
-					elseif msg ~= ErrorMessage then error('wrong error: '..msg)
-					elseif not hit_finally then     error(""didn't hit finally block"")
-					else return 'success' end
-				")[0]);
-				Assert.AreEqual(1, hit_finally);
-				Assert.AreEqual(true, (bool)lua["hit_finally"]);
 			}
 		}
 		[TestMethod] public void MetamethodCPCall()
 		{
 			using (var lua = NewTest())
 			{
-				// this test shows how to protect against metamethod errors by wrapping your usage in CPCall
+				// this test shows how to catch metamethod errors by wrapping your usage in CPCall
 				lua["callback"] = new Action(() =>
 				{
 					try
@@ -210,7 +191,7 @@ namespace LuaInterfaceTest
 					}
 					catch (LuaScriptException ex) { CheckException(ex); }
 				});
-				
+
 				lua.DoString("callback:Invoke()");
 			}
 		}
@@ -266,7 +247,6 @@ namespace LuaInterfaceTest
 		[TestMethod] public void PCallRegisteredFunction()
 		{
 			using (var lua = NewTest())
-			using (var pcall = lua.GetFunction("pDoCallback"))
 			{
 				// todo: make a RegisterFunction test that uses typeof(x).GetConstructor
 				var ThrowTestException = typeof(LuaInterfaceTest.Error).GetMethod("ThrowTestException", BindingFlags.NonPublic | BindingFlags.Static);
@@ -277,6 +257,17 @@ namespace LuaInterfaceTest
 					"return pcall(function() throw('success') end)"  ));
 				var inner = (TestException) ex.InnerException;
 				Assert.AreEqual("success", inner.Message);
+			}
+		}
+		[TestMethod] public void CFunctionException()
+		{
+			using (var lua = NewTest())
+			{
+				lua["callback"] = new LuaInterface.LuaAPI.lua.CFunction(L =>
+				{
+					throw new Exception("unit test");
+				});
+				Console.WriteLine(GetPCallError<string>(lua.DoString("return pcall(callback)")));
 			}
 		}
 	}

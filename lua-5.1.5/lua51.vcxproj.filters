@@ -182,5 +182,8 @@
     <ClCompile Include="src\luastdcall.c">
       <Filter>LuaInterface</Filter>
     </ClCompile>
+    <ClCompile Include="src\luaclr.c">
+      <Filter>LuaInterface</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

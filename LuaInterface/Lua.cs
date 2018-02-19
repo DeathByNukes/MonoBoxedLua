@@ -34,6 +34,8 @@ namespace LuaInterface
 			if (L.IsNull)
 				throw new OutOfMemoryException("Failed to allocate a new Lua state.");
 
+			LuaInternalException.install(L);
+
 			// Load libraries
 			luaL.openlibs(L);
 
@@ -56,32 +58,22 @@ namespace LuaInterface
 		/// <summary>[-0, +0, m] Test if the provided thread belongs to this Lua instance.</summary>
 		public bool IsSameLua(lua.State L)
 		{
-			return L == _mainthread || mainThread(L) == _mainthread;
+			return L == _mainthread || luaclr.mainthread(L) == _mainthread;
 		}
 		/// <summary>[-0, +0, m] Test if the provided threads belong to the same Lua instance.</summary>
-		public static bool IsSameLua(lua.State L1, lua.State L2)
+		internal static bool IsSameLua(lua.State L1, lua.State L2)
 		{
-			return L1 == L2 || mainThread(L1) == mainThread(L2);
-		}
-		/// <summary>[-0, +0, m]</summary>
-		internal static lua.State mainThread(lua.State L)
-		{
-			// todo: modify the Lua API to expose G(L)->mainthread
-			luaL.checkstack(L, 1, "Lua.GetInstance");
-			lua.pushstring(L, _LuaInterfaceMainThread);
-			lua.rawget(L, LUA.REGISTRYINDEX);
-			var ret = lua.tothread(L, -1);
-			lua.pop(L, 1);
-			return ret;
+			return L1 == L2 || luaclr.mainthread(L1) == luaclr.mainthread(L2);
 		}
 		const string _LuaInterfaceMarker = "LUAINTERFACE LOADED";
-		const string _LuaInterfaceMainThread = "LUAINTERFACE MAIN THREAD";
 		private readonly bool _StatePassed;
 
 		/// <summary>Wrap around an existing lua_State. The passed state must be the main thread. CAUTION: Multiple LuaInterface.Lua instances can't share the same lua state.</summary>
 		public Lua(lua.State L)
 		{
 			if (L.IsNull) throw new ArgumentNullException("L");
+			if (luaclr.mainthread(L) != L)
+				throw new InvalidOperationException("LuaInterface.Lua initialized with a lua_State that isn't the main thread.");
 			luanet.checkstack(L, LUA.MINSTACK, "new Lua(lua.State)");
 
 			 // Check for existing LuaInterface marker
@@ -98,15 +90,6 @@ namespace LuaInterface
 
 		void Init(lua.State L)
 		{
-			lua.pushstring(L, _LuaInterfaceMainThread);
-			if (lua.pushthread(L))
-				lua.rawset(L, LUA.REGISTRYINDEX);
-			else
-			{
-				lua.pop(L, 2);
-				throw new InvalidOperationException("LuaInterface.Lua initialized with a lua_State that isn't the main thread.");
-			}
-
 			_mainthread = _L = L;
 
 			// Add LuaInterface owner reference
@@ -1003,7 +986,8 @@ namespace LuaInterface
 				Debug.Assert(lua.gettop(L) == n + 1);
 
 				try { callback(this, results); }
-				catch (Exception e) { return this.translator.throwError(L, e); }
+				catch (LuaInternalException) { throw; }
+				catch (Exception ex) { return this.translator.throwError(L, ex); }
 
 				return 0;
 			};
