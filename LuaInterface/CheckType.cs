@@ -27,7 +27,7 @@ namespace LuaInterface
 		{
 			this.interpreter = interpreter;
 			// rationale for TypeHandle: http://stackoverflow.com/a/126507
-			_casters = new Dictionary<RuntimeTypeHandle, Caster>(19)
+			_casters = new Dictionary<RuntimeTypeHandle, Caster>(20)
 			{
 				{typeof(object     ).TypeHandle, new Caster(isObject  , asObject  )},
 				{typeof(sbyte      ).TypeHandle, new Caster(isSbyte   , asSbyte   )},
@@ -44,6 +44,7 @@ namespace LuaInterface
 				{typeof(decimal    ).TypeHandle, new Caster(isDecimal , asDecimal )},
 				{typeof(bool       ).TypeHandle, new Caster(isBoolean , asBoolean )},
 				{typeof(string     ).TypeHandle, new Caster(isString  , asString  )},
+				{typeof(LuaValue   ).TypeHandle, new Caster(isObject  , asLuaValue)},
 				{typeof(LuaFunction).TypeHandle, new Caster(isFunction, asFunction)},
 				{typeof(LuaTable   ).TypeHandle, new Caster(isTable   , asTable   )},
 				{typeof(LuaUserData).TypeHandle, new Caster(isUserData, asUserData)},
@@ -148,6 +149,7 @@ namespace LuaInterface
 		static object asDecimal (lua.State L,int index) { double num; return luanet.trygetnumber(L, index, out num) ? (object)(decimal) num : null; }
 		static object asBoolean (lua.State L,int index) { return lua.toboolean(L,index); }
 		static object asString  (lua.State L,int index) { return lua.tostring (L,index); }
+		static object asLuaValue(lua.State L,int index) { return LuaValue.read(L, index, false); }
 		       object asFunction(lua.State L,int index) { return lua.type(L, index) == LUA.T.FUNCTION ? new LuaFunction(L, interpreter, index) : null; }
 		       object asTable   (lua.State L,int index) { return lua.type(L, index) == LUA.T.TABLE    ? new LuaTable   (L, interpreter, index) : null; }
 		       object asUserData(lua.State L,int index) { return lua.type(L, index) == LUA.T.USERDATA ? new LuaUserData(L, interpreter, index) : null; }
