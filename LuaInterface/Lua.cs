@@ -648,10 +648,10 @@ namespace LuaInterface
 		#endregion
 
 		/// <summary>Gets a reference to the global table.</summary>
-		public LuaTable GetGlobals()  { return translator.getTable(_L, LUA.GLOBALSINDEX); }
+		public LuaTable GetGlobals()  { return new LuaTable(_L, this, LUA.GLOBALSINDEX); }
 
 		/// <summary>Gets a reference to the registry table. (LUA_REGISTRYINDEX)</summary>
-		public LuaTable GetRegistry() { return translator.getTable(_L, LUA.REGISTRYINDEX); }
+		public LuaTable GetRegistry() { return new LuaTable(_L, this, LUA.REGISTRYINDEX); }
 
 		/// <summary>Gets a numeric global variable</summary>
 		public double GetNumber(string fullPath)

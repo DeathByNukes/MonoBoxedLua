@@ -63,6 +63,8 @@ namespace LuaInterface
 
 		/// <summary>[-1, +0, v] Pops a userdata from the top of the stack and creates a new reference. Raises a Lua error if the value isn't a userdata.</summary>
 		public LuaUserData(lua.State L, Lua interpreter) : base(L, interpreter) {}
+		/// <summary>[-0, +0, v] Creates a new reference to the userdata at <paramref name="index"/>. Raises a Lua error if the value isn't a userdata.</summary>
+		public LuaUserData(lua.State L, Lua interpreter, int index) : base(L, interpreter, index) {}
 
 		#endregion
 	}

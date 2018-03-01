@@ -18,6 +18,17 @@ namespace LuaInterface
 			this.Reference = luaL.@ref(L);
 			this.Owner = interpreter;
 		}
+		protected LuaBase(lua.State L, Lua interpreter, int index)
+		{
+			Debug.Assert(interpreter != null && interpreter.IsSameLua(L));
+			var actual = lua.type(L,index);
+			if (actual != this.Type)
+				luaL.error(L, FormatTypeError(actual));
+			luaL.checkstack(L, 1, "LuaBase.ctor(lua.State,Lua,int)");
+			lua.pushvalue(L, index);
+			this.Reference = luaL.@ref(L);
+			this.Owner = interpreter;
+		}
 
 		protected readonly int Reference;
 

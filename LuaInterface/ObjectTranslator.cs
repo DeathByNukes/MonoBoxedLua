@@ -25,10 +25,10 @@ namespace LuaInterface
 		public ObjectTranslator(lua.State L, Lua interpreter)
 		{
 			Debug.Assert(interpreter.IsSameLua(L));
-			this.interpreter=interpreter;
 			luanet.checkstack(L, 1, "new ObjectTranslator");
-			typeChecker = new CheckType(this);
-			metaFunctions = new MetaFunctions(L, this);
+			this.interpreter = interpreter;
+			typeChecker      = new CheckType(interpreter);
+			metaFunctions    = new MetaFunctions(L, this);
 
 			StackAssert.Start(L);
 			#if INSECURE
@@ -165,7 +165,7 @@ namespace LuaInterface
 
 			// Creates and pushes the object in the stack, setting
 			// it as the indexer of the first argument
-			object obj = CodeGeneration.Instance.GetClassInstance(klass, getTable(L,1));
+			object obj = CodeGeneration.Instance.GetClassInstance(klass, new LuaTable(L, interpreter, 1));
 			pushObject(L, obj);
 			lua.createtable(L, 0, 2);
 			lua.pushvalue(L, -2); lua.setfield(L, -2, "__index");
@@ -375,13 +375,13 @@ namespace LuaInterface
 				return lua.toboolean(L,index);
 
 			case LUA.T.TABLE:
-				return getTable(L,index);
+				return new LuaTable(L, interpreter, index);
 
 			case LUA.T.FUNCTION:
-				return getFunction(L,index);
+				return new LuaFunction(L, interpreter, index);
 
 			case LUA.T.USERDATA:
-				return luaclr.isref(L, index) ? luaclr.getref(L, index) : getUserData(L,index); // translate freed references as null
+				return luaclr.isref(L, index) ? luaclr.getref(L, index) : new LuaUserData(L, interpreter, index); // translate freed references as null
 
 			case LUA.T.LIGHTUSERDATA:
 				return new IntPtr(lua.touserdata(L, index));
@@ -393,34 +393,6 @@ namespace LuaInterface
 				// all LUA.Ts have a case, so this shouldn't happen
 				return luaL.error(L, "incorrect or corrupt program");
 			}
-		}
-		/// <summary>[-0, +0, v Gets the table in the <paramref name="index"/> position of the Lua stack.</summary>
-		internal LuaTable getTable(lua.State L, int index)
-		{
-			Debug.Assert(interpreter.IsSameLua(L));
-			lua.pushvalue(L,index);
-			return new LuaTable(L,interpreter);
-		}
-		/// <summary>[-0, +0,v] Gets the userdata in the <paramref name="index"/> position of the Lua stack.</summary>
-		internal LuaUserData getUserData(lua.State L, int index)
-		{
-			Debug.Assert(interpreter.IsSameLua(L));
-			lua.pushvalue(L,index);
-			return new LuaUserData(L,interpreter);
-		}
-		/// <summary>[-0, +0, v] Gets the function in the <paramref name="index"/> position of the Lua stack.</summary>
-		internal LuaFunction getFunction(lua.State L, int index)
-		{
-			Debug.Assert(interpreter.IsSameLua(L));
-			lua.pushvalue(L,index);
-			return new LuaFunction(L,interpreter);
-		}
-		/// <summary>[-0, +0, v] Gets the raw string in the <paramref name="index"/> position of the Lua stack.</summary>
-		internal LuaString getLuaString(lua.State L, int index)
-		{
-			Debug.Assert(interpreter.IsSameLua(L));
-			lua.pushvalue(L,index);
-			return new LuaString(L,interpreter);
 		}
 
 		/// <summary>Gets the values from the provided index to the top of the stack and returns them in an array.</summary>

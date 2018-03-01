@@ -28,19 +28,19 @@ namespace LuaInterface
 	/// </remarks>
 	class DelegateGenerator
 	{
-		private ObjectTranslator translator;
+		private Lua interpreter;
 		private Type delegateType;
 
-		public DelegateGenerator(ObjectTranslator translator,Type delegateType)
+		public DelegateGenerator(Lua interpreter, Type delegateType)
 		{
-			Debug.Assert(translator != null && delegateType != null);
-			this.translator = translator;
+			Debug.Assert(interpreter != null && delegateType != null);
+			this.interpreter = interpreter;
 			this.delegateType = delegateType;
 		}
-		public object extractGenerated(lua.State L,int index)
+		public object extractGenerated(lua.State L, int index)
 		{
-			Debug.Assert(translator.interpreter.IsSameLua(L));
-			return CodeGeneration.Instance.GetDelegate(delegateType,translator.getFunction(L,index));
+			Debug.Assert(interpreter.IsSameLua(L));
+			return CodeGeneration.Instance.GetDelegate(delegateType, new LuaFunction(L, interpreter, index));
 		}
 	}
 
@@ -51,18 +51,18 @@ namespace LuaInterface
 	/// </remarks>
 	class ClassGenerator
 	{
-		private ObjectTranslator translator;
+		private Lua interpreter;
 		private Type klass;
 
-		public ClassGenerator(ObjectTranslator translator,Type klass)
+		public ClassGenerator(Lua interpreter, Type klass)
 		{
-			this.translator=translator;
-			this.klass=klass;
+			this.interpreter = interpreter;
+			this.klass = klass;
 		}
-		public object extractGenerated(lua.State L,int index)
+		public object extractGenerated(lua.State L, int index)
 		{
-			Debug.Assert(translator.interpreter.IsSameLua(L));
-			return CodeGeneration.Instance.GetClassInstance(klass,translator.getTable(L,index));
+			Debug.Assert(interpreter.IsSameLua(L));
+			return CodeGeneration.Instance.GetClassInstance(klass, new LuaTable(L, interpreter, index));
 		}
 	}
 

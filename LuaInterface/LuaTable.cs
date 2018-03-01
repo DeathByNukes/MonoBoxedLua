@@ -721,6 +721,8 @@ namespace LuaInterface
 
 		/// <summary>[-1, +0, v] Pops a table from the top of the stack and creates a new reference. Raises a Lua error if the value isn't a table.</summary>
 		public LuaTable(lua.State L, Lua interpreter) : base(L, interpreter) {}
+		/// <summary>[-0, +0, v] Creates a new reference to the table at <paramref name="index"/>. Raises a Lua error if the value isn't a table.</summary>
+		public LuaTable(lua.State L, Lua interpreter, int index) : base(L, interpreter, index) {}
 
 		#endregion
 	}

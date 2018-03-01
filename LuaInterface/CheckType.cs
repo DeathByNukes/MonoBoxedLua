@@ -10,7 +10,7 @@ namespace LuaInterface
 	/// <remarks>Author: Fabio Mascarenhas</remarks>
 	class CheckType
 	{
-		readonly ObjectTranslator translator;
+		readonly Lua interpreter;
 
 		readonly ExtractValue extractNetObject;
 		readonly Dictionary<RuntimeTypeHandle, Caster> _casters;
@@ -23,11 +23,11 @@ namespace LuaInterface
 			public Caster(CheckValue c, ExtractValue e) { CheckValue = c; ExtractValue = e; }
 		}
 
-		public CheckType(ObjectTranslator translator)
+		public CheckType(Lua interpreter)
 		{
-			this.translator = translator;
+			this.interpreter = interpreter;
 			// rationale for TypeHandle: http://stackoverflow.com/a/126507
-			_casters = new Dictionary<RuntimeTypeHandle, Caster>(18)
+			_casters = new Dictionary<RuntimeTypeHandle, Caster>(19)
 			{
 				{typeof(object     ).TypeHandle, new Caster(isObject  , asObject  )},
 				{typeof(sbyte      ).TypeHandle, new Caster(isSbyte   , asSbyte   )},
@@ -48,6 +48,7 @@ namespace LuaInterface
 				{typeof(LuaTable   ).TypeHandle, new Caster(isTable   , asTable   )},
 				{typeof(LuaUserData).TypeHandle, new Caster(isUserData, asUserData)},
 				{typeof(LuaString  ).TypeHandle, new Caster(isString  , asLString )},
+				// update the constructor when you add more
 			};
 			extractNetObject = asNetObject;
 		}
@@ -69,7 +70,7 @@ namespace LuaInterface
 		/// <exception cref="NullReferenceException"><paramref name="paramType"/> is required</exception>
 		internal ExtractValue checkType(lua.State L,int index,Type paramType)
 		{
-			Debug.Assert(translator.interpreter.IsSameLua(L));
+			Debug.Assert(interpreter.IsSameLua(L));
 			Debug.Assert(paramType != null);
 
 			if (paramType.IsByRef) paramType = paramType.GetElementType();
@@ -94,7 +95,7 @@ namespace LuaInterface
 					#if __NOGEN__
 						luaL.error(L,"Delegates not implemented");
 					#else
-						return new ExtractValue(new DelegateGenerator(translator, paramType).extractGenerated);
+						return new ExtractValue(new DelegateGenerator(interpreter, paramType).extractGenerated);
 					#endif
 				}
 				break;
@@ -105,7 +106,7 @@ namespace LuaInterface
 					#if __NOGEN__
 						luaL.error(L,"Interfaces not implemented");
 					#else
-						return new ExtractValue(new ClassGenerator(translator, paramType).extractGenerated);
+						return new ExtractValue(new ClassGenerator(interpreter, paramType).extractGenerated);
 					#endif
 				}
 				luaL.checkstack(L, 1, "CheckType.checkType");
@@ -147,15 +148,15 @@ namespace LuaInterface
 		static object asDecimal (lua.State L,int index) { double num; return luanet.trygetnumber(L, index, out num) ? (object)(decimal) num : null; }
 		static object asBoolean (lua.State L,int index) { return lua.toboolean(L,index); }
 		static object asString  (lua.State L,int index) { return lua.tostring (L,index); }
-		       object asFunction(lua.State L,int index) { return lua.type(L, index) == LUA.T.FUNCTION ? translator.getFunction (L, index) : null; }
-		       object asTable   (lua.State L,int index) { return lua.type(L, index) == LUA.T.TABLE    ? translator.getTable    (L, index) : null; }
-		       object asUserData(lua.State L,int index) { return lua.type(L, index) == LUA.T.USERDATA ? translator.getUserData (L, index) : null; }
-		       object asLString (lua.State L,int index) { return lua.type(L, index) == LUA.T.STRING   ? translator.getLuaString(L, index) : null; }
+		       object asFunction(lua.State L,int index) { return lua.type(L, index) == LUA.T.FUNCTION ? new LuaFunction(L, interpreter, index) : null; }
+		       object asTable   (lua.State L,int index) { return lua.type(L, index) == LUA.T.TABLE    ? new LuaTable   (L, interpreter, index) : null; }
+		       object asUserData(lua.State L,int index) { return lua.type(L, index) == LUA.T.USERDATA ? new LuaUserData(L, interpreter, index) : null; }
+		       object asLString (lua.State L,int index) { return lua.type(L, index) == LUA.T.STRING   ? new LuaString  (L, interpreter, index) : null; }
 
 		// [-0, +0, m]
 		public object asObject(lua.State L,int index)
 		{
-			Debug.Assert(translator.interpreter.IsSameLua(L));
+			Debug.Assert(interpreter.IsSameLua(L));
 			if (lua.type(L,index) == LUA.T.TABLE) // todo: find what purpose this branch serves and document it
 			{
 				luaL.checkstack(L, 1, "CheckType.asObject");
@@ -172,13 +173,13 @@ namespace LuaInterface
 					}
 				}
 			}
-			object obj = translator.getObject(L,index);
+			object obj = interpreter.translator.getObject(L,index);
 			return obj;
 		}
 		// [-0, +0, m]
 		public object asNetObject(lua.State L,int index)
 		{
-			Debug.Assert(translator.interpreter.IsSameLua(L));
+			Debug.Assert(interpreter.IsSameLua(L));
 			object obj = luaclr.toref(L,index);
 			if (obj == null && lua.type(L,index) == LUA.T.TABLE) // todo: find what purpose this branch serves and document it
 			{
