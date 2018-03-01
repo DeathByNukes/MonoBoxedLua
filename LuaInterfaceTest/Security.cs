@@ -150,6 +150,7 @@ namespace LuaInterfaceTest
 
 		public class ExposedClass
 		{
+			#pragma warning disable CS0414 // The field is assigned but its value is never used
 			public static bool PublicS = true;
 			public        bool Public = true;
 			internal static bool InternalS = true;
@@ -158,6 +159,7 @@ namespace LuaInterfaceTest
 			protected        bool Protected = true;
 			private static bool PrivateS = true;
 			private        bool Private = true;
+			#pragma warning restore CS0414
 		}
 		[TestMethod] public void MemberAccess()
 		{
@@ -190,6 +192,34 @@ namespace LuaInterfaceTest
 					");
 				});
 				CollectionAssert.DoesNotContain(lua.DoString("return InternalS,Internal,ProtectedS,Protected,PrivateS,Private"), true);
+			}
+		}
+
+		[TestMethod] public void StdLib()
+		{
+			using (var lua = new Lua())
+			{
+				using (var t = lua.GetTable("debug"))
+				{
+					Assert.AreEqual(2, t.Count());
+					Assert.IsTrue(t.ContainsKey("getinfo"));
+					Assert.IsTrue(t.ContainsKey("traceback"));
+				}
+				using (var t = lua.GetTable("os"))
+				{
+					Assert.AreEqual(4, t.Count());
+					Assert.IsTrue(t.ContainsKey("clock"));
+					Assert.IsTrue(t.ContainsKey("date"));
+					Assert.IsTrue(t.ContainsKey("difftime"));
+					Assert.IsTrue(t.ContainsKey("time"));
+				}
+				using (var t = lua.GetGlobals())
+				{
+					Assert.IsTrue(!t.ContainsKey("io"));
+					Assert.IsTrue(!t.ContainsKey("package"));
+					Assert.IsTrue(!t.ContainsKey("module"));
+					Assert.IsTrue(!t.ContainsKey("require"));
+				}
 			}
 		}
 	}

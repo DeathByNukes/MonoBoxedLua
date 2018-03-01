@@ -126,12 +126,24 @@ namespace LuaInterface
 			
 			// debug functions could be used to tamper with our metatables and upvalues
 			// specific vulnerabilities are not known but this closes a huge attack surface
+			// todo: can we sandbox module/require?
 			luaL.dostring(L, @"
 				local d = debug
 				debug = {
-					getinfo = d.getinfo,
+					getinfo   = d.getinfo,
 					traceback = d.traceback,
 				}
+				local o = os
+				os = {
+					clock    = o.clock,
+					date     = o.date,
+					difftime = o.difftime,
+					time     = o.time,
+				}
+				io = nil
+				package = nil
+				module = nil
+				require = nil
 			");
 
 			lua.getglobal(L, "loadstring");
@@ -151,42 +163,6 @@ namespace LuaInterface
 			lua.setglobal(L, "loadfile");
 			lua.pushcclosure(L, _dofile, 1); // upvalue(1) = loadfile
 			lua.setglobal(L, "dofile");
-
-			// todo: read module/require docs and see if they can be sandboxed
-			lua.pushnil(L); lua.setglobal(L, "module");
-			lua.pushnil(L); lua.setglobal(L, "require");
-
-			// the below comment matches the changes that have been done directly to the dll file
-			/*
-			lua.pushnil(L); lua.setglobal(L, "io");
-			lua.pushnil(L); lua.setglobal(L, "package");
-			luaL.dostring(L, @"
-				local o = os
-				os = {
-					clock    = o.clock,
-					date     = o.date,
-					difftime = o.difftime,
-					time     = o.time,
-				}
-			");
-			*/
-			#if DEBUG
-			lua.getglobal(L,"io");      Debug.Assert(lua.isnil(L,-1)); lua.pop(L,1);
-			lua.getglobal(L,"package"); Debug.Assert(lua.isnil(L,-1)); lua.pop(L,1);
-
-			lua.getglobal(L, "os");
-			if (lua.istable(L, -1))
-			{
-				lua.getfield(L,-1,"execute"  ); Debug.Assert(lua.isnil(L,-1)); lua.pop(L,1);
-				lua.getfield(L,-1,"exit"     ); Debug.Assert(lua.isnil(L,-1)); lua.pop(L,1);
-				lua.getfield(L,-1,"getenv"   ); Debug.Assert(lua.isnil(L,-1)); lua.pop(L,1);
-				lua.getfield(L,-1,"remove"   ); Debug.Assert(lua.isnil(L,-1)); lua.pop(L,1);
-				lua.getfield(L,-1,"rename"   ); Debug.Assert(lua.isnil(L,-1)); lua.pop(L,1);
-				lua.getfield(L,-1,"setlocale"); Debug.Assert(lua.isnil(L,-1)); lua.pop(L,1);
-				lua.getfield(L,-1,"tmpname"  ); Debug.Assert(lua.isnil(L,-1)); lua.pop(L,1);
-			}
-			lua.pop(L, 1);
-			#endif
 		}
 		// wrapper around the real loadstring function (must be stored in an upvalue) that throws an error if the string is bytecode
 		static unsafe readonly lua.CFunction _loadstring = L =>
