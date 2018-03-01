@@ -198,6 +198,16 @@ namespace LuaInterface.LuaAPI
 			return ex;
 		}
 
+		/// <summary>[-0, +0, v] Raises a Lua error "out of memory" without making any CLR heap allocations.</summary>
+		public static int errormemory(lua.State L)
+		{
+			lua.pushstring(L, _OutOfMem);
+			return lua.error(L);
+		}
+		// I was just going to use Encoding.ASCII.GetBytes but that would require loading and JITing a lot of infrastructure just for a one-off operation. (MS's StringToHGlobalAnsi implementation doesn't use it) -DBN
+		static readonly byte[] _OutOfMem = unchecked(new byte[]{ (byte)'o', (byte)'u', (byte)'t', (byte)' ', (byte)'o', (byte)'f', (byte)' ', (byte)'m', (byte)'e', (byte)'m', (byte)'o', (byte)'r', (byte)'y' });
+
+
 		#endregion
 
 

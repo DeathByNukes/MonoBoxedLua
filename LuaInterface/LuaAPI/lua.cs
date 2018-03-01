@@ -242,11 +242,36 @@ namespace LuaInterface.LuaAPI
 		/// <summary>[-0, +1, m] Pushes the string s onto the stack, which can contain embedded zeros.</summary>
 		public static void pushstring(lua.State L, string s)
 		{
-			Dbg.Assert(s != null);
-			IntPtr ptr = Marshal.StringToHGlobalAnsi(s);
-			try { lua.pushlstring(L, ptr, s.Length.ToSizeType()); }
+			if (s == null)
+			{
+				lua.pushnil(L); // this is what lua_pushstring does
+				return;
+			}
+			var ptr = default(IntPtr);
+			try
+			{
+				ptr = Marshal.StringToHGlobalAnsi(s);
+				lua.pushlstring(L, ptr, s.Length.ToSizeType());
+			}
+			catch (OutOfMemoryException) { luaclr.errormemory(L); }
 			finally { Marshal.FreeHGlobal(ptr); }
 		}
+
+		/// <summary>[-0, +1, m] Pushes the contents of the byte array s onto the stack as a string, which can contain embedded zeros.</summary>
+		public static unsafe void pushstring(lua.State L, byte[] s)
+		{
+			if (s == null)
+				lua.pushnil(L);
+			else
+			{
+				var len = s.LongLength;
+				if (sizeof(void*) < sizeof(long) && len > uint.MaxValue)
+					luaL.error(L, "string is too long ({0} bytes)", len);
+				fixed (byte* p = s)
+					lua.pushlstring(L, new IntPtr(p), new size_t(unchecked((void*) len)));
+			}
+		}
+
 
 		#endregion
 

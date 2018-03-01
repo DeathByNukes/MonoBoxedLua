@@ -846,18 +846,21 @@ namespace LuaInterface
 		/// <summary>Creates a new <see cref="LuaString"/> object with the specified contents.</summary>
 		public LuaString NewString(string contents)
 		{
+			if (contents == null)
+				return null;
 			var L = _L;
 			luanet.checkstack(L, 1, "Lua.NewString");
 			lua.pushstring(L, contents);
 			return new LuaString(L, this);
 		}
 		/// <summary>Creates a new <see cref="LuaString"/> object with the specified contents.</summary>
-		public unsafe LuaString NewString(byte[] contents)
+		public LuaString NewString(byte[] contents)
 		{
+			if (contents == null)
+				return null;
 			var L = _L;
 			luanet.checkstack(L, 1, "Lua.NewString");
-			fixed (void* contents_p = contents)
-				lua.pushlstring(L, new IntPtr(contents_p), new UIntPtr((void*) contents.LongLength));
+			lua.pushstring(L, contents);
 			return new LuaString(L, this);
 		}
 

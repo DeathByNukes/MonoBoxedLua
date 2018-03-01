@@ -394,28 +394,28 @@ namespace LuaInterface
 				return luaL.error(L, "incorrect or corrupt program");
 			}
 		}
-		/// <summary>[-0, +0, m] Gets the table in the <paramref name="index"/> position of the Lua stack.</summary>
+		/// <summary>[-0, +0, v Gets the table in the <paramref name="index"/> position of the Lua stack.</summary>
 		internal LuaTable getTable(lua.State L, int index)
 		{
 			Debug.Assert(interpreter.IsSameLua(L));
 			lua.pushvalue(L,index);
 			return new LuaTable(L,interpreter);
 		}
-		/// <summary>[-0, +0, m] Gets the userdata in the <paramref name="index"/> position of the Lua stack.</summary>
+		/// <summary>[-0, +0,v] Gets the userdata in the <paramref name="index"/> position of the Lua stack.</summary>
 		internal LuaUserData getUserData(lua.State L, int index)
 		{
 			Debug.Assert(interpreter.IsSameLua(L));
 			lua.pushvalue(L,index);
 			return new LuaUserData(L,interpreter);
 		}
-		/// <summary>[-0, +0, m] Gets the function in the <paramref name="index"/> position of the Lua stack.</summary>
+		/// <summary>[-0, +0, v] Gets the function in the <paramref name="index"/> position of the Lua stack.</summary>
 		internal LuaFunction getFunction(lua.State L, int index)
 		{
 			Debug.Assert(interpreter.IsSameLua(L));
 			lua.pushvalue(L,index);
 			return new LuaFunction(L,interpreter);
 		}
-		/// <summary>[-0, +0, m] Gets the raw string in the <paramref name="index"/> position of the Lua stack.</summary>
+		/// <summary>[-0, +0, v] Gets the raw string in the <paramref name="index"/> position of the Lua stack.</summary>
 		internal LuaString getLuaString(lua.State L, int index)
 		{
 			Debug.Assert(interpreter.IsSameLua(L));

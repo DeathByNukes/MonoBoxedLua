@@ -46,8 +46,13 @@ namespace LuaInterface.LuaAPI
 		public static LUA.ERR loadbuffer(lua.State L, string s, string name)
 		{
 			Debug.Assert(s != null);
-			IntPtr ptr = Marshal.StringToHGlobalAnsi(s);
-			try { return luaL.loadbuffer(L, ptr, s.Length, name); }
+			var ptr = default(IntPtr);
+			try
+			{
+				ptr = Marshal.StringToHGlobalAnsi(s);
+				return luaL.loadbuffer(L, ptr, s.Length, name);
+			}
+			catch (OutOfMemoryException) { return (LUA.ERR) luaclr.errormemory(L); }
 			finally { Marshal.FreeHGlobal(ptr); }
 		}
 		/// <summary>[-0, +?, m] Loads and runs the given string, which can contain embedded zeros.</summary>
