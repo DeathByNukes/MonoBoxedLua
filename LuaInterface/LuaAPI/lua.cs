@@ -197,17 +197,29 @@ namespace LuaInterface.LuaAPI
 		//   lua_tointeger (use System.Convert)
 
 		/// <summary>
-		/// [-0, +0, m] Converts the Lua value at the given acceptable index to a C# string.
-		/// If the value is a number, then <see cref="lua.tostring"/> also changes the actual value in the stack to a string!
-		/// (This change confuses <see cref="lua.next"/> when <see cref="lua.tostring"/> is applied to keys during a table traversal.)
+		/// [-0, +0, m] <para>Converts the Lua value at the given acceptable index to a C# string. The Lua value must be a string or a number; otherwise, the function returns <see langword="null"/>.</para>
+		/// <para>Unlike the native lua_tostring, this function does not modify values on the stack if they are a number. (.NET Double.ToString(InvariantCulture) is used instead of Lua string conversion)</para>
 		/// </summary>
-		/// <returns>The Lua value must be a string or a number; otherwise, the function returns <see langword="null"/>.</returns>
 		public static string tostring(lua.State L, int index)
 		{
-			size_t strlen;
-			var str = lua.tolstring(L, index, out strlen);
-			if (str == null) return null;
-			return Marshal.PtrToStringAnsi((IntPtr)str, strlen.ToInt32());
+			try
+			{
+				switch (lua.type(L, index))
+				{
+				case LUA.T.STRING:
+					size_t strlen;
+					var str = lua.tolstring(L, index, out strlen);
+					if (str == null) return null;
+					return Marshal.PtrToStringAnsi((IntPtr)str, strlen.ToInt32());
+
+				case LUA.T.NUMBER:
+					return lua.tonumber(L, index).ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+				default:
+					return null;
+				}
+			}
+			catch (OutOfMemoryException) { luaclr.errormemory(L); return null; }
 		}
 
 		#endregion
