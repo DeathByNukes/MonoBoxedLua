@@ -81,9 +81,6 @@
     <ClInclude Include="src\lzio.h">
       <Filter>Header files</Filter>
     </ClInclude>
-    <ClInclude Include="src\luastdcall-windows.h">
-      <Filter>LuaInterface</Filter>
-    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\lapi.c">
@@ -178,9 +175,6 @@
     </ClCompile>
     <ClCompile Include="src\print.c">
       <Filter>Source files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\luastdcall.c">
-      <Filter>LuaInterface</Filter>
     </ClCompile>
     <ClCompile Include="src\luaclr.c">
       <Filter>LuaInterface</Filter>

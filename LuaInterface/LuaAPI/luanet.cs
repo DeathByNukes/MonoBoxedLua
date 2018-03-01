@@ -20,9 +20,6 @@ namespace LuaInterface.LuaAPI
 		/// <summary>Flags for Lua access to the CLR.</summary>
 		public const BindingFlags LuaBindingFlags = BindingFlags.Public /*| BindingFlags.IgnoreCase/*| BindingFlags.NonPublic*/;
 
-		/// <summary>[-0, +0, -] The address of a static variable in the luanet DLL. The variable's contents are never used. Rather, the address itself serves as a unique identifier for luanet metatables.</summary>
-		[DllImport(DLL,CallingConvention=CC,EntryPoint="luanet_gettag")] public static extern IntPtr gettag();
-
 		/// <summary>
 		/// [-0, +1, e] Navigates fields nested in an object at the specified index, pushing the value of the specified sub-field. If <paramref name="fields"/> is empty it pushes a copy of the main object.
 		/// <para>WARNING: If the IEnumerable throws an exception during enumeration the stack will be left in a +1 state. You must ensure that no exceptions can be thrown or you must catch them and clean up the stack.</para>

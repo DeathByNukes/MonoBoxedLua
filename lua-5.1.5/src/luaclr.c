@@ -28,6 +28,12 @@
 #include "lundump.h"
 #include "lvm.h"
 
+#include "luaclr.h"
+
+static int tag = 0;
+LUA_API void *luaclr_gettag() {
+	return &tag;
+}
 
 LUA_API lua_State *luaclr_mainthread (lua_State *L) {
   return G(L)->mainthread;
@@ -50,3 +56,9 @@ LUA_API int luaclr_getfreestack (lua_State *L) {
   lua_unlock(L);
   return res;
 }
+
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+BOOL APIENTRY DllMain(HANDLE module, DWORD reason, LPVOID reserved) { return TRUE; }
+#endif

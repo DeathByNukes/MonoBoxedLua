@@ -14,6 +14,28 @@ namespace LuaInterface.LuaAPI
 		/// <summary>.NET 4.5 AggressiveInlining. Should be auto discarded on older build targets or otherwise ignored.</summary>
 		const MethodImplOptions INLINE = (MethodImplOptions) 0x0100;
 
+		#region native functions
+
+		/// <summary>[-0, +0, -] The address of a static variable in the Lua DLL. The variable's contents are never used. Rather, the address itself serves as a unique identifier for luaclr metatables.</summary>
+		[DllImport(DLL,CallingConvention=CC,EntryPoint="luaclr_gettag")] public static extern IntPtr gettag();
+
+		/// <summary>[-0, +0, -] Retrieve the main thread of a given state.</summary>
+		[DllImport(DLL,CallingConvention=CC,EntryPoint="luaclr_mainthread")] public static extern lua.State mainthread(lua.State L);
+
+		/// <summary>[-0, +0, -] Changes the try/throw function of a given state. If null, the standard Lua error system will be used. Do not call this function while a try statement is already running.</summary>
+		[DllImport(DLL,CallingConvention=CC,EntryPoint="luaclr_settrythrowf")] public static extern void settrythrowf(lua.State L, luaclr.Try ftry, luaclr.Throw fthrow);
+		/// <summary>[-?, +?, e] Function called internally by <see cref="Try"/>.</summary>
+		[UnmanagedFunctionPointer(CC)] public delegate void Pfunc(lua.State L, IntPtr ud);
+		/// <summary>[-0, +0, -] Calls <paramref name="f"/> with the argument <paramref name="ud"/> and catches any custom errors thrown by the corresponding <see cref="Throw"/> function. Should return -1 if an error was caught or 0 for success. If an error wasn't caught, the function can cautiously push a value to the stack and return LUA_ERRRUN to fabricate a lua_error style error.</summary>
+		[UnmanagedFunctionPointer(CC)] public delegate int Try(lua.State L, Pfunc f, IntPtr ud);
+		/// <summary>[-0, +0, -] Jump execution to the corresponding <see cref="Try"/> function which is guaranteed to exist further up the stack.</summary>
+		[UnmanagedFunctionPointer(CC)] public delegate void Throw(lua.State L, LUA.ERR errcode);
+
+		/// <summary>[-0, +0, -] Returns how many free slots are currently allocated on the stack.</summary>
+		[DllImport(DLL,CallingConvention=CC,EntryPoint="luaclr_getfreestack")] public static extern int getfreestack(lua.State L);
+
+		#endregion
+
 		#region reference system
 
 		/// <summary>[-0, +1, m] Pushes a new userdata holding a reference to the specified object. The object can be retrieved by calling <see cref="getref"/>. The object cannot be garbage collected until <see cref="freeref"/> is called.<para>The userdata pushed by this function does not come with a metatable; you should assign it a metatable created by <see cref="newrefmeta(lua.State,int)"/> or <see cref="newrefmeta(lua.State,string,int)"/>.</para><para>The *ref functions are thread-safe; they can used by Lua instances running on different threads.</para></summary>
@@ -60,7 +82,7 @@ namespace LuaInterface.LuaAPI
 			lua.pushboolean(L, false);
 			lua.setfield(L, -2, "__metatable");
 
-			lua.pushlightuserdata(L, luanet.gettag());
+			lua.pushlightuserdata(L, luaclr.gettag());
 			lua.pushboolean(L, true);
 			lua.rawset(L, -3);
 		}
@@ -77,7 +99,7 @@ namespace LuaInterface.LuaAPI
 			index = luanet.absoluteindex(L, index);
 			if (!luaclr.isreflike(L, index) || !lua.getmetatable(L, index))
 				return false;
-			lua.pushlightuserdata(L, luanet.gettag());
+			lua.pushlightuserdata(L, luaclr.gettag());
 			lua.rawget(L, -2);
 			bool isref = lua.type(L, -1) != LUA.T.NIL;
 			lua.pop(L, 2);
@@ -90,7 +112,7 @@ namespace LuaInterface.LuaAPI
 			index = luanet.absoluteindex(L, index);
 			if (!lua.istable(L, index))
 				return false;
-			lua.pushlightuserdata(L, luanet.gettag());
+			lua.pushlightuserdata(L, luaclr.gettag());
 			lua.rawget(L, index);
 			bool isref = lua.type(L, -1) != LUA.T.NIL;
 			lua.pop(L, 1);
@@ -171,24 +193,6 @@ namespace LuaInterface.LuaAPI
 
 		#endregion
 
-		#region error handling
-
-		/// <summary>[-?, +?, e] Function called internally by <see cref="Try"/>.</summary>
-		[UnmanagedFunctionPointer(CC)] public delegate void Pfunc(lua.State L, IntPtr ud);
-		/// <summary>[-0, +0, -] Calls <paramref name="f"/> with the argument <paramref name="ud"/> and catches any custom errors thrown by the corresponding <see cref="Throw"/> function. Should return -1 if an error was caught or 0 for success. If an error wasn't caught, the function can cautiously push a value to the stack and return LUA_ERRRUN to fabricate a lua_error style error.</summary>
-		[UnmanagedFunctionPointer(CC)] public delegate int Try(lua.State L, Pfunc f, IntPtr ud);
-		/// <summary>[-0, +0, -] Jump execution to the corresponding <see cref="Try"/> function which is guaranteed to exist further up the stack.</summary>
-		[UnmanagedFunctionPointer(CC)] public delegate void Throw(lua.State L, LUA.ERR errcode);
-
-		/// <summary>[-0, +0, -] Retrieve the main thread of a given state.</summary>
-		[DllImport(DLL,CallingConvention=CC,EntryPoint="luaclr_mainthread")] public static extern lua.State mainthread(lua.State L);
-
-		/// <summary>[-0, +0, -] Changes the try/throw function of a given state. If null, the standard Lua error system will be used. Do not call this function while a try statement is already running.</summary>
-		[DllImport(DLL,CallingConvention=CC,EntryPoint="luaclr_settrythrowf")] public static extern void settrythrowf(lua.State L, luaclr.Try ftry, luaclr.Throw fthrow);
-
-		/// <summary>[-0, +0, -] Returns how many free slots are currently allocated on the stack.</summary>
-		[DllImport(DLL,CallingConvention=CC,EntryPoint="luaclr_getfreestack")] public static extern int getfreestack(lua.State L);
-
 		/// <summary>Returns <paramref name="ex"/> or rethrows it if it is an instance of <see cref="LuaInternalException"/>.</summary>
 		public static Exception verifyex(Exception ex)
 		{
@@ -197,9 +201,6 @@ namespace LuaInterface.LuaAPI
 				cast.Rethrow();
 			return ex;
 		}
-
-		#endregion
-
 
 		/// <summary>[-0, +1, m] Pushes a C function onto the stack just like lua_pushcfunction except the delegate will be automatically kept alive by storing an opaque userdata in an upvalue.</summary>
 		[MethodImpl(INLINE)] public static void pushcfunction(lua.State L, lua.CFunction f) { luaclr.pushcclosure(L, f, 0); }
