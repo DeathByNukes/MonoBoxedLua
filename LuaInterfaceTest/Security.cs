@@ -115,6 +115,8 @@ namespace LuaInterfaceTest
 		{
 			using (var lua = new Lua(true))
 			{
+				Assert.IsTrue(lua.BytecodeEnabled);
+
 				const string retval = "pwned";
 				Action<LuaFunction> verify = func =>
 				{
@@ -134,14 +136,42 @@ namespace LuaInterfaceTest
 				verify(lua.Eval<LuaFunction>("assert(loadstring(...))", dump_str));
 
 				lua.SecureLuaFunctions(); // ---------------------------------
+				Assert.IsFalse(lua.BytecodeEnabled);
 
-				verify(lua.LoadBuffer(dump, "bytecode")); // the C# API has no restrictions; you should check before loading user input through it
-
-				function = lua.Eval<LuaFunction>("loadstring(...)", dump_str);
-				if (function != null)
+				// SecureLuaFunctions() doesn't directly secure the C# API but it does disable Lua.BytecodeEnabled which affects everything
+				try
 				{
-					verify(function);
-					Assert.Fail("bytecode loaded and executed successfully");
+					lua.LoadBuffer(dump, "bytecode");
+					Assert.Fail();
+				}
+				catch (LuaScriptException ex)
+				{
+					Assert.AreEqual("[string \"bytecode\"]:1: unexpected symbol near 'char(27)'", ex.Message);
+				}
+
+				// safest way to load trusted bytecode
+				{
+					LuaFunction func;
+					using (lua.BytecodeRegion(true))
+						func = lua.LoadBuffer(dump, "bytecode");
+					verify(func);
+				}
+
+				// be very careful about this pattern because all code in verify() will be running in the unsafe context
+				//using (lua.BytecodeRegion(true))
+				//	verify(lua.LoadBuffer(dump, "bytecode"));
+
+				// Lua script functions should be incapable of loading bytecode regardless of the state of BytecodeEnabled
+				// if you need Lua functions that can load bytecode, save them in closures or other private locations before calling SecureLuaFunctions()
+				for (int i = 0; i < 2; ++i)
+				{
+					function = lua.Eval<LuaFunction>("loadstring(...)", dump_str);
+					if (function != null)
+					{
+						verify(function);
+						Assert.Fail("bytecode loaded and executed successfully");
+					}
+					lua.BytecodeEnabled = true;
 				}
 
 				dump_str.Dispose();

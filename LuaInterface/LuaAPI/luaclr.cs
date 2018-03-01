@@ -34,6 +34,11 @@ namespace LuaInterface.LuaAPI
 		/// <summary>[-0, +0, -] Returns how many free slots are currently allocated on the stack.</summary>
 		[DllImport(DLL,CallingConvention=CC,EntryPoint="luaclr_getfreestack")] public static extern int getfreestack(lua.State L);
 
+		/// <summary>[-0, +0, -] If set to false, the Lua parser will not recognize LUA_SIGNATURE and so will not ever invoke the bytecode parser.</summary>
+		[DllImport(DLL,CallingConvention=CC,EntryPoint="luaclr_setbytecodeenabled")] public static extern void setbytecodeenabled(lua.State L, bool value);
+		/// <summary>[-0, +0, -] Get the current <see cref="setbytecodeenabled"/> setting. For new Lua states, the default is true.</summary>
+		[DllImport(DLL,CallingConvention=CC,EntryPoint="luaclr_getbytecodeenabled")] public static extern bool getbytecodeenabled(lua.State L);
+
 		#endregion
 
 		#region reference system

@@ -57,6 +57,20 @@ LUA_API int luaclr_getfreestack (lua_State *L) {
   return res;
 }
 
+LUA_API void luaclr_setbytecodeenabled (lua_State *L, int value) {
+  lua_lock(L);
+  lua_assert(value == 0 || value == 1);
+  G(L)->readbytecode = value;
+  lua_unlock(L);
+}
+LUA_API int luaclr_getbytecodeenabled (lua_State *L) {
+  int res;
+  lua_lock(L);
+  res = G(L)->readbytecode;
+  lua_unlock(L);
+  return res;
+}
+
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>

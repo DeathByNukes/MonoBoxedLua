@@ -158,6 +158,7 @@ LUA_API lua_State *lua_newstate (lua_Alloc f, void *ud) {
   g->ud = ud;
   g->fthrow = NULL;
   g->ftry = NULL;
+  g->readbytecode = 1;
   g->mainthread = L;
   g->uvhead.u.l.prev = &g->uvhead;
   g->uvhead.u.l.next = &g->uvhead;

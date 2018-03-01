@@ -116,14 +116,43 @@ namespace LuaInterface
 			// note: panic completely wiped the old stack!
 		};
 
+		#region bytecode security
+
+		/// <summary><para>When this is false, the internal Lua parser will be incapable of recognizing and parsing bytecode.</para><para>The default constructor and <see cref="SecureLuaFunctions"/> turn this off.</para></summary>
+		public bool BytecodeEnabled
+		{
+			get { return luaclr.getbytecodeenabled(_L); }
+			set { luaclr.setbytecodeenabled(_L, value); }
+		}
+
+		/// <summary>Sets <see cref="BytecodeEnabled"/> to the specified value and returns an object that will restore it to its previous setting when disposed. Use this in a C# "using" statement.</summary>
+		public IDisposable BytecodeRegion(bool enabled)
+		{
+			var L = _L;
+			var ret = new BytecodeDeferredSet(L, luaclr.getbytecodeenabled(L));
+			luaclr.setbytecodeenabled(L, enabled);
+			return ret;
+		}
+		class BytecodeDeferredSet : IDisposable
+		{
+			public BytecodeDeferredSet(lua.State L, bool value) { _L = L; _value = value; }
+			readonly lua.State _L;
+			readonly bool _value;
+			public void Dispose() { luaclr.setbytecodeenabled(_L, _value); }
+		}
+
+		#endregion
+
 		#region SecureLuaFunctions
 
-		/// <summary>Removes Lua functions that are inherently insecure and adds security checks to abusable functions. Note that if you used the default constructor or specified false to the other one, this function was automatically called already. It should not be called more than once.</summary>
+		/// <summary>Removes Lua functions that are inherently insecure and adds security checks to abusable functions. It also sets <see cref="BytecodeEnabled"/> to false. Note that if you used the default constructor or specified false to the other one, this function was automatically called already. It should not be called more than once.</summary>
 		public void SecureLuaFunctions()
 		{
 			var L = _L;
 			luanet.checkstack(L, 2, "Lua.SecureLuaFunctions");
-			
+
+			luaclr.setbytecodeenabled(L, false);
+
 			// debug functions could be used to tamper with our metatables and upvalues
 			// specific vulnerabilities are not known but this closes a huge attack surface
 			// todo: can we sandbox module/require?
@@ -212,6 +241,7 @@ namespace LuaInterface
 			}
 
 			LUA.ERR err;
+			using (this.BytecodeRegion(false))
 			fixed (void* contents_p = contents)
 				err = luaL.loadbuffer(L, new IntPtr(contents_p), contents.Length, "@"+file);
 			if (err == LUA.ERR.Success)
@@ -300,7 +330,7 @@ namespace LuaInterface
 
 		#region Execution
 
-		/// <summary><para>Lua bytecode created by lua_dump/string.dump is prefixed with this character, which must be present in order for Lua to recognize it as bytecode.</para><para>Bytecode is completely insecure; specially crafted bytecode can write arbitrary memory. You are advised to check untrusted scripts for this prefix and reject them.</para></summary>
+		/// <summary><para>Lua bytecode created by lua_dump/string.dump is prefixed with this character, which must be present in order for Lua to recognize it as bytecode.</para><para>Bytecode is completely insecure; specially crafted bytecode can write arbitrary memory. If you aren't turning off <see cref="BytecodeEnabled"/> you are advised to check untrusted scripts for this prefix and reject them.</para></summary>
 		public const char BytecodePrefix = LUA.SIGNATURE_0;
 
 		/// <summary>Loads a Lua chunk from a string.</summary>

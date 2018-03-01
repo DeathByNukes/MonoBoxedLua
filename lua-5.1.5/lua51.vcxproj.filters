@@ -81,6 +81,9 @@
     <ClInclude Include="src\lzio.h">
       <Filter>Header files</Filter>
     </ClInclude>
+    <ClInclude Include="src\luaclr.h">
+      <Filter>LuaInterface</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\lapi.c">
