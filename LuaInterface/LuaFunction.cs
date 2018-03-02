@@ -50,6 +50,18 @@ namespace LuaInterface
 			throw new InvalidOperationException("Only native Lua functions can be dumped.");
 		}
 
+		public bool IsCFunction
+		{
+			get
+			{
+				var L = this.Owner._L;
+				rawpush(L);
+				var ret = lua.iscfunction(L, -1);
+				lua.pop(L, 1);
+				return ret;
+			}
+		}
+
 		#region Implementation
 
 		/// <summary>Makes a new reference the same function.</summary>
