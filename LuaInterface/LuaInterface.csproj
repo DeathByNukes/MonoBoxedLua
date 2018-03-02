@@ -138,6 +138,7 @@
     <Compile Include="AssemblyInfo.cs" />
     <Compile Include="CheckType.cs" />
     <Compile Include="LuaAPI\LuaInternalException.cs" />
+    <Compile Include="LuaThread.cs" />
     <Compile Include="LuaString.cs" />
     <Compile Include="GenerateEventAssembly.cs" />
     <Compile Include="Lua.cs" />

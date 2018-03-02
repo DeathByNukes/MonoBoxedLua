@@ -657,6 +657,20 @@ namespace LuaInterface
 		/// <summary>Gets a reference to the registry table. (LUA_REGISTRYINDEX)</summary>
 		public LuaTable GetRegistry() { return new LuaTable(_L, this, LUA.REGISTRYINDEX); }
 
+		/// <summary>Returns the running coroutine, or null when called by the main thread.</summary>
+		public LuaThread GetRunningThread()
+		{
+			var L = _L;
+			if (L == _mainthread)
+				return null;
+			luanet.checkstack(L, 1, "Lua.GetCurrentThread");
+			lua.pushthread(L);
+			return new LuaThread(L, L, this);
+		}
+
+		/// <summary>Whether the currently running code was invoked by a running coroutine.</summary>
+		public bool IsThreadRunning { get { return _L != _mainthread; } }
+
 		/// <summary>Gets a numeric global variable</summary>
 		public double GetNumber(string fullPath)
 		{
@@ -866,6 +880,25 @@ namespace LuaInterface
 			luanet.checkstack(L, 1, "Lua.NewString");
 			lua.pushstring(L, contents);
 			return new LuaString(L, this);
+		}
+		/// <summary>Creates and returns a new coroutine, with body <paramref name="f"/>. <paramref name="f"/> must be a Lua function.</summary>
+		/// <exception cref="ArgumentNullException"><paramref name="f"/> is required.</exception>
+		/// <exception cref="ArgumentException"><paramref name="f"/> must be a Lua function, not a CFunction.</exception>
+		public LuaThread NewThread(LuaFunction f)
+		{
+			if (f == null) throw new ArgumentNullException("function");
+			var L = _L;
+			luanet.checkstack(L, 1, "Lua.NewThread");
+			var co = lua.newthread(L);
+			Debug.Assert(lua.gettop(co) == 0);
+			f.push(co);
+			if (lua.iscfunction(co, 1))
+			{
+				lua.settop(co, 0); // not strictly necessary
+				lua.pop(L, 1);
+				throw new ArgumentException("Lua function expected");
+			}
+			return new LuaThread(L, co, this);
 		}
 
 		/// <summary>Registers an object's method as a Lua function (global or table field) The method may have any signature.</summary>

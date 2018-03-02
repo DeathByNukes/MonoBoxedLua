@@ -404,7 +404,7 @@ namespace LuaInterface
 				return new IntPtr(lua.touserdata(L, index));
 
 			case LUA.T.THREAD:
-				return LUA.T.THREAD; // todo: coroutine support
+				return new LuaThread(L, interpreter, index);
 
 			default:
 				// all LUA.Ts have a case, so this shouldn't happen

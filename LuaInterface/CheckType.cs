@@ -27,7 +27,7 @@ namespace LuaInterface
 		{
 			this.interpreter = interpreter;
 			// rationale for TypeHandle: http://stackoverflow.com/a/126507
-			_casters = new Dictionary<RuntimeTypeHandle, Caster>(20)
+			_casters = new Dictionary<RuntimeTypeHandle, Caster>(21)
 			{
 				{typeof(object     ).TypeHandle, new Caster(isObject  , asObject  )},
 				{typeof(sbyte      ).TypeHandle, new Caster(isSbyte   , asSbyte   )},
@@ -49,6 +49,7 @@ namespace LuaInterface
 				{typeof(LuaTable   ).TypeHandle, new Caster(isTable   , asTable   )},
 				{typeof(LuaUserData).TypeHandle, new Caster(isUserData, asUserData)},
 				{typeof(LuaString  ).TypeHandle, new Caster(isString  , asLString )},
+				{typeof(LuaThread  ).TypeHandle, new Caster(isThread  , asThread  )},
 				// update the constructor when you add more
 			};
 			extractNetObject = asNetObject;
@@ -154,6 +155,7 @@ namespace LuaInterface
 		       object asTable   (lua.State L,int index) { return lua.type(L, index) == LUA.T.TABLE    ? new LuaTable   (L, interpreter, index) : null; }
 		       object asUserData(lua.State L,int index) { return lua.type(L, index) == LUA.T.USERDATA ? new LuaUserData(L, interpreter, index) : null; }
 		       object asLString (lua.State L,int index) { return lua.type(L, index) == LUA.T.STRING   ? new LuaString  (L, interpreter, index) : null; }
+		       object asThread  (lua.State L,int index) { return lua.type(L, index) == LUA.T.THREAD   ? new LuaThread  (L, interpreter, index) : null; }
 
 		// [-0, +0, m]
 		public object asObject(lua.State L,int index)
@@ -258,6 +260,17 @@ namespace LuaInterface
 			{
 			case LUA.T.NIL:
 			case LUA.T.USERDATA:
+				return true;
+			default:
+				return false;
+			}
+		}
+		static bool isThread(lua.State L,int index)
+		{
+			switch (lua.type(L, index))
+			{
+			case LUA.T.NIL:
+			case LUA.T.THREAD:
 				return true;
 			default:
 				return false;

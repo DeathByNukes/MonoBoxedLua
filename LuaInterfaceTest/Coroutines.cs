@@ -37,5 +37,26 @@ namespace LuaInterfaceTest
 				Assert.AreEqual("ABCDE", string.Concat(calls));
 			}
 		}
+		[TestMethod] public void StateTracking()
+		{
+			using (var lua = new Lua())
+			{
+				lua.RegisterFunction("outside", new Action(() => Assert.IsFalse(lua.IsThreadRunning)));
+				lua.RegisterFunction("inside", new Action(() => Assert.IsTrue(lua.IsThreadRunning)));
+				lua.DoString(@"
+					outside()
+					co = coroutine.create(function()
+						inside()
+						coroutine.yield()
+						inside()
+						error('success')
+					end)
+					assert(coroutine.resume(co))
+					outside()
+					assert(not coroutine.resume(co))
+					outside()
+				");
+			}
+		}
 	}
 }
