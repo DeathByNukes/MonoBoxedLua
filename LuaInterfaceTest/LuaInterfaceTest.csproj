@@ -62,6 +62,7 @@
   </Choose>
   <ItemGroup>
     <Compile Include="CallLua.cs" />
+    <Compile Include="Coroutines.cs" />
     <Compile Include="LuaToClr.cs" />
     <Compile Include="StackIndex.cs" />
     <Compile Include="Security.cs" />

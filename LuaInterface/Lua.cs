@@ -19,8 +19,7 @@ namespace LuaInterface
 	/// </remarks>
 	public class Lua : IDisposable
 	{
-		internal lua.State _L;
-		private lua.State _mainthread;
+		internal lua.State _L, _mainthread;
 		internal ObjectTranslator translator;
 
 		// lockCallback, unlockCallback; used by debug code commented out for now
@@ -210,6 +209,8 @@ namespace LuaInterface
 			if (file == null)
 				return _loadError(L, "reading from stdin is not supported");
 			byte[] contents;
+
+			var c = luanet.entercfunction(L, this); // _path_filter
 			try
 			{
 				file = _path_filter(this, file);
@@ -219,6 +220,7 @@ namespace LuaInterface
 				contents = File.ReadAllBytes(file); // todo: stream the contents through lua_load instead of loading the entire file at once
 			}
 			catch (Exception ex) { return _loadError(L, "cannot open @"+file+": "+ex.Message); }
+			finally { c.Dispose(); }
 
 			if (contents.Length != 0)
 			{
@@ -492,9 +494,11 @@ namespace LuaInterface
 		public void CPCall(Action function)
 		{
 			if (function == null) throw new ArgumentNullException("function");
+			// todo: is it more performant to actually pass a GCHandle in through the ud parameter versus creating and GCing delegate thunks?
 			lua.CFunction wrapper = L =>
 			{
 				lua.settop(L, 0);
+				// no need for luanet.entercfunction here because it's guaranteed to be the same state
 				function();
 				return 0;
 			};
@@ -988,9 +992,11 @@ namespace LuaInterface
 				}
 				Debug.Assert(lua.gettop(L) == n + 1);
 
+				var c = luanet.entercfunction(L, this);
 				try { callback(this, results); }
 				catch (LuaInternalException) { throw; }
 				catch (Exception ex) { return this.translator.throwError(L, ex); }
+				finally { c.Dispose(); }
 
 				return 0;
 			};
@@ -1013,6 +1019,7 @@ namespace LuaInterface
 
 		public void Dispose()
 		{
+			Debug.Assert(_L.IsNull || !luanet.infunction(_L));
 			Dispose(true);
 			GC.SuppressFinalize(this);
 		}

@@ -259,5 +259,42 @@ namespace LuaInterface.LuaAPI
 		}
 
 		#endregion
+
+		/// <summary>[-0, +0, -] This function must be used in any <see cref="lua.CFunction"/> that might directly or indirectly use <see cref="Lua"/> or <see cref="LuaBase"/>-derived objects so that those objects know the current lua_State. The returned struct must be disposed in a "using" or "finally" statement when the function ends.</summary>
+		/// <remarks>
+		/// LuaInterface's object model wasn't designed with coroutine support in mind, and coroutines use a different lua_State for every thread.
+		/// The idea of using the main thread's state inside a coroutine callback is not mentioned in the documentation, so it must be dangerous.
+		/// So, LuaInterface objects cannot just keep reusing the lua_State saved in the <see cref="Lua"/> object when it was created, we must notify the system whenever the state changes.
+		/// </remarks>
+		/// <exception cref="NullReferenceException">All arguments are required.</exception>
+		public static DeferredRestoreState entercfunction(lua.State L, Lua interpreter)
+		{
+			Debug.Assert(!L.IsNull && interpreter != null);
+			Debug.Assert(interpreter.IsSameLua(L) && luanet.infunction(L));
+			var old_L = interpreter._L;
+			if (old_L.IsNull)
+				Environment.FailFast("Lua was disposed while it was running.");
+			var ret = new DeferredRestoreState(old_L, interpreter);
+			interpreter._L = L;
+			return ret;
+		}
+		/// <summary>See <see cref="luanet.entercfunction"/>. Failing to dispose this object will cause memory corruption.</summary>
+		[StructLayout(LayoutKind.Auto)] public struct DeferredRestoreState : IDisposable
+		{
+			public readonly lua.State L;
+			public readonly Lua Interpreter;
+			internal DeferredRestoreState(lua.State L, Lua interpreter)
+			{
+				Debug.Assert(!L.IsNull && interpreter != null && !interpreter._L.IsNull);
+				this.L = L;
+				this.Interpreter = interpreter;
+			}
+			public void Dispose()
+			{
+				if (this.Interpreter._L.IsNull)
+					Environment.FailFast("Lua was disposed while it was running.");
+				this.Interpreter._L = this.L;
+			}
+		}
 	}
 }
