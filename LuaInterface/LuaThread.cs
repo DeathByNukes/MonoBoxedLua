@@ -16,33 +16,68 @@ namespace LuaInterface
 		public LuaStatus LuaStatus { get { return (LuaStatus)(int) lua.status(_co); } }
 
 		/// <summary>Returns the same kind of results as the Lua "coroutine.status" function.</summary>
-		public LuaCoStatus Status
+		public LuaCoStatus Status { get { return CoStatus(this.Owner._L, _co); } }
+
+		// copied from Lua lbaselib.c costatus()
+		static LuaCoStatus CoStatus(lua.State L, lua.State co)
 		{
-			get
+			if (L == co) return LuaCoStatus.Running;
+			switch (lua.status(co))
 			{
-				var co = _co;
-				var L = this.Owner._L;
-				// copied from Lua lbaselib.c costatus()
-				if (L == co) return LuaCoStatus.Running;
-				switch (lua.status(co))
-				{
-				case LUA.ERR.YIELD:
-					return LuaCoStatus.Suspended;
-				case 0: {
-					var ar = default(lua.Debug);
-					if (lua.getstack(co, 0, ref ar))  // does it have frames?
-						return LuaCoStatus.Normal;  // it is running
-					else if (lua.gettop(co) == 0)
-						return LuaCoStatus.Dead;
-					else
-						return LuaCoStatus.Suspended;  // initial state
-				}
-				default:  // some error occured
+			case LUA.ERR.YIELD:
+				return LuaCoStatus.Suspended;
+			case 0: {
+				var ar = default(lua.Debug);
+				if (lua.getstack(co, 0, ref ar))  // does it have frames?
+					return LuaCoStatus.Normal;  // it is running
+				else if (lua.gettop(co) == 0)
 					return LuaCoStatus.Dead;
+				else
+					return LuaCoStatus.Suspended;  // initial state
+			}
+			default:  // some error occured
+				return LuaCoStatus.Dead;
 			}
 		}
-}
-		// todo: actual functions to work with threads.
+
+		/// <summary>Starts or continues the execution of the coroutine. The first time you resume a coroutine, it starts running its body. The values in <paramref name="args"/> are passed as the arguments to the body function. If the coroutine has yielded, resume restarts it; the values in <paramref name="args"/> are passed as the results from the yield.</summary>
+		public object[] Resume(params object[] args)
+		{
+			// copied from Lua lbaselib.c auxresume()
+			var owner = this.Owner;
+			var translator = owner.translator;
+			var L = owner._L;
+			var co = _co;
+			int narg = args == null ? 0 : args.Length;
+			luanet.checkstack(L, narg, "LuaThread.Resume");
+			if (!lua.checkstack(co, narg))
+				throw new LuaException("too many arguments to resume");
+			var costatus = CoStatus(L, co);
+			if (costatus != LuaCoStatus.Suspended)
+				throw new LuaException(string.Format("cannot resume {0} coroutine", costatus.ToString().ToLowerInvariant()));
+
+			// we can't just push directly to the target thread because that could throw errors on the target thread
+			for(int i = 0; i < narg; ++i)
+				translator.push(L, args[i]);
+			lua.xmove(L, co, narg);
+			lua.setlevel(L, co); // ¯\_(ツ)_/¯
+			var status = lua.resume(co, narg);
+			if (status == 0 || status == LUA.ERR.YIELD) {
+				int nres = lua.gettop(co);
+				if (!lua.checkstack(L, nres + 1))
+				{
+					lua.settop(co, 0);
+					throw new LuaException("too many results to resume");
+				}
+				var oldtop = lua.gettop(L);
+				lua.xmove(co, L, nres);  // move yielded values
+				return translator.popValues(L, oldtop);
+			}
+			else {
+				lua.xmove(co, L, 1);  // move error message
+				throw owner.ExceptionFromError(L, -2);
+			}
+		}
 
 		#region Implementation
 

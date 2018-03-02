@@ -393,6 +393,9 @@ namespace LuaInterface.LuaAPI
 		/// <summary>[-0, +0, -] <para>Returns the status of the thread <paramref name="L"/>.</para><para>The status can be 0 for a normal thread, an error code if the thread finished its execution with an error, or <see cref="LUA.ERR.YIELD"/> if the thread is suspended.</para></summary>
 		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_status")] public static extern LUA.ERR status(lua.State L);
 
+		/// <summary>[-0, +0, -] <para>This function's entire documentation by the Lua developers: hack</para></summary>
+		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_setlevel")] public static extern void setlevel(lua.State from, lua.State to);
+
 		#endregion
 
 		#region garbage-collection function and options
