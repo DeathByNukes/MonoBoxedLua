@@ -153,6 +153,7 @@ namespace LuaInterface
 							failedCall = false;
 						}
 						catch (TargetInvocationException ex) { return _Translator.throwError(L, luaclr.verifyex(ex.InnerException)); }
+						catch (LuaInternalException) { throw; }
 						catch (Exception ex)
 						{
 							if (_Members.Length == 1) // Is the method overloaded?
@@ -247,6 +248,7 @@ namespace LuaInterface
 						: _LastCalledMethod.cachedMethod.Invoke(isStatic ? null : targetObject, _LastCalledMethod.args)  );
 				}
 				catch (TargetInvocationException ex) { return _Translator.throwError(L, luaclr.verifyex(ex.InnerException)); }
+				catch (LuaInternalException) { throw; }
 				catch (Exception ex) { return luaL.error(L, "method call failed ({0})", ex.Message); }
 			}
 

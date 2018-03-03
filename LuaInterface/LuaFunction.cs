@@ -43,6 +43,7 @@ namespace LuaInterface
 					return 0;
 				}, default(IntPtr));
 			}
+			catch (LuaInternalException) { oldTop = -1; throw; }
 			finally { lua.settop(L, oldTop); }
 			if (err == 0)
 				return;

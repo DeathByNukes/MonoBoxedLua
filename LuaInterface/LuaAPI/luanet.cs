@@ -217,6 +217,7 @@ namespace LuaInterface.LuaAPI
 					lua.pop(L,1);
 				}
 			}
+			catch (LuaInternalException) { old_top = -1; throw; }
 			#if DEBUG
 			finally { lua.settop(L, old_top); }
 			#else

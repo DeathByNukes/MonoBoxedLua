@@ -265,6 +265,7 @@ namespace LuaInterface
 					lua.pop(L, 1);
 				}
 			}
+			catch (LuaInternalException) { oldTop = -1; throw; }
 			finally { lua.settop(L, oldTop); }
 		}
 
@@ -290,6 +291,7 @@ namespace LuaInterface
 					lua.pop(L, 1);
 				}
 			}
+			catch (LuaInternalException) { oldTop = -1; throw; }
 			finally { lua.settop(L, oldTop); }
 		}
 
@@ -320,6 +322,7 @@ namespace LuaInterface
 					lua.pop(L, 1);
 				}
 			}
+			catch (LuaInternalException) { oldTop = -1; throw; }
 			finally { lua.settop(L, oldTop); }
 		}
 
@@ -341,6 +344,7 @@ namespace LuaInterface
 					lua.pop(L, 1);
 				}
 			}
+			catch (LuaInternalException) { oldTop = -1; throw; }
 			finally { lua.settop(L, oldTop); }
 		}
 
@@ -362,6 +366,7 @@ namespace LuaInterface
 					lua.pop(L, 1);
 				}
 			}
+			catch (LuaInternalException) { oldTop = -1; throw; }
 			finally { lua.settop(L, oldTop); }
 		}
 
@@ -382,6 +387,7 @@ namespace LuaInterface
 					lua.pop(L, 1);
 				}
 			}
+			catch (LuaInternalException) { oldTop = -1; throw; }
 			finally { lua.settop(L, oldTop); }
 		}
 
@@ -402,6 +408,7 @@ namespace LuaInterface
 					lua.pop(L, 1);
 				}
 			}
+			catch (LuaInternalException) { oldTop = -1; throw; }
 			finally { lua.settop(L, oldTop); }
 		}
 
@@ -634,7 +641,7 @@ namespace LuaInterface
 		/// </summary>
 		public IEnumerable<KeyValuePair<object, object>> Pairs { get
 		{
-			var dict = this.ToDict();
+			var dict = this.ToDict(); // todo: building a dictionary (hash table) is wasteful here when we're just going to iterate over all values and throw it away
 			try { foreach (var pair in dict) yield return pair; }
 			finally { dict.DisposeAll(); } // doing this at the end rather than inside the loop because that could leak if they break the loop early
 		}}

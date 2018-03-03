@@ -48,6 +48,11 @@ namespace LuaInterface
 		{
 			Debug.Assert(interpreter.IsSameLua(L));
 			Debug.Assert(ex != null);
+			Debug.Assert(ex is LuaInternalException == false);
+
+			if (ex is OutOfMemoryException)
+				luaclr.errormemory(L);
+
 			// Determine the position in the script where the exception was triggered
 			// Stack frame #0 is our C# wrapper, so not very interesting to the user
 			// Stack frame #1 must be the lua code that called us, so that's what we want to use
@@ -293,18 +298,22 @@ namespace LuaInterface
 				return luaL.argerror(L, 1, "enum type reference expected");
 
 			object res;
-			switch (lua.type(L,2))
+			try
 			{
-			case LUA.T.NUMBER:
-				res = Enum.ToObject(t, (int) lua.tonumber(L,2));
-				break;
-			case LUA.T.STRING:
-				try { res = Enum.Parse(t, lua.tostring(L,2)); }
-				catch (ArgumentException e) { return luaL.argerror(L, 2, e.Message); }
-				break;
-			default:
-				return luaL.typerror(L, 2, "number or string");
+				switch (lua.type(L,2))
+				{
+				case LUA.T.NUMBER:
+					res = Enum.ToObject(t, checked((int) lua.tonumber(L,2)));
+					break;
+				case LUA.T.STRING:
+					res = Enum.Parse(t, lua.tostring(L,2));
+					break;
+				default:
+					return luaL.typerror(L, 2, "number or string");
+				}
 			}
+			catch (LuaInternalException) { throw; }
+			catch (Exception e) { return luaL.argerror(L, 2, e.Message); }
 			pushObject(L,res);
 			return 1;
 		}
@@ -586,6 +595,7 @@ namespace LuaInterface
 				// Type checking
 				ExtractValue extractValue;
 				try { extractValue = typeChecker.checkType(L, currentLuaParam, currentNetParam.ParameterType); }
+				catch (LuaInternalException) { throw; }
 				catch
 				{
 					extractValue = null;
@@ -674,6 +684,7 @@ namespace LuaInterface
 					if (extractValue != null)
 						return true;
 				}
+				catch (LuaInternalException) { throw; }
 				catch (Exception ex) { Debug.WriteLine(String.Format("_IsParamsArray: checkType({0}) threw exception: {1}", elementType.FullName, ex.ToString())); }
 				break;
 			}

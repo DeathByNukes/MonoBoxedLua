@@ -160,8 +160,10 @@ namespace LuaInterface
 			luanet.checkstack(L, 2, "LuaBase.LuaEquals");
 			rawpush(L);
 			o.rawpush(L);
+			int oldTop = -3;
 			try { return lua.equal(L, -1, -2); }
-			finally { lua.pop(L,2); }
+			catch (LuaInternalException) { oldTop = -1; throw; }
+			finally { lua.settop(L,oldTop); }
 		}
 
 		/// <summary>Full Lua equality which can be controlled with metatables.</summary>
@@ -389,16 +391,12 @@ namespace LuaInterface
 			set
 			{
 				var L = Owner._L;
-				luanet.checkstack(L, 2, "LuaBase.set_Metatable");
-				var oldTop = lua.gettop(L);
+				luanet.checkstack(L, 2, "LuaBase.set_Metatable"); StackAssert.Start(L);
 				push(L);
-				try
-				{
-					if (value == null) lua.pushnil(L);
-					else value.push(L);
-					lua.setmetatable(L, -2);
-				}
-				finally { lua.settop(L, oldTop); }
+				if (value == null) lua.pushnil(L);
+				else value.push(L);
+				lua.setmetatable(L, -2);
+				lua.pop(L,1);                                     StackAssert.End();
 			}
 		}
 
@@ -426,17 +424,14 @@ namespace LuaInterface
 			set
 			{
 				var L = Owner._L;
-				luanet.checkstack(L, 2, "LuaBase.set_Environment");
-				var oldTop = lua.gettop(L);
+				luanet.checkstack(L, 2, "LuaBase.set_Environment"); StackAssert.Start(L);
 				push(L);
-				try
-				{
-					if (value == null) lua.pushnil(L);
-					else value.push(L);
-					if (!lua.setfenv(L, -2))
-						throw new NotSupportedException("This Lua object cannot have an environment.");
-				}
-				finally { lua.settop(L, oldTop); }
+				if (value == null) lua.pushnil(L);
+				else value.push(L);
+				var success = lua.setfenv(L, -2);
+				lua.pop(L,1);                                       StackAssert.End();
+				if (!success)
+					throw new NotSupportedException("This Lua object cannot have an environment.");
 			}
 		}
 

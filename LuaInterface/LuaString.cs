@@ -30,6 +30,7 @@ namespace LuaInterface
 				var L = Owner._L;
 				luanet.checkstack(L, 1, "LuaString.RawValue");
 				push(L);
+				int oldTop = -2;
 				try
 				{
 					UIntPtr len;
@@ -38,7 +39,8 @@ namespace LuaInterface
 					Marshal.Copy(new IntPtr(ptr), ret, 0, ret.Length);
 					return ret;
 				}
-				finally { lua.pop(L, 1); }
+				catch (LuaInternalException) { oldTop = -1; throw; }
+				finally { lua.settop(L, oldTop); }
 			}
 		}
 

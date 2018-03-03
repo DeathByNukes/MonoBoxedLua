@@ -305,9 +305,7 @@ namespace LuaInterface
 		#endregion
 
 
-		/// <summary>
-		/// Assuming we have a Lua error string sitting on the stack, throw a C# exception out to the user's app
-		/// </summary>
+		/// <summary>Assuming we have a Lua error string sitting on the stack, throw a C# exception out to the user's app</summary>
 		/// <exception cref="LuaScriptException">Thrown if the script caused an exception</exception>
 		internal LuaScriptException ExceptionFromError(lua.State L, int oldTop)
 		{
@@ -827,18 +825,17 @@ namespace LuaInterface
 		{
 			var L = _L;
 			luanet.checkstack(L, 2, "Lua.NewUserData");
-			var oldTop = lua.gettop(L);
-			try
+			lua.newuserdata(L, size);
+			if (metatable != null)
 			{
-				lua.newuserdata(L, size);
-				if (metatable != null)
+				if (metatable.Owner != this)
 				{
-					if (metatable.Owner != this) throw new LuaException(metatable.CrossInterpreterError());
-					metatable.push(L);
-					lua.setmetatable(L, -2);
+					lua.pop(L,1);
+					throw new LuaException(metatable.CrossInterpreterError());
 				}
+				metatable.push(L);
+				lua.setmetatable(L, -2);
 			}
-			catch { lua.settop(L, oldTop); throw; }
 			return new LuaUserData(L, this);
 		}
 		/// <summary>Creates a new userdata object with the same size and data as <paramref name="contents"/> and the specified metatable.</summary>
@@ -975,30 +972,30 @@ namespace LuaInterface
 			lua.CFunction func = L =>
 			{
 				Debug.Assert(this.IsSameLua(L));
-
-				// direct copy-paste of Lua's luaB_print function
-
-				int n = lua.gettop(L);  /* number of arguments */
-				var results = new string[n];
-				lua.getglobal(L, "tostring");
-				for (int i=1; i<=n; ++i)
+				try
 				{
-					lua.pushvalue(L, -1);  /* function to be called */
-					lua.pushvalue(L, i);   /* value to print */
-					lua.call(L, 1, 1);
-					string s = lua.tostring(L, -1);  /* get result */
-					if (s == null)
-						return luaL.error(L, "'tostring' must return a string");
-					results[i-1] = s;
-					lua.pop(L, 1);  /* pop result */
-				}
-				Debug.Assert(lua.gettop(L) == n + 1);
+					// direct copy-paste of Lua's luaB_print function
+					int n = lua.gettop(L);  // number of arguments
+					var results = new string[n];
+					lua.getglobal(L, "tostring");
+					for (int i=1; i<=n; ++i)
+					{
+						lua.pushvalue(L, -1);  // function to be called
+						lua.pushvalue(L, i);   // value to print
+						lua.call(L, 1, 1);
+						string s = lua.tostring(L, -1);  // get result
+						if (s == null)
+							return luaL.error(L, "'tostring' must return a string");
+						results[i-1] = s;
+						lua.pop(L, 1);  // pop result
+					}
+					Debug.Assert(lua.gettop(L) == n + 1);
 
-				try { callback(this, results); }
+					callback(this, results);
+					return 0;
+				}
 				catch (LuaInternalException) { throw; }
 				catch (Exception ex) { return this.translator.throwError(L, ex); }
-
-				return 0;
 			};
 			{
 				var L = _L;

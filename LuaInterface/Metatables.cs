@@ -66,7 +66,8 @@ namespace LuaInterface
 			var obj = luaclr.checkref(L, 1);
 			string s;
 			try { s = obj.ToString(); }
-			catch (Exception ex) { return translator.throwError(L, luaclr.verifyex(ex)); }
+			catch (LuaInternalException) { throw; }
+			catch (Exception ex) { return translator.throwError(L, ex); }
 			lua.pushstring(L, s ?? "");
 			return 1;
 		}
@@ -161,6 +162,7 @@ namespace LuaInterface
 				catch (TargetInvocationException ex) {
 					return translator.throwError(L, luaclr.verifyex(ex.InnerException));
 				}
+				catch (LuaInternalException) { throw; }
 				catch (Exception ex) {
 					return luaL.error(L, "unable to index {0}: {1}", objType, ex.Message);
 				}
@@ -384,6 +386,7 @@ namespace LuaInterface
 				return 0;
 			}
 			catch (TargetInvocationException ex) { return translator.throwError(L, luaclr.verifyex(ex.InnerException)); }
+			catch (LuaInternalException) { throw; }
 			catch (Exception ex) { return luaL.error(L, "Index setter call failed: "+ex.Message); }
 		}
 
