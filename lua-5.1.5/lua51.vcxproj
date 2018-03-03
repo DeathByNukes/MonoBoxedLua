@@ -11,6 +11,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="src\luaclr.h" />
     <ClInclude Include="src\lapi.h" />
     <ClInclude Include="src\lauxlib.h" />
     <ClInclude Include="src\lcode.h" />
@@ -31,7 +32,6 @@
     <ClInclude Include="src\lua.h" />
     <ClInclude Include="src\luaconf.h" />
     <ClInclude Include="src\lualib.h" />
-    <ClInclude Include="src\luastdcall-windows.h" />
     <ClInclude Include="src\lundump.h" />
     <ClInclude Include="src\lvm.h" />
     <ClInclude Include="src\lzio.h" />
@@ -65,7 +65,6 @@
     <ClCompile Include="src\ltm.c" />
     <ClCompile Include="src\lua.c" />
     <ClCompile Include="src\luaclr.c" />
-    <ClCompile Include="src\luastdcall.c" />
     <ClCompile Include="src\lundump.c" />
     <ClCompile Include="src\lvm.c" />
     <ClCompile Include="src\lzio.c" />

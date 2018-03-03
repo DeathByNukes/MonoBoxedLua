@@ -15,10 +15,7 @@ namespace LuaInterface
 		internal readonly Lua interpreter;
 
 		readonly MetaFunctions metaFunctions;
-		#if INSECURE
-		readonly lua.CFunction _loadAssembly, _makeObject, _freeObject;
-		#endif
-		readonly lua.CFunction _importType, _getMethodBysig, _getConstructorBysig, _ctype, _enum;
+		readonly lua.CFunction _loadAssembly, _importType, _makeObject, _freeObject, _getMethodBysig, _getConstructorBysig, _ctype, _enum;
 
 		internal readonly EventHandlerContainer pendingEvents = new EventHandlerContainer();
 
@@ -31,12 +28,10 @@ namespace LuaInterface
 			metaFunctions    = new MetaFunctions(L, this);
 
 			StackAssert.Start(L);
-			#if INSECURE
 			lua.pushcfunction(L,_loadAssembly        = this.loadAssembly       ); lua.setglobal(L,"load_assembly");
+			lua.pushcfunction(L,_importType          = this.importType         ); lua.setglobal(L,"import_type");
 			lua.pushcfunction(L,_makeObject          = this.makeObject         ); lua.setglobal(L,"make_object");
 			lua.pushcfunction(L,_freeObject          = this.freeObject         ); lua.setglobal(L,"free_object");
-			#endif
-			lua.pushcfunction(L,_importType          = this.importType         ); lua.setglobal(L,"import_type");
 			lua.pushcfunction(L,_getMethodBysig      = this.getMethodBysig     ); lua.setglobal(L,"get_method_bysig");
 			lua.pushcfunction(L,_getConstructorBysig = this.getConstructorBysig); lua.setglobal(L,"get_constructor_bysig");
 			lua.pushcfunction(L,_ctype               = this.ctype              ); lua.setglobal(L,"ctype");

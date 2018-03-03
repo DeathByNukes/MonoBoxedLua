@@ -122,22 +122,66 @@ namespace LuaInterface
 			// note: panic completely wiped the old stack!
 		};
 
+		#region bytecode security
+
+		/// <summary><para>When this is false, the internal Lua parser will be incapable of recognizing and parsing bytecode.</para><para>The default constructor and <see cref="SecureLuaFunctions"/> turn this off.</para></summary>
+		public bool BytecodeEnabled
+		{
+			get { return luaclr.getbytecodeenabled(_L); }
+			set { luaclr.setbytecodeenabled(_L, value); }
+		}
+
+		/// <summary>Sets <see cref="BytecodeEnabled"/> to the specified value and returns an object that will restore it to its previous setting when disposed. Use this in a C# "using" statement.</summary>
+		public IDisposable BytecodeRegion(bool enabled)
+		{
+			var L = _L;
+			var ret = new BytecodeDeferredSet(L, luaclr.getbytecodeenabled(L));
+			luaclr.setbytecodeenabled(L, enabled);
+			return ret;
+		}
+		class BytecodeDeferredSet : IDisposable
+		{
+			public BytecodeDeferredSet(lua.State L, bool value) { _L = L; _value = value; }
+			readonly lua.State _L;
+			readonly bool _value;
+			public void Dispose() { luaclr.setbytecodeenabled(_L, _value); }
+		}
+
+		#endregion
+
 		#region SecureLuaFunctions
 
-		/// <summary>Removes Lua functions that are inherently insecure and adds security checks to abusable functions. Note that if you used the default constructor or specified false to the other one, this function was automatically called already. It should not be called more than once.</summary>
+		/// <summary>Removes Lua functions that are inherently insecure and adds security checks to abusable functions. It also sets <see cref="BytecodeEnabled"/> to false. Note that if you used the default constructor or specified false to the other one, this function was automatically called already. It should not be called more than once.</summary>
 		public void SecureLuaFunctions()
 		{
 			var L = _L;
 			luanet.checkstack(L, 2, "Lua.SecureLuaFunctions");
-			
+
+			luaclr.setbytecodeenabled(L, false);
+
 			// debug functions could be used to tamper with our metatables and upvalues
 			// specific vulnerabilities are not known but this closes a huge attack surface
+			// todo: can we sandbox module/require?
 			luaL.dostring(L, @"
 				local d = debug
 				debug = {
-					getinfo = d.getinfo,
+					getinfo   = d.getinfo,
 					traceback = d.traceback,
 				}
+				local o = os
+				os = {
+					clock    = o.clock,
+					date     = o.date,
+					difftime = o.difftime,
+					time     = o.time,
+				}
+				io = nil
+				package = nil
+				module  = nil
+				require = nil
+				load_assembly = nil
+				make_object	  = nil
+				free_object	  = nil
 			");
 
 			lua.getglobal(L, "loadstring");
@@ -157,42 +201,6 @@ namespace LuaInterface
 			lua.setglobal(L, "loadfile");
 			lua.pushcclosure(L, _dofile, 1); // upvalue(1) = loadfile
 			lua.setglobal(L, "dofile");
-
-			// todo: read module/require docs and see if they can be sandboxed
-			lua.pushnil(L); lua.setglobal(L, "module");
-			lua.pushnil(L); lua.setglobal(L, "require");
-
-			// the below comment matches the changes that have been done directly to the dll file
-			/*
-			lua.pushnil(L); lua.setglobal(L, "io");
-			lua.pushnil(L); lua.setglobal(L, "package");
-			luaL.dostring(L, @"
-				local o = os
-				os = {
-					clock    = o.clock,
-					date     = o.date,
-					difftime = o.difftime,
-					time     = o.time,
-				}
-			");
-			*/
-			#if DEBUG
-			lua.getglobal(L,"io");      Debug.Assert(lua.isnil(L,-1)); lua.pop(L,1);
-			lua.getglobal(L,"package"); Debug.Assert(lua.isnil(L,-1)); lua.pop(L,1);
-
-			lua.getglobal(L, "os");
-			if (lua.istable(L, -1))
-			{
-				lua.getfield(L,-1,"execute"  ); Debug.Assert(lua.isnil(L,-1)); lua.pop(L,1);
-				lua.getfield(L,-1,"exit"     ); Debug.Assert(lua.isnil(L,-1)); lua.pop(L,1);
-				lua.getfield(L,-1,"getenv"   ); Debug.Assert(lua.isnil(L,-1)); lua.pop(L,1);
-				lua.getfield(L,-1,"remove"   ); Debug.Assert(lua.isnil(L,-1)); lua.pop(L,1);
-				lua.getfield(L,-1,"rename"   ); Debug.Assert(lua.isnil(L,-1)); lua.pop(L,1);
-				lua.getfield(L,-1,"setlocale"); Debug.Assert(lua.isnil(L,-1)); lua.pop(L,1);
-				lua.getfield(L,-1,"tmpname"  ); Debug.Assert(lua.isnil(L,-1)); lua.pop(L,1);
-			}
-			lua.pop(L, 1);
-			#endif
 		}
 		// wrapper around the real loadstring function (must be stored in an upvalue) that throws an error if the string is bytecode
 		static unsafe readonly lua.CFunction _loadstring = L =>
@@ -242,6 +250,7 @@ namespace LuaInterface
 			}
 
 			LUA.ERR err;
+			using (this.BytecodeRegion(false))
 			fixed (void* contents_p = contents)
 				err = luaL.loadbuffer(L, new IntPtr(contents_p), contents.Length, "@"+file);
 			if (err == LUA.ERR.Success)
@@ -328,7 +337,7 @@ namespace LuaInterface
 
 		#region Execution
 
-		/// <summary><para>Lua bytecode created by lua_dump/string.dump is prefixed with this character, which must be present in order for Lua to recognize it as bytecode.</para><para>Bytecode is completely insecure; specially crafted bytecode can write arbitrary memory. You are advised to check untrusted scripts for this prefix and reject them.</para></summary>
+		/// <summary><para>Lua bytecode created by lua_dump/string.dump is prefixed with this character, which must be present in order for Lua to recognize it as bytecode.</para><para>Bytecode is completely insecure; specially crafted bytecode can write arbitrary memory. If you aren't turning off <see cref="BytecodeEnabled"/> you are advised to check untrusted scripts for this prefix and reject them.</para></summary>
 		public const char BytecodePrefix = LUA.SIGNATURE_0;
 
 		/// <summary>Loads a Lua chunk from a string.</summary>

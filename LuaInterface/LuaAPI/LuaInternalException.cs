@@ -27,7 +27,7 @@ namespace LuaInterface.LuaAPI
 		static readonly luaclr.Try _FTry = (L, f, ud) =>
 		{
 			try { f(L, ud); return 0; }
-			catch (LuaInternalException ex) { return -1; }
+			catch (LuaInternalException) { return -1; }
 			catch (Exception ex) // Lua's C++ exception system uses a general catch, so let's assume that's the safest choice
 			{
 				Debug.Assert(ex.GetType() == typeof(Exception) && ex.Message == "unit test", "A CLR exception was not properly translated to a Lua error.");

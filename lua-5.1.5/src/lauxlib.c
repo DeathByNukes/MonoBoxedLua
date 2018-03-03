@@ -24,6 +24,8 @@
 
 #include "lauxlib.h"
 
+#include "luaclr.h"
+
 
 #define FREELIST_REF	0	/* free list of references */
 
@@ -570,7 +572,7 @@ LUALIB_API int luaL_loadfile (lua_State *L, const char *filename) {
     while ((c = getc(lf.f)) != EOF && c != '\n') ;  /* skip first line */
     if (c == '\n') c = getc(lf.f);
   }
-  if (c == LUA_SIGNATURE[0] && filename) {  /* binary file? */
+  if (c == LUA_SIGNATURE[0] && filename && luaclr_getbytecodeenabled(L)) {  /* binary file? */
     lf.f = freopen(filename, "rb", lf.f);  /* reopen in binary mode */
     if (lf.f == NULL) return errfile(L, "reopen", fnameindex);
     /* skip eventual `#!...' */

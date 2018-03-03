@@ -71,6 +71,7 @@ typedef struct global_State {
   void *ud;         /* auxiliary data to `frealloc' */
   luaclr_Try ftry;  /* "try" protected call function */
   luaclr_Throw fthrow;  /* "throw" error function */
+  int readbytecode;  /* if false, parser will not recognize LUA_SIGNATURE */
   lu_byte currentwhite;
   lu_byte gcstate;  /* state of garbage collector */
   int sweepstrgc;  /* position of sweep in `strt' */

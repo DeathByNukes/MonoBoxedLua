@@ -6,7 +6,9 @@ bin x86
 *.user
 *.sdf
 *.o
+.vs
 lua-5.1.5/Release
 lua-5.1.5/Debug
 lua-5.1.5/ipch
+lua-5.1.5/x64
 LuaInterface/LuaInterface.xml

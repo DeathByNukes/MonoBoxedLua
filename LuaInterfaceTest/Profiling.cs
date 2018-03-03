@@ -51,6 +51,7 @@ namespace LuaInterfaceTest
 					end
 				");
 
+				#if false
 				#pragma warning disable 618
 				luanet.CSFunction cs_function = Noop;
 				luanet.pushstdcallcfunction(L, cs_function);
@@ -64,6 +65,7 @@ namespace LuaInterfaceTest
 
 				GC.KeepAlive(cs_function);
 				#pragma warning restore 618
+				#endif
 
 
 				lua.CFunction c_function = Noop;
