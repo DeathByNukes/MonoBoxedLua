@@ -12,7 +12,7 @@ namespace LuaInterface
 		// /// <summary>Whether this thread is the Lua instance's main thread.</summary>
 		// public bool IsMainThread { get { return _co == this.Owner._mainthread; } }
 
-		/// <summary>The status can be 0 for a normal thread, an error code if the thread finished its execution with an error, or <see cref="LUA.ERR.YIELD"/> if the thread is suspended.</summary>
+		/// <summary>The status can be 0 for a normal thread, an error code if the thread finished its execution with an error, or <see cref="LuaStatus.Yield"/> if the thread is suspended.</summary>
 		public LuaStatus LuaStatus { get { return (LuaStatus)(int) lua.status(_co); } }
 
 		/// <summary>Returns the same kind of results as the Lua "coroutine.status" function.</summary>
@@ -24,7 +24,7 @@ namespace LuaInterface
 			if (L == co) return LuaCoStatus.Running;
 			switch (lua.status(co))
 			{
-			case LUA.ERR.YIELD:
+			case LUA.YIELD:
 				return LuaCoStatus.Suspended;
 			case 0: {
 				var ar = default(lua.Debug);
@@ -62,7 +62,7 @@ namespace LuaInterface
 			lua.xmove(L, co, narg);
 			lua.setlevel(L, co); // ¯\_(ツ)_/¯
 			var status = lua.resume(co, narg);
-			if (status == 0 || status == LUA.ERR.YIELD) {
+			if (status == 0 || status == LUA.YIELD) {
 				int nres = lua.gettop(co);
 				if (!lua.checkstack(L, nres + 1))
 				{
@@ -132,7 +132,7 @@ namespace LuaInterface
 		/// <summary>No errors. (0)</summary>
 		Success = 0,
 		/// <summary>LUA_YIELD: the thread is suspended</summary>
-		Yield   = LUA.ERR.YIELD,
+		Yield   = LUA.YIELD,
 		/// <summary>LUA_ERRRUN: a runtime error.</summary>
 		Run     = LUA.ERR.RUN,
 		/// <summary>LUA_ERRSYNTAX: syntax error during pre-compilation.</summary>

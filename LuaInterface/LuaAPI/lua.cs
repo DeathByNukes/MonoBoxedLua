@@ -359,6 +359,8 @@ namespace LuaInterface.LuaAPI
 			/// <summary>LUA_ERRFILE: cannot open/read the file. (luaL)</summary>
 			ERRFILE = LUA.ERR.ERR + 1,
 		}
+		/// <summary>LUA_YIELD: the thread is suspended</summary>
+		public const ERR YIELD = ERR.YIELD;
 	}
 
 	public static unsafe partial class lua
@@ -388,9 +390,9 @@ namespace LuaInterface.LuaAPI
 
 		/// <summary>[-?, +?, -] <para>Yields a coroutine.</para><para>This function should only be called as the return expression of a C function, as follows:</para><code>return lua.yield (L, nresults);</code><para>When a C function calls lua.yield in that way, the running coroutine suspends its execution, and the call to lua.resume that started this coroutine returns. The parameter <paramref name="nresults"/> is the number of values from the stack that are passed as results to lua.resume.</para></summary>
 		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_yield" )] public static extern int yield(lua.State L, int nresults);
-		/// <summary>[-?, +?, -] <para>Starts and resumes a coroutine in a given thread.</para><para>To start a coroutine, you first create a new thread (see <see cref="lua.newthread"/>); then you push onto its stack the main function plus any arguments; then you call lua.resume, with <paramref name="narg"/> being the number of arguments. This call returns when the coroutine suspends or finishes its execution. When it returns, the stack contains all values passed to <see cref="lua.yield"/>, or all values returned by the body function. lua.resume returns <see cref="LUA.ERR.YIELD"/> if the coroutine yields, 0 if the coroutine finishes its execution without errors, or an error code in case of errors (see <see cref="lua.pcall"/>). In case of errors, the stack is not unwound, so you can use the debug API over it. The error message is on the top of the stack. To restart a coroutine, you put on its stack only the values to be passed as results from yield, and then call lua.resume.</para></summary>
+		/// <summary>[-?, +?, -] <para>Starts and resumes a coroutine in a given thread.</para><para>To start a coroutine, you first create a new thread (see <see cref="lua.newthread"/>); then you push onto its stack the main function plus any arguments; then you call lua.resume, with <paramref name="narg"/> being the number of arguments. This call returns when the coroutine suspends or finishes its execution. When it returns, the stack contains all values passed to <see cref="lua.yield"/>, or all values returned by the body function. lua.resume returns <see cref="LUA.YIELD"/> if the coroutine yields, 0 if the coroutine finishes its execution without errors, or an error code in case of errors (see <see cref="lua.pcall"/>). In case of errors, the stack is not unwound, so you can use the debug API over it. The error message is on the top of the stack. To restart a coroutine, you put on its stack only the values to be passed as results from yield, and then call lua.resume.</para></summary>
 		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_resume")] public static extern LUA.ERR resume(lua.State L, int narg);
-		/// <summary>[-0, +0, -] <para>Returns the status of the thread <paramref name="L"/>.</para><para>The status can be 0 for a normal thread, an error code if the thread finished its execution with an error, or <see cref="LUA.ERR.YIELD"/> if the thread is suspended.</para></summary>
+		/// <summary>[-0, +0, -] <para>Returns the status of the thread <paramref name="L"/>.</para><para>The status can be 0 for a normal thread, an error code if the thread finished its execution with an error, or <see cref="LUA.YIELD"/> if the thread is suspended.</para></summary>
 		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_status")] public static extern LUA.ERR status(lua.State L);
 
 		/// <summary>[-0, +0, -] <para>This function's entire documentation by the Lua developers: hack</para></summary>
