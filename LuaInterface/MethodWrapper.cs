@@ -106,170 +106,172 @@ namespace LuaInterface
 		/// <summary>Calls the method. Receives the arguments from the Lua stack and returns values in it.</summary>
 		public int call(lua.State L)
 		{
-			Debug.Assert(_Translator.interpreter.IsSameLua(L) && luanet.infunction(L));
-			MethodBase methodToCall = _Method;
-			object targetObject = _Target;
-			bool failedCall = true;
-			int nReturnValues = 0;
-
-			luaL.checkstack(L, 5, "MethodWrapper.call");
-
-			bool isStatic = (_BindingType & BindingFlags.Static) == BindingFlags.Static;
-
-			if (methodToCall == null) // Method from name
+			using (luanet.entercfunction(L, _Translator.interpreter))
 			{
-				targetObject = isStatic ? null : _ExtractTarget(L, 1);
+				MethodBase methodToCall = _Method;
+				object targetObject = _Target;
+				bool failedCall = true;
+				int nReturnValues = 0;
 
-				//lua.remove(L,1); // Pops the receiver
-				if (_LastCalledMethod.cachedMethod != null) // Cached?
+				luaL.checkstack(L, 5, "MethodWrapper.call");
+
+				bool isStatic = (_BindingType & BindingFlags.Static) == BindingFlags.Static;
+
+				if (methodToCall == null) // Method from name
 				{
-					int numStackToSkip = isStatic ? 0 : 1; // If this is an instance invoe we will have an extra arg on the stack for the targetObject
-					int numArgsPassed = lua.gettop(L) - numStackToSkip;
-					MethodBase method = _LastCalledMethod.cachedMethod;
+					targetObject = isStatic ? null : _ExtractTarget(L, 1);
 
-					if (numArgsPassed == _LastCalledMethod.argTypes.Length) // No. of args match?
+					//lua.remove(L,1); // Pops the receiver
+					if (_LastCalledMethod.cachedMethod != null) // Cached?
 					{
-						luaL.checkstack(L, _LastCalledMethod.outList.Length + 6, "MethodWrapper.call");
-						object[] args = _LastCalledMethod.args;
+						int numStackToSkip = isStatic ? 0 : 1; // If this is an instance invoe we will have an extra arg on the stack for the targetObject
+						int numArgsPassed = lua.gettop(L) - numStackToSkip;
+						MethodBase method = _LastCalledMethod.cachedMethod;
 
-						try
+						if (numArgsPassed == _LastCalledMethod.argTypes.Length) // No. of args match?
 						{
-							for (int i = 0; i < _LastCalledMethod.argTypes.Length; i++)
+							luaL.checkstack(L, _LastCalledMethod.outList.Length + 6, "MethodWrapper.call");
+							object[] args = _LastCalledMethod.args;
+
+							try
 							{
-								MethodArgs type = _LastCalledMethod.argTypes[i];
-								object luaParamValue = type.extractValue(L, i + 1 + numStackToSkip);
+								for (int i = 0; i < _LastCalledMethod.argTypes.Length; i++)
+								{
+									MethodArgs type = _LastCalledMethod.argTypes[i];
+									object luaParamValue = type.extractValue(L, i + 1 + numStackToSkip);
 
-								args[type.index] = _LastCalledMethod.argTypes[i].isParamsArray
-									? ObjectTranslator.TableToArray(luaParamValue,type.paramsArrayType)
-									: luaParamValue;
+									args[type.index] = _LastCalledMethod.argTypes[i].isParamsArray
+										? ObjectTranslator.TableToArray(luaParamValue,type.paramsArrayType)
+										: luaParamValue;
 
-								if (args[type.index] == null && !lua.isnil(L, i + 1 + numStackToSkip))
-									throw new LuaException("argument number " + (i + 1) + " is invalid");
+									if (args[type.index] == null && !lua.isnil(L, i + 1 + numStackToSkip))
+										throw new LuaException("argument number " + (i + 1) + " is invalid");
+								}
+								_Translator.pushReturnValue(L, method.IsConstructor
+									? ((ConstructorInfo) method).Invoke(args)
+									: method.Invoke(targetObject, args)  );
+
+								failedCall = false;
 							}
-							_Translator.pushReturnValue(L, method.IsConstructor
-								? ((ConstructorInfo) method).Invoke(args)
-								: method.Invoke(targetObject, args)  );
+							catch (TargetInvocationException ex) { return _Translator.throwError(L, luaclr.verifyex(ex.InnerException)); }
+							catch (LuaInternalException) { throw; }
+							catch (Exception ex)
+							{
+								if (_Members.Length == 1) // Is the method overloaded?
+									return luaL.error(L, "method call failed ({0})", ex.Message); // No, throw error
+							}
+						}
+					}
+
+					// Cache miss
+					if (failedCall)
+					{
+						// System.Diagnostics.Debug.WriteLine("cache miss on " + methodName);
+
+						// If we are running an instance variable, we can now pop the targetObject from the stack
+						if (!isStatic)
+						{
+							if (targetObject == null)
+								return luaL.error(L, String.Format("instance method '{0}' requires a non null target object", _MethodName));
+
+							lua.remove(L, 1); // Pops the receiver
+						}
+
+						bool hasMatch = false;
+						string candidateName = null;
+
+						foreach (MemberInfo member in _Members)
+						{
+							candidateName = member.ReflectedType.Name + "." + member.Name;
+
+							MethodBase m = (MethodInfo)member;
+
+							bool isMethod = _Translator.matchParameters(L, m, ref _LastCalledMethod);
+							if (isMethod)
+							{
+								hasMatch = true;
+								break;
+							}
+						}
+						if (!hasMatch)
+						{
+							return luaL.error(L, (candidateName == null)
+								? "invalid arguments to method call"
+								: "invalid arguments to method: " + candidateName  );
+						}
+					}
+				}
+				else // Method from MethodBase instance
+				{
+					if (methodToCall.ContainsGenericParameters)
+					{
+						// bool isMethod = //* not used
+						_Translator.matchParameters(L, methodToCall, ref _LastCalledMethod);
+
+						if (methodToCall.IsGenericMethodDefinition)
+						{
+							//need to make a concrete type of the generic method definition
+							var args = _LastCalledMethod.args;
+							var typeArgs = new Type[args.Length];
+
+							for (int i = 0; i < args.Length; ++i)
+								typeArgs[i] = args[i].GetType();
+
+							MethodInfo concreteMethod = ((MethodInfo) methodToCall).MakeGenericMethod(typeArgs);
+
+							_Translator.pushReturnValue(L, concreteMethod.Invoke(targetObject, args));
 
 							failedCall = false;
 						}
-						catch (TargetInvocationException ex) { return _Translator.throwError(L, luaclr.verifyex(ex.InnerException)); }
-						catch (LuaInternalException) { throw; }
-						catch (Exception ex)
+						else if (methodToCall.ContainsGenericParameters)
+							return luaL.error(L, "unable to invoke method on generic class as the current method is an open generic method");
+					}
+					else
+					{
+						if (!methodToCall.IsStatic && !methodToCall.IsConstructor && targetObject == null)
 						{
-							if (_Members.Length == 1) // Is the method overloaded?
-								return luaL.error(L, "method call failed ({0})", ex.Message); // No, throw error
+							targetObject = _ExtractTarget(L, 1);
+							lua.remove(L, 1); // Pops the receiver
 						}
+
+						if (!_Translator.matchParameters(L, methodToCall, ref _LastCalledMethod))
+							return luaL.error(L, "invalid arguments to method call");
 					}
 				}
 
-				// Cache miss
 				if (failedCall)
 				{
-					// System.Diagnostics.Debug.WriteLine("cache miss on " + methodName);
-
-					// If we are running an instance variable, we can now pop the targetObject from the stack
-					if (!isStatic)
+					luaL.checkstack(L, _LastCalledMethod.outList.Length + 6, "MethodWrapper.call");
+					try
 					{
-						if (targetObject == null)
-							return luaL.error(L, String.Format("instance method '{0}' requires a non null target object", _MethodName));
-
-						lua.remove(L, 1); // Pops the receiver
+						_Translator.pushReturnValue(L, _LastCalledMethod.cachedMethod.IsConstructor
+							? ((ConstructorInfo) _LastCalledMethod.cachedMethod).Invoke(_LastCalledMethod.args)
+							: _LastCalledMethod.cachedMethod.Invoke(isStatic ? null : targetObject, _LastCalledMethod.args)  );
 					}
-
-					bool hasMatch = false;
-					string candidateName = null;
-
-					foreach (MemberInfo member in _Members)
-					{
-						candidateName = member.ReflectedType.Name + "." + member.Name;
-
-						MethodBase m = (MethodInfo)member;
-
-						bool isMethod = _Translator.matchParameters(L, m, ref _LastCalledMethod);
-						if (isMethod)
-						{
-							hasMatch = true;
-							break;
-						}
-					}
-					if (!hasMatch)
-					{
-						return luaL.error(L, (candidateName == null)
-							? "invalid arguments to method call"
-							: "invalid arguments to method: " + candidateName  );
-					}
+					catch (TargetInvocationException ex) { return _Translator.throwError(L, luaclr.verifyex(ex.InnerException)); }
+					catch (LuaInternalException) { throw; }
+					catch (Exception ex) { return luaL.error(L, "method call failed ({0})", ex.Message); }
 				}
-			}
-			else // Method from MethodBase instance
-			{
-				if (methodToCall.ContainsGenericParameters)
+
+				// Pushes out and ref return values
+				foreach (int arg in _LastCalledMethod.outList)
 				{
-					// bool isMethod = //* not used
-					_Translator.matchParameters(L, methodToCall, ref _LastCalledMethod);
-
-					if (methodToCall.IsGenericMethodDefinition)
-					{
-						//need to make a concrete type of the generic method definition
-						var args = _LastCalledMethod.args;
-						var typeArgs = new Type[args.Length];
-
-						for (int i = 0; i < args.Length; ++i)
-							typeArgs[i] = args[i].GetType();
-
-						MethodInfo concreteMethod = ((MethodInfo) methodToCall).MakeGenericMethod(typeArgs);
-
-						_Translator.pushReturnValue(L, concreteMethod.Invoke(targetObject, args));
-
-						failedCall = false;
-					}
-					else if (methodToCall.ContainsGenericParameters)
-						return luaL.error(L, "unable to invoke method on generic class as the current method is an open generic method");
+					nReturnValues++;
+					_Translator.pushReturnValue(L, _LastCalledMethod.args[arg]);
 				}
-				else
+
+				//by isSingle 2010-09-10 11:26:31
+				//Desc:
+				//  if not return void,we need add 1,
+				//  or we will lost the function's return value
+				//  when call dotnet function like "int foo(arg1,out arg2,out arg3)" in lua code
+				if (!_LastCalledMethod.IsReturnVoid && nReturnValues > 0)
 				{
-					if (!methodToCall.IsStatic && !methodToCall.IsConstructor && targetObject == null)
-					{
-						targetObject = _ExtractTarget(L, 1);
-						lua.remove(L, 1); // Pops the receiver
-					}
-
-					if (!_Translator.matchParameters(L, methodToCall, ref _LastCalledMethod))
-						return luaL.error(L, "invalid arguments to method call");
+					nReturnValues++;
 				}
-			}
 
-			if (failedCall)
-			{
-				luaL.checkstack(L, _LastCalledMethod.outList.Length + 6, "MethodWrapper.call");
-				try
-				{
-					_Translator.pushReturnValue(L, _LastCalledMethod.cachedMethod.IsConstructor
-						? ((ConstructorInfo) _LastCalledMethod.cachedMethod).Invoke(_LastCalledMethod.args)
-						: _LastCalledMethod.cachedMethod.Invoke(isStatic ? null : targetObject, _LastCalledMethod.args)  );
-				}
-				catch (TargetInvocationException ex) { return _Translator.throwError(L, luaclr.verifyex(ex.InnerException)); }
-				catch (LuaInternalException) { throw; }
-				catch (Exception ex) { return luaL.error(L, "method call failed ({0})", ex.Message); }
+				return nReturnValues < 1 ? 1 : nReturnValues;
 			}
-
-			// Pushes out and ref return values
-			foreach (int arg in _LastCalledMethod.outList)
-			{
-				nReturnValues++;
-				_Translator.pushReturnValue(L, _LastCalledMethod.args[arg]);
-			}
-
-			//by isSingle 2010-09-10 11:26:31
-			//Desc:
-			//  if not return void,we need add 1,
-			//  or we will lost the function's return value
-			//  when call dotnet function like "int foo(arg1,out arg2,out arg3)" in lua code
-			if (!_LastCalledMethod.IsReturnVoid && nReturnValues > 0)
-			{
-				nReturnValues++;
-			}
-
-			return nReturnValues < 1 ? 1 : nReturnValues;
 		}
 	}
 

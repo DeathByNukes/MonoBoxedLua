@@ -25,8 +25,7 @@ namespace LuaInterface
 	/// </remarks>
 	public class Lua : IDisposable
 	{
-		internal lua.State _L;
-		private lua.State _mainthread;
+		internal lua.State _L, _mainthread;
 		internal ObjectTranslator translator;
 
 		// lockCallback, unlockCallback; used by debug code commented out for now
@@ -224,6 +223,8 @@ namespace LuaInterface
 			if (file == null)
 				return _loadError(L, "reading from stdin is not supported");
 			byte[] contents;
+
+			var c = luanet.entercfunction(L, this); // _path_filter
 			try
 			{
 				file = _path_filter(this, file);
@@ -233,6 +234,7 @@ namespace LuaInterface
 				contents = File.ReadAllBytes(file); // todo: stream the contents through lua_load instead of loading the entire file at once
 			}
 			catch (Exception ex) { return _loadError(L, "cannot open @"+file+": "+ex.Message); }
+			finally { c.Dispose(); }
 
 			if (contents.Length != 0)
 			{
@@ -505,9 +507,11 @@ namespace LuaInterface
 		public void CPCall(Action function)
 		{
 			if (function == null) throw new ArgumentNullException("function");
+			// todo: is it more performant to actually pass a GCHandle in through the ud parameter versus creating and GCing delegate thunks?
 			lua.CFunction wrapper = L =>
 			{
 				lua.settop(L, 0);
+				// no need for luanet.entercfunction here because it's guaranteed to be the same state
 				function();
 				return 0;
 			};
@@ -665,6 +669,20 @@ namespace LuaInterface
 
 		/// <summary>Gets a reference to the registry table. (LUA_REGISTRYINDEX)</summary>
 		public LuaTable GetRegistry() { return new LuaTable(_L, this, LUA.REGISTRYINDEX); }
+
+		/// <summary>Returns the running coroutine, or null when called by the main thread.</summary>
+		public LuaThread GetRunningThread()
+		{
+			var L = _L;
+			if (L == _mainthread)
+				return null;
+			luanet.checkstack(L, 1, "Lua.GetCurrentThread");
+			lua.pushthread(L);
+			return new LuaThread(L, L, this);
+		}
+
+		/// <summary>Whether the currently running code was invoked by a running coroutine.</summary>
+		public bool IsThreadRunning { get { return _L != _mainthread; } }
 
 		/// <summary>Gets a numeric global variable</summary>
 		public double GetNumber(string fullPath)
@@ -875,6 +893,25 @@ namespace LuaInterface
 			lua.pushstring(L, contents);
 			return new LuaString(L, this);
 		}
+		/// <summary>Creates and returns a new coroutine, with body <paramref name="f"/>. <paramref name="f"/> must be a Lua function.</summary>
+		/// <exception cref="ArgumentNullException"><paramref name="f"/> is required.</exception>
+		/// <exception cref="ArgumentException"><paramref name="f"/> must be a Lua function, not a CFunction.</exception>
+		public LuaThread NewThread(LuaFunction f)
+		{
+			if (f == null) throw new ArgumentNullException("function");
+			var L = _L;
+			luanet.checkstack(L, 1, "Lua.NewThread");
+			var co = lua.newthread(L);
+			Debug.Assert(lua.gettop(co) == 0);
+			f.push(co);
+			if (lua.iscfunction(co, 1))
+			{
+				lua.settop(co, 0); // not strictly necessary
+				lua.pop(L, 1);
+				throw new ArgumentException("Lua function expected");
+			}
+			return new LuaThread(L, co, this);
+		}
 
 		/// <summary>Registers an object's method as a Lua function (global or table field) The method may have any signature.</summary>
 		/// <param name="path">The global variable to store it in, or null. Can contain one or more dots to store it as a field inside a table.</param>
@@ -981,6 +1018,7 @@ namespace LuaInterface
 			lua.CFunction func = L =>
 			{
 				Debug.Assert(this.IsSameLua(L));
+				var c = luanet.entercfunction(L, this);
 				try
 				{
 					// direct copy-paste of Lua's luaB_print function
@@ -1005,6 +1043,7 @@ namespace LuaInterface
 				}
 				catch (LuaInternalException) { throw; }
 				catch (Exception ex) { return this.translator.throwError(L, ex); }
+				finally { c.Dispose(); }
 			};
 			{
 				var L = _L;
@@ -1025,6 +1064,7 @@ namespace LuaInterface
 
 		public void Dispose()
 		{
+			Debug.Assert(_L.IsNull || !luanet.infunction(_L));
 			Dispose(true);
 			GC.SuppressFinalize(this);
 		}

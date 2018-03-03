@@ -11,6 +11,7 @@ namespace LuaInterface
 	/// <remarks>Author: Fabio Mascarenhas</remarks>
 	class MetaFunctions
 	{
+		readonly Lua interpreter;
 		readonly ObjectTranslator translator;
 		readonly lua.CFunction _index, _newindex,
 			_baseIndex, _classIndex, _classNewindex,
@@ -20,6 +21,7 @@ namespace LuaInterface
 		{
 			Debug.Assert(translator.interpreter.IsSameLua(L));
 			this.translator = translator;
+			this.interpreter = translator.interpreter;
 
 			// used by BuildObjectMetatable
 			_toString = this.toString;
@@ -52,7 +54,7 @@ namespace LuaInterface
 		/// <summary>[-0, +0, m, requires checkstack(1)] Add CLR object instance metatable entries to a new ref metatable at the top of the stack.</summary>
 		public void BuildObjectMetatable(lua.State L)
 		{
-			Debug.Assert(translator.interpreter.IsSameLua(L) && luaclr.isrefmeta(L, -1));
+			Debug.Assert(interpreter.IsSameLua(L) && luaclr.isrefmeta(L, -1));
 			lua.newtable(L);                lua.setfield(L,-2,"cache");
 			lua.pushcfunction(L,_index   ); lua.setfield(L,-2,"__index");
 			lua.pushcfunction(L,_toString); lua.setfield(L,-2,"__tostring");
@@ -62,12 +64,14 @@ namespace LuaInterface
 		/// <summary>__tostring metafunction of CLR objects.</summary>
 		int toString(lua.State L)
 		{
-			Debug.Assert(translator.interpreter.IsSameLua(L) && luanet.infunction(L));
+			Debug.Assert(interpreter.IsSameLua(L) && luanet.infunction(L));
 			var obj = luaclr.checkref(L, 1);
 			string s;
+			var c = luanet.entercfunction(L, interpreter);
 			try { s = obj.ToString(); }
 			catch (LuaInternalException) { throw; }
 			catch (Exception ex) { return translator.throwError(L, ex); }
+			finally { c.Dispose(); }
 			lua.pushstring(L, s ?? "");
 			return 1;
 		}
@@ -75,33 +79,36 @@ namespace LuaInterface
 		/// <summary>__index metafunction of CLR objects. Checks metatable.cache for previously used functions before calling getMethod to look up the member.</summary>
 		int index(lua.State L)
 		{
-			if (lua.gettop(L) != 2)
-				return luaL.error(L, "__index requires 2 arguments");
-			// __index(o,k)
-			if (!luaL.getmetafield(L, 1, "cache"))
-				return luaL.typerror(L, 1, "CLR object");
-			lua.pushvalue(L, 2);
-			lua.gettable(L, 3); // metatable(o).cache[k]
-			if (!lua.isnil(L, -1))
-				return 1;
-
-			lua.settop(L, 3);
-			if (getMethod(L) != 2)
-				return luaL.error(L, "unexpected getMethod return values");
-
-			if (lua.type(L, -1) == LUA.T.STRING)
-				return luaL.error(L, lua.tostring(L, -1));
-			bool is_function = lua.toboolean(L, -1);
-			lua.pop(L, 1);
-
-			Debug.Assert(lua.gettop(L) <= LUA.MINSTACK-2);
-			if (is_function)
+			using (luanet.entercfunction(L, interpreter))
 			{
+				if (lua.gettop(L) != 2)
+					return luaL.error(L, "__index requires 2 arguments");
+				// __index(o,k)
+				if (!luaL.getmetafield(L, 1, "cache"))
+					return luaL.typerror(L, 1, "CLR object");
 				lua.pushvalue(L, 2);
-				lua.pushvalue(L, -2);
-				lua.settable(L, 3); // metatable(o).cache[k] = getMethod(L)
+				lua.gettable(L, 3); // metatable(o).cache[k]
+				if (!lua.isnil(L, -1))
+					return 1;
+
+				lua.settop(L, 3);
+				if (getMethod(L) != 2)
+					return luaL.error(L, "unexpected getMethod return values");
+
+				if (lua.type(L, -1) == LUA.T.STRING)
+					return luaL.error(L, lua.tostring(L, -1));
+				bool is_function = lua.toboolean(L, -1);
+				lua.pop(L, 1);
+
+				Debug.Assert(lua.gettop(L) <= LUA.MINSTACK-2);
+				if (is_function)
+				{
+					lua.pushvalue(L, 2);
+					lua.pushvalue(L, -2);
+					lua.settable(L, 3); // metatable(o).cache[k] = getMethod(L)
+				}
+				return 1;
 			}
-			return 1;
 		}
 
 		/// <summary>[-0, +2, e]
@@ -111,7 +118,7 @@ namespace LuaInterface
 		/// </summary>
 		int getMethod(lua.State L)
 		{
-			Debug.Assert(translator.interpreter.IsSameLua(L) && luanet.infunction(L));
+			Debug.Assert(interpreter.IsSameLua(L) && luanet.infunction(L));
 			object obj = luaclr.checkref(L, 1);
 
 			object index = translator.getObject(L, 2);
@@ -181,25 +188,27 @@ namespace LuaInterface
 		/// </summary>
 		int baseIndex(lua.State L)
 		{
-			Debug.Assert(translator.interpreter.IsSameLua(L) && luanet.infunction(L));
-			object obj = luaclr.checkref(L, 1);
-
-			string methodName = lua.tostring(L, 2);
-			if (methodName == null)
+			using (luanet.entercfunction(L, interpreter))
 			{
-				lua.pushnil(L);
+				object obj = luaclr.checkref(L, 1);
+
+				string methodName = lua.tostring(L, 2);
+				if (methodName == null)
+				{
+					lua.pushnil(L);
+					lua.pushboolean(L, false);
+					return 2;
+				}
+				getMember(L, obj.GetType(), obj, "__luaInterface_base_" + methodName, BindingFlags.Instance);
+				lua.pop(L,1);
+				if (lua.type(L, -1) == LUA.T.NIL)
+				{
+					lua.pop(L,1);
+					return getMember(L, obj.GetType(), obj, methodName, BindingFlags.Instance);
+				}
 				lua.pushboolean(L, false);
 				return 2;
 			}
-			getMember(L, obj.GetType(), obj, "__luaInterface_base_" + methodName, BindingFlags.Instance);
-			lua.pop(L,1);
-			if (lua.type(L, -1) == LUA.T.NIL)
-			{
-				lua.pop(L,1);
-				return getMember(L, obj.GetType(), obj, methodName, BindingFlags.Instance);
-			}
-			lua.pushboolean(L, false);
-			return 2;
 		}
 
 
@@ -224,7 +233,7 @@ namespace LuaInterface
 		/// <exception cref="ArgumentNullException"><paramref name="objType"/> and <paramref name="methodName"/> are required</exception>
 		int getMember(lua.State L, IReflect objType, object obj, string methodName, BindingFlags bindingType)
 		{
-			Debug.Assert(translator.interpreter.IsSameLua(L));
+			Debug.Assert(interpreter.IsSameLua(L));
 			Debug.Assert(objType != null && methodName != null);
 
 			Debug.Assert((obj == null) == (objType is ProxyType));
@@ -345,49 +354,51 @@ namespace LuaInterface
 		/// </summary>
 		int newIndex(lua.State L)
 		{
-			Debug.Assert(translator.interpreter.IsSameLua(L) && luanet.infunction(L));
-			object target = luaclr.checkref(L, 1);
-			Type type = target.GetType();
-
-			// First try to look up the parameter as a property name
-			string detailMessage;
-			if (trySetMember(L, type, target, BindingFlags.Instance, out detailMessage))
-				return 0;       // found and set the property
-
-			// We didn't find a property name, now see if we can use a [] style this accessor to set array contents
-			try
+			using (luanet.entercfunction(L, interpreter))
 			{
-				if (type.IsArray && lua.type(L, 2) == LUA.T.NUMBER)
+				object target = luaclr.checkref(L, 1);
+				Type type = target.GetType();
+
+				// First try to look up the parameter as a property name
+				string detailMessage;
+				if (trySetMember(L, type, target, BindingFlags.Instance, out detailMessage))
+					return 0;       // found and set the property
+
+				// We didn't find a property name, now see if we can use a [] style this accessor to set array contents
+				try
 				{
-					int index = (int) lua.tonumber(L, 2);
+					if (type.IsArray && lua.type(L, 2) == LUA.T.NUMBER)
+					{
+						int index = (int) lua.tonumber(L, 2);
 
-					var arr = (Array) target;
-					object val = translator.getAsType(L, 3, type.GetElementType());
-					arr.SetValue(val, index);
+						var arr = (Array) target;
+						object val = translator.getAsType(L, 3, type.GetElementType());
+						arr.SetValue(val, index);
+					}
+					else
+					{
+						// Try to see if we have a this[] accessor
+						MethodInfo setter = type.GetMethod("set_Item");
+						if (setter == null)
+							return luaL.error(L, detailMessage); // Pass the original message from trySetMember because it is probably best
+
+						ParameterInfo[] args = setter.GetParameters();
+						if (args.Length != 2) // avoid throwing IndexOutOfRangeException for functions that take less than 2 arguments. that would be confusing in this context.
+							return luaL.error(L, detailMessage);
+
+						object index = translator.getAsType(L, 2, args[0].ParameterType);
+						// The new value the user specified
+						object val   = translator.getAsType(L, 3, args[1].ParameterType);
+
+						// Just call the indexer - if out of bounds an exception will happen
+						setter.Invoke(target, new object[] { index, val });
+					}
+					return 0;
 				}
-				else
-				{
-					// Try to see if we have a this[] accessor
-					MethodInfo setter = type.GetMethod("set_Item");
-					if (setter == null)
-						return luaL.error(L, detailMessage); // Pass the original message from trySetMember because it is probably best
-
-					ParameterInfo[] args = setter.GetParameters();
-					if (args.Length != 2) // avoid throwing IndexOutOfRangeException for functions that take less than 2 arguments. that would be confusing in this context.
-						return luaL.error(L, detailMessage);
-
-					object index = translator.getAsType(L, 2, args[0].ParameterType);
-					// The new value the user specified
-					object val   = translator.getAsType(L, 3, args[1].ParameterType);
-
-					// Just call the indexer - if out of bounds an exception will happen
-					setter.Invoke(target, new object[] { index, val });
-				}
-				return 0;
+				catch (TargetInvocationException ex) { return translator.throwError(L, luaclr.verifyex(ex.InnerException)); }
+				catch (LuaInternalException) { throw; }
+				catch (Exception ex) { return luaL.error(L, "Index setter call failed: "+ex.Message); }
 			}
-			catch (TargetInvocationException ex) { return translator.throwError(L, luaclr.verifyex(ex.InnerException)); }
-			catch (LuaInternalException) { throw; }
-			catch (Exception ex) { return luaL.error(L, "Index setter call failed: "+ex.Message); }
 		}
 
 		/// <summary>[-0, +0, e]
@@ -397,7 +408,7 @@ namespace LuaInterface
 		/// <exception cref="ArgumentNullException"><paramref name="targetType"/> is required</exception>
 		bool trySetMember(lua.State L, IReflect targetType, object target, BindingFlags bindingType, out string detailMessage)
 		{
-			Debug.Assert(translator.interpreter.IsSameLua(L));
+			Debug.Assert(interpreter.IsSameLua(L));
 			Debug.Assert(targetType != null);
 			Debug.Assert((target == null) == ((bindingType & BindingFlags.Static  ) == BindingFlags.Static));
 			Debug.Assert((target == null) != ((bindingType & BindingFlags.Instance) == BindingFlags.Instance));
@@ -489,38 +500,42 @@ namespace LuaInterface
 		/// <summary>__index metafunction of type references, works on static members.</summary>
 		int classIndex(lua.State L)
 		{
-			Debug.Assert(translator.interpreter.IsSameLua(L) && luanet.infunction(L));
-			var klass = _checktyperef(L);
-
-			switch (lua.type(L, 2))
+			using (luanet.entercfunction(L, interpreter))
 			{
-			case LUA.T.NUMBER:
-				var size = lua.tonumber(L, 2);
-				Array array;
-				try { array = Array.CreateInstance(klass.UnderlyingSystemType, checked((int) size)); }
-				catch (Exception ex) { return translator.throwError(L, ex); }
-				translator.push(L, array);
-				return 1;
+				var klass = _checktyperef(L);
 
-			case LUA.T.STRING:
-				string methodName = lua.tostring(L, 2);
-				return getMember(L, klass, null, methodName, BindingFlags.FlattenHierarchy | BindingFlags.Static);
+				switch (lua.type(L, 2))
+				{
+				case LUA.T.NUMBER:
+					var size = lua.tonumber(L, 2);
+					Array array;
+					try { array = Array.CreateInstance(klass.UnderlyingSystemType, checked((int) size)); }
+					catch (Exception ex) { return translator.throwError(L, ex); }
+					translator.push(L, array);
+					return 1;
 
-			default:
-				return luaL.typerror(L, 2, "string or number");
+				case LUA.T.STRING:
+					string methodName = lua.tostring(L, 2);
+					return getMember(L, klass, null, methodName, BindingFlags.FlattenHierarchy | BindingFlags.Static);
+
+				default:
+					return luaL.typerror(L, 2, "string or number");
+				}
 			}
 		}
 		/// <summary>__newindex function of type references, works on static members.</summary>
 		int classNewIndex(lua.State L)
 		{
-			Debug.Assert(translator.interpreter.IsSameLua(L) && luanet.infunction(L));
-			var target = _checktyperef(L);
+			using (luanet.entercfunction(L, interpreter))
+			{
+				var target = _checktyperef(L);
 
-			string detail;
-			if (!trySetMember(L, target, null, BindingFlags.FlattenHierarchy | BindingFlags.Static, out detail))
-				return luaL.error(L, detail);
+				string detail;
+				if (!trySetMember(L, target, null, BindingFlags.FlattenHierarchy | BindingFlags.Static, out detail))
+					return luaL.error(L, detail);
 
-			return 0;
+				return 0;
+			}
 		}
 		/// <summary>
 		/// __call metafunction of type references.
@@ -530,23 +545,25 @@ namespace LuaInterface
 		/// </summary>
 		int classCall(lua.State L)
 		{
-			Debug.Assert(translator.interpreter.IsSameLua(L) && luanet.infunction(L));
-			var klass = _checktyperef(L);
-			var validConstructor = new MethodCache();
-			lua.remove(L, 1);
-			var constructors = klass.UnderlyingSystemType.GetConstructors();
-
-			foreach (ConstructorInfo constructor in constructors)
-			if (translator.matchParameters(L, constructor, ref validConstructor))
+			using (luanet.entercfunction(L, interpreter))
 			{
-				object result;
-				try { result = constructor.Invoke(validConstructor.args); }
-				catch (TargetInvocationException ex) { return translator.throwError(L, luaclr.verifyex(ex.InnerException)); }
-				catch (Exception ex) { return luaL.error(L, "Constructor call failed: "+ex.Message); }
-				translator.push(L, result);
-				return 1;
+				var klass = _checktyperef(L);
+				var validConstructor = new MethodCache();
+				lua.remove(L, 1);
+				var constructors = klass.UnderlyingSystemType.GetConstructors();
+
+				foreach (ConstructorInfo constructor in constructors)
+				if (translator.matchParameters(L, constructor, ref validConstructor))
+				{
+					object result;
+					try { result = constructor.Invoke(validConstructor.args); }
+					catch (TargetInvocationException ex) { return translator.throwError(L, luaclr.verifyex(ex.InnerException)); }
+					catch (Exception ex) { return luaL.error(L, "Constructor call failed: "+ex.Message); }
+					translator.push(L, result);
+					return 1;
+				}
+				return luaL.error(L, klass.UnderlyingSystemType+" constructor arguments do not match");
 			}
-			return luaL.error(L, klass.UnderlyingSystemType+" constructor arguments do not match");
 		}
 	}
 }

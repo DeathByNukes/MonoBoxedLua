@@ -238,7 +238,7 @@ namespace LuaInterface.LuaAPI
 		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_pushboolean"      )] public static extern void pushboolean      (lua.State L, bool b);
 		/// <summary>[-0, +1, -] Pushes a light userdata (IntPtr) onto the stack.</summary>
 		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_pushlightuserdata")] public static extern void pushlightuserdata(lua.State L, IntPtr p);
-		/// <summary>[-0, +1, -] Pushes a light userdata (IntPtr) onto the stack.</summary>
+		/// <summary>[-0, +1, -] Pushes the thread represented by L onto the stack. Returns true if this thread is the main thread of its state.</summary>
 		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_pushthread"       )] public static extern bool pushthread       (lua.State L);
 		/// <summary>[-0, +1, m] Pushes a C function onto the stack. This function receives a pointer to a C function and pushes onto the stack a Lua value of type function that, when called, invokes the corresponding C function.</summary>
 		[MethodImpl(INLINE)] public static void pushcfunction(lua.State L, lua.CFunction f) { lua.pushcclosure(L, f, 0); }
@@ -392,6 +392,9 @@ namespace LuaInterface.LuaAPI
 		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_resume")] public static extern LUA.ERR resume(lua.State L, int narg);
 		/// <summary>[-0, +0, -] <para>Returns the status of the thread <paramref name="L"/>.</para><para>The status can be 0 for a normal thread, an error code if the thread finished its execution with an error, or <see cref="LUA.ERR.YIELD"/> if the thread is suspended.</para></summary>
 		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_status")] public static extern LUA.ERR status(lua.State L);
+
+		/// <summary>[-0, +0, -] <para>This function's entire documentation by the Lua developers: hack</para></summary>
+		[DllImport(DLL,CallingConvention=CC,EntryPoint="lua_setlevel")] public static extern void setlevel(lua.State from, lua.State to);
 
 		#endregion
 
