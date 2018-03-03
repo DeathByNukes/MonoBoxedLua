@@ -11,7 +11,7 @@ namespace LuaInterface
 		public static Action<T1,T2>                                                  Action<T1,T2>                                                 (this Action<T1,T2> d)                                                  {return d;}
 		public static Action<T1,T2,T3>                                               Action<T1,T2,T3>                                              (this Action<T1,T2,T3> d)                                               {return d;}
 		public static Action<T1,T2,T3,T4>                                            Action<T1,T2,T3,T4>                                           (this Action<T1,T2,T3,T4> d)                                            {return d;}
-		#if NET_4
+		#if NET_4 || NET_4_6
 		public static Action<T1,T2,T3,T4,T5>                                         Action<T1,T2,T3,T4,T5>                                        (this Action<T1,T2,T3,T4,T5> d)                                         {return d;}
 		public static Action<T1,T2,T3,T4,T5,T6>                                      Action<T1,T2,T3,T4,T5,T6>                                     (this Action<T1,T2,T3,T4,T5,T6> d)                                      {return d;}
 		public static Action<T1,T2,T3,T4,T5,T6,T7>                                   Action<T1,T2,T3,T4,T5,T6,T7>                                  (this Action<T1,T2,T3,T4,T5,T6,T7> d)                                   {return d;}
@@ -31,7 +31,7 @@ namespace LuaInterface
 		public static Func<TResult,T1,T2>                                                  Func<TResult,T1,T2>                                                 (this Func<TResult,T1,T2> d)                                                  {return d;}
 		public static Func<TResult,T1,T2,T3>                                               Func<TResult,T1,T2,T3>                                              (this Func<TResult,T1,T2,T3> d)                                               {return d;}
 		public static Func<TResult,T1,T2,T3,T4>                                            Func<TResult,T1,T2,T3,T4>                                           (this Func<TResult,T1,T2,T3,T4> d)                                            {return d;}
-		#if NET_4
+		#if NET_4 || NET_4_6
 		public static Func<TResult,T1,T2,T3,T4,T5>                                         Func<TResult,T1,T2,T3,T4,T5>                                        (this Func<TResult,T1,T2,T3,T4,T5> d)                                         {return d;}
 		public static Func<TResult,T1,T2,T3,T4,T5,T6>                                      Func<TResult,T1,T2,T3,T4,T5,T6>                                     (this Func<TResult,T1,T2,T3,T4,T5,T6> d)                                      {return d;}
 		public static Func<TResult,T1,T2,T3,T4,T5,T6,T7>                                   Func<TResult,T1,T2,T3,T4,T5,T6,T7>                                  (this Func<TResult,T1,T2,T3,T4,T5,T6,T7> d)                                   {return d;}

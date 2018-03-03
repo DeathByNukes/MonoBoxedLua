@@ -1,3 +1,6 @@
+#if NET_4_6 // Unity engine
+#define NET_4
+#endif
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
