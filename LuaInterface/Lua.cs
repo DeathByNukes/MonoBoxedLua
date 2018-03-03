@@ -7,6 +7,9 @@ using System.Runtime.InteropServices;
 using LuaInterface.LuaAPI;
 using System.IO;
 using System.Threading;
+#if NET_4
+using System.Collections.Concurrent;
+#endif
 
 namespace LuaInterface
 {
@@ -1038,6 +1041,20 @@ namespace LuaInterface
 
 		/// <summary><para>Frees the Lua references held by <see cref="LuaBase"/> objects that weren't properly disposed but got cleaned up by the .NET garbage collector.</para><para>Returns the number of leaks that were cleaned up.</para><para>It is not necessary to call this if you are about to dispose the entire <see cref="Lua"/> instance.</para></summary>
 		public int CleanLeaks()
+		#if NET_4
+		{
+			var L = _L;
+			var refs = _leaked_refs;
+			int count = 0;
+			int reference;
+			while (refs.TryDequeue(out reference))
+			{
+				luaL.unref(L, reference);
+				++count;
+			}
+			return count;
+		}
+		#else
 		{
 			if (!_has_leaked_refs) return 0;
 			var refs = _leaked_refs;
@@ -1052,7 +1069,20 @@ namespace LuaInterface
 				return count;
 			}
 		}
+		#endif
 		internal bool Leaked(int reference)
+		#if NET_4
+		{
+			Debug.Assert(reference >= LUA.MinRef);
+			if (!_L.IsNull)
+			{
+				var refs = _leaked_refs;
+				refs.Enqueue(reference);
+				Lua.leaked();
+			}
+			return true;
+		}
+		#else
 		{
 			Debug.Assert(reference >= LUA.MinRef);
 			if (_L.IsNull)
@@ -1069,8 +1099,13 @@ namespace LuaInterface
 			}
 			finally { Monitor.Exit(refs); }
 		}
+		#endif
+		#if NET_4
+		readonly ConcurrentQueue<int> _leaked_refs = new ConcurrentQueue<int>();
+		#else
 		readonly List<int> _leaked_refs = new List<int>(); // System.Collections.Concurrent isn't available in .NET 3.5
 		bool _has_leaked_refs;
+		#endif
 
 
 		#region LeakCount
