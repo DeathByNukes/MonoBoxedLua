@@ -249,6 +249,9 @@ namespace LuaInterfaceTest
 					Assert.IsTrue(!t.ContainsKey("package"));
 					Assert.IsTrue(!t.ContainsKey("module"));
 					Assert.IsTrue(!t.ContainsKey("require"));
+					Assert.IsTrue(!t.ContainsKey("load_assembly"));
+					Assert.IsTrue(!t.ContainsKey("make_object"));
+					Assert.IsTrue(!t.ContainsKey("free_object"));
 				}
 			}
 		}

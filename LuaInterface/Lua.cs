@@ -171,8 +171,11 @@ namespace LuaInterface
 				}
 				io = nil
 				package = nil
-				module = nil
+				module  = nil
 				require = nil
+				load_assembly = nil
+				make_object	  = nil
+				free_object	  = nil
 			");
 
 			lua.getglobal(L, "loadstring");
