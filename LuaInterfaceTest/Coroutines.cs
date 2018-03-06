@@ -34,7 +34,7 @@ namespace LuaInterfaceTest
 					assert(coroutine.status(co) == 'dead')
 					callback('E')
 				");
-				Assert.AreEqual("ABCDE", string.Concat(calls));
+				Assert.AreEqual("ABCDE", string.Concat(calls.ToArray()));
 			}
 		}
 		[TestMethod] public void StateTracking()
@@ -87,7 +87,7 @@ namespace LuaInterfaceTest
 					Assert.AreEqual(LuaCoStatus.Dead, thread.Status);
 					calls.Add("E");
 				}
-				Assert.AreEqual("ABCDE", string.Concat(calls));
+				Assert.AreEqual("ABCDE", string.Concat(calls.ToArray()));
 			}
 		}
 	}

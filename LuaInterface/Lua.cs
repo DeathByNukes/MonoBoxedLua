@@ -99,7 +99,7 @@ namespace LuaInterface
 
 			// Add LuaInterface owner reference
 			lua.pushstring(L, _LuaInterfaceMarker);
-			luaclr.newref(L, this, GCHandleType.Weak);
+			luaclr.newref(L, this);
 			luaclr.newrefmeta(L, 0);
 			lua.setmetatable(L, -2);
 			lua.rawset(L, LUA.REGISTRYINDEX);
