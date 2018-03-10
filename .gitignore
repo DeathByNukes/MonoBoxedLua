@@ -2,8 +2,6 @@
 *.suo
 obj
 bin
-bin x86
-bin x64
 *.user
 *.sdf
 .vs
