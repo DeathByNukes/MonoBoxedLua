@@ -17,7 +17,8 @@ namespace LuaInterface.LuaAPI
 		#region native functions
 
 		/// <summary>[-0, +0, -] The address of a static variable in the Lua DLL. The variable's contents are never used. Rather, the address itself serves as a unique identifier for luaclr metatables.</summary>
-		[DllImport(DLL,CallingConvention=CC,EntryPoint="luaclr_gettag")] public static extern IntPtr gettag();
+		public static readonly IntPtr tag = gettag();
+		[DllImport(DLL,CallingConvention=CC,EntryPoint="luaclr_gettag")] private static extern IntPtr gettag();
 
 		/// <summary>[-0, +0, -] Retrieve the main thread of a given state.</summary>
 		[DllImport(DLL,CallingConvention=CC,EntryPoint="luaclr_mainthread")] public static extern lua.State mainthread(lua.State L);
@@ -87,7 +88,7 @@ namespace LuaInterface.LuaAPI
 			lua.pushboolean(L, false);
 			lua.setfield(L, -2, "__metatable");
 
-			lua.pushlightuserdata(L, luaclr.gettag());
+			lua.pushlightuserdata(L, luaclr.tag);
 			lua.pushboolean(L, true);
 			lua.rawset(L, -3);
 		}
@@ -104,7 +105,7 @@ namespace LuaInterface.LuaAPI
 			index = luanet.absoluteindex(L, index);
 			if (!luaclr.isreflike(L, index) || !lua.getmetatable(L, index))
 				return false;
-			lua.pushlightuserdata(L, luaclr.gettag());
+			lua.pushlightuserdata(L, luaclr.tag);
 			lua.rawget(L, -2);
 			bool isref = lua.type(L, -1) != LUA.T.NIL;
 			lua.pop(L, 2);
@@ -117,7 +118,7 @@ namespace LuaInterface.LuaAPI
 			index = luanet.absoluteindex(L, index);
 			if (!lua.istable(L, index))
 				return false;
-			lua.pushlightuserdata(L, luaclr.gettag());
+			lua.pushlightuserdata(L, luaclr.tag);
 			lua.rawget(L, index);
 			bool isref = lua.type(L, -1) != LUA.T.NIL;
 			lua.pop(L, 1);
@@ -215,6 +216,9 @@ namespace LuaInterface.LuaAPI
 		}
 		// I was just going to use Encoding.ASCII.GetBytes but that would require loading and JITing a lot of infrastructure just for a one-off operation. (MS's StringToHGlobalAnsi implementation doesn't use it) -DBN
 		static readonly byte[] _OutOfMem = unchecked(new byte[]{ (byte)'o', (byte)'u', (byte)'t', (byte)' ', (byte)'o', (byte)'f', (byte)' ', (byte)'m', (byte)'e', (byte)'m', (byte)'o', (byte)'r', (byte)'y' });
+
+		/// <summary>[-0, +0, -] Test if the provided threads belong to the same Lua instance.</summary>
+		[MethodImpl(INLINE)] public static bool issamelua(lua.State L1, lua.State L2) { return L1 == L2 || luaclr.mainthread(L1) == luaclr.mainthread(L2); }
 
 		/// <summary>[-0, +1, m] Pushes a C function onto the stack just like lua_pushcfunction except the delegate will be automatically kept alive by storing an opaque userdata in an upvalue.</summary>
 		[MethodImpl(INLINE)] public static void pushcfunction(lua.State L, lua.CFunction f) { luaclr.pushcclosure(L, f, 0); }

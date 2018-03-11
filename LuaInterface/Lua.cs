@@ -60,15 +60,10 @@ namespace LuaInterface
 			lua.pop(L, 1);
 			return ret;
 		}
-		/// <summary>[-0, +0, m] Test if the provided thread belongs to this Lua instance.</summary>
+		/// <summary>[-0, +0, -] Test if the provided thread belongs to this Lua instance.</summary>
 		public bool IsSameLua(lua.State L)
 		{
 			return L == _mainthread || luaclr.mainthread(L) == _mainthread;
-		}
-		/// <summary>[-0, +0, m] Test if the provided threads belong to the same Lua instance.</summary>
-		internal static bool IsSameLua(lua.State L1, lua.State L2)
-		{
-			return L1 == L2 || luaclr.mainthread(L1) == luaclr.mainthread(L2);
 		}
 		const string _LuaInterfaceMarker = "LUAINTERFACE LOADED";
 		private readonly bool _StatePassed;

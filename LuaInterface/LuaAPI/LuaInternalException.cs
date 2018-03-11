@@ -6,13 +6,18 @@ namespace LuaInterface.LuaAPI
 	/// <summary>This exception is for internal Lua use and should not be caught. (Catch and rethrow is ok though.)</summary>
 	public sealed class LuaInternalException : Exception
 	{
-		private LuaInternalException(LUA.ERR errcode)
+		private LuaInternalException(lua.State L, LUA.ERR errcode)
 		: base("A Lua error (LUA_ERR" + errcode.ToString() + ") was thrown. This exception is for internal Lua use and should not be caught.")
 		{
+			this.L = L;
 			this.ErrCode = errcode;
 		}
 
+		public readonly lua.State L;
+
 		public readonly LUA.ERR ErrCode;
+
+		public Lua Owner { get { return Lua.GetOwner(this.L); } }
 
 		/// <summary>Sets <paramref name="L"/> to implement Lua errors using CLR exceptions. This should only be used when when Lua code is not running on any Lua thread; it is dangerous to change the error system while a pcall might already be running. (This function calls <see cref="luaclr.settrythrowf"/>)</summary>
 		public static void install(lua.State L)
@@ -22,12 +27,17 @@ namespace LuaInterface.LuaAPI
 
 		static readonly luaclr.Throw _FThrow = (L, errcode) =>
 		{
-			throw new LuaInternalException((LUA.ERR) errcode);
+			throw new LuaInternalException(L, errcode);
 		};
 		static readonly luaclr.Try _FTry = (L, f, ud) =>
 		{
 			try { f(L, ud); return 0; }
-			catch (LuaInternalException) { return -1; }
+			catch (LuaInternalException ex)
+			{
+				if (!luaclr.issamelua(L, ex.L))
+					Environment.FailFast("Lua error hit another Lua instance's protected call.");
+				return -1;
+			}
 			catch (Exception ex) // Lua's C++ exception system uses a general catch, so let's assume that's the safest choice
 			{
 				Debug.Assert(ex.GetType() == typeof(Exception) && ex.Message == "unit test", "A CLR exception was not properly translated to a Lua error.");
@@ -64,6 +74,7 @@ namespace LuaInterface.LuaAPI
 		private LuaInternalException(LuaInternalException ex)
 		: base(ex.Message, ex)
 		{
+			this.L = ex.L;
 			this.ErrCode = ex.ErrCode;
 		}
 	}
