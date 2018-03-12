@@ -38,7 +38,7 @@ namespace LuaInterface
 			lua.pushcfunction(L,_enum                = this.@enum              ); lua.setglobal(L,"enum");
 			StackAssert.End();
 		}
-		/// <summary>[-0, +0, v] Passes errors (argument e) to the Lua interpreter. This function throws a Lua exception, and therefore never returns.</summary>
+		/// <summary>[-0, +0, v] Convert <paramref name="ex"/> to a Lua error. This function never returns.</summary>
 		internal int throwError(lua.State L, Exception ex)
 		{
 			Debug.Assert(interpreter.IsSameLua(L));
@@ -59,6 +59,22 @@ namespace LuaInterface
 			// don't need to check the stack, same pattern as luaL_error
 			push(L, ex);
 			return lua.error(L);
+		}
+
+		/// <summary>[-?, +0, m] Generate a CLR exception from the error value at the top of the stack to be thrown out to the user's app. The top will be set to <paramref name="oldTop"/> before the exception is returned.</summary>
+		internal LuaScriptException ExceptionFromError(lua.State L, int oldTop)
+		{
+			Debug.Assert(interpreter.IsSameLua(L));
+			object err = getObject(L, -1);
+			lua.settop(L, oldTop);
+
+			// A pre-wrapped exception - just rethrow it (stack trace of InnerException will be preserved)
+			var luaEx = err as LuaScriptException;
+			if (luaEx != null) return luaEx;
+
+			// A non-wrapped Lua error (best interpreted as a string) - wrap it and throw it
+			if (err == null) err = "Unknown Lua Error";
+			return new LuaScriptException(err.ToString(), "");
 		}
 
 		readonly List<Assembly> loaded_assemblies = new List<Assembly>();

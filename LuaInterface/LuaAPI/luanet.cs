@@ -43,6 +43,11 @@ namespace LuaInterface.LuaAPI
 			luanet.getnestedfield(L, index, path.Split('.'));
 		}
 
+		/// <summary>[-?, +0, m] Generate a CLR exception from the error value at the top of the stack to be thrown out to the user's app. The top will be set to <paramref name="oldTop"/> before the exception is returned.</summary>
+		[MethodImpl(INLINE)] public static LuaScriptException exceptionfromerror(lua.State L, Lua interpreter, int oldTop) { return interpreter.translator.ExceptionFromError(L, oldTop); }
+		/// <summary>[-0, +0, v] Convert <paramref name="ex"/> to a Lua error. This function never returns.</summary>
+		[MethodImpl(INLINE)] public static int error(lua.State L, Lua interpreter, Exception ex) { return interpreter.translator.throwError(L, ex); }
+
 		/// <summary>[-(nargs + 1), +(nresults|0), -]</summary>
 		[MethodImpl(INLINE)] public static Exception pcall(lua.State L, int nargs, int nresults)
 		{

@@ -189,7 +189,7 @@ namespace LuaInterface
 			luaL.getref(L, Owner.tostring_ref);
 			rawpush(L);
 			if (lua.pcall(L, 1, 1, 0) != LUA.ERR.Success)
-				throw Owner.ExceptionFromError(L, -2); // -2, pop the error from the stack
+				throw Owner.translator.ExceptionFromError(L, -2); // -2, pop the error from the stack
 			var str = lua.tostring(L, -1);
 			lua.pop(L,1);
 			return str ?? "";
@@ -363,7 +363,7 @@ namespace LuaInterface
 				translator.push(L,args[i]);
 
 			if (lua.pcall(L, nArgs, returnTypes == null ? LUA.MULTRET : returnTypes.Length, 0) != LUA.ERR.Success)
-				throw Owner.ExceptionFromError(L, oldTop);
+				throw Owner.translator.ExceptionFromError(L, oldTop);
 
 			return translator.popValues(L, oldTop, returnTypes);
 		}

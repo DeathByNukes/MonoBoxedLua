@@ -75,7 +75,7 @@ namespace LuaInterface
 			}
 			else {
 				lua.xmove(co, L, 1);  // move error message
-				throw owner.ExceptionFromError(L, -2);
+				throw owner.translator.ExceptionFromError(L, -2);
 			}
 		}
 

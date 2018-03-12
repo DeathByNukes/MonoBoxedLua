@@ -311,23 +311,6 @@ namespace LuaInterface
 		#endregion
 
 
-		/// <summary>Assuming we have a Lua error string sitting on the stack, throw a C# exception out to the user's app</summary>
-		/// <exception cref="LuaScriptException">Thrown if the script caused an exception</exception>
-		internal LuaScriptException ExceptionFromError(lua.State L, int oldTop)
-		{
-			object err = translator.getObject(L, -1);
-			lua.settop(L, oldTop);
-
-			// A pre-wrapped exception - just rethrow it (stack trace of InnerException will be preserved)
-			var luaEx = err as LuaScriptException;
-			if (luaEx != null) return luaEx;
-
-			// A non-wrapped Lua error (best interpreted as a string) - wrap it and throw it
-			if (err == null) err = "Unknown Lua Error";
-			return new LuaScriptException(err.ToString(), "");
-		}
-
-
 
 		/// <summary>True while a script is being executed</summary>
 		public bool IsExecuting { get { return luanet.infunction(_L); } }
@@ -347,7 +330,7 @@ namespace LuaInterface
 			if (luaL.loadstring(L, chunk) == LUA.ERR.Success)
 				return new LuaFunction(L, this);
 			else
-				throw ExceptionFromError(L, -2);
+				throw translator.ExceptionFromError(L, -2);
 		}
 		/// <summary>Loads a Lua chunk from a string.</summary>
 		public LuaFunction LoadString(string chunk, string name)
@@ -359,7 +342,7 @@ namespace LuaInterface
 			if (luaL.loadbuffer(L, chunk, name) == LUA.ERR.Success)
 				return new LuaFunction(L, this);
 			else
-				throw ExceptionFromError(L, -2);
+				throw translator.ExceptionFromError(L, -2);
 		}
 
 		/// <summary>Loads a Lua chunk from a file. If <paramref name="fileName"/> is null, the chunk will be loaded from standard input.</summary>
@@ -371,7 +354,7 @@ namespace LuaInterface
 			if (luaL.loadfile(L, fileName) == LUA.ERR.Success)
 				return new LuaFunction(L, this);
 			else
-				throw ExceptionFromError(L, -2);
+				throw translator.ExceptionFromError(L, -2);
 		}
 
 		/// <summary>Loads a Lua chunk from a buffer.</summary>
@@ -389,7 +372,7 @@ namespace LuaInterface
 			if (status == LUA.ERR.Success)
 				return new LuaFunction(L, this);
 			else
-				throw ExceptionFromError(L, -2);
+				throw translator.ExceptionFromError(L, -2);
 		}
 
 
@@ -418,7 +401,7 @@ namespace LuaInterface
 					return ret;
 				}
 			}
-			throw ExceptionFromError(L, -2); // pop 1
+			throw translator.ExceptionFromError(L, -2); // pop 1
 		}
 
 		/// <summary>Excutes a Lua chunk and returns all the chunk's return values in an array</summary>
@@ -439,7 +422,7 @@ namespace LuaInterface
 			if (luaL.loadbuffer(L, chunk, chunkName) == LUA.ERR.Success)
 				if (lua.pcall(L, 0, LUA.MULTRET, 0) == LUA.ERR.Success)
 					return translator.popValues(L, oldTop);
-			throw ExceptionFromError(L, oldTop);
+			throw translator.ExceptionFromError(L, oldTop);
 		}
 		/// <summary>
 		/// Excutes a Lua chunk and returns all the chunk's return values in an array.
@@ -495,7 +478,7 @@ namespace LuaInterface
 				lua.remove(L, oldTop+1);
 				return translator.popValues(L, oldTop);
 			}
-			throw ExceptionFromError(L, oldTop);
+			throw translator.ExceptionFromError(L, oldTop);
 		}
 
 		/// <summary>Calls <paramref name="function"/> in protected mode. If a Lua error occurs inside the function, it will be caught at this point and converted to a C# exception.</summary>
@@ -513,7 +496,7 @@ namespace LuaInterface
 			{
 				var L = _L;
 				if (lua.cpcall(L, wrapper, default(IntPtr)) != LUA.ERR.Success)
-					throw ExceptionFromError(L, -2);
+					throw translator.ExceptionFromError(L, -2);
 			}
 		}
 
