@@ -182,6 +182,105 @@ namespace LuaInterfaceTest
 			}
 		}
 
+		[TestMethod] public unsafe void Callback()
+		{
+			const uint iterations = 2048*2048;
+			using (var test = new CallbackTest())
+			{
+				Trace.WriteLine(iterations.ToString("N0") + " iterations");
+
+				// jit
+				CallbackTest.MakeNoop(0)();
+				test.CallViaThunk(CallbackTest.MakeNoop(0));
+				test.CallViaGchandle(CallbackTest.MakeNoop(0));
+
+				var timer = Stopwatch.StartNew();
+				for (uint i = 0; i < iterations; ++i)
+					CallbackTest.MakeNoop(i)();
+				timer.Stop();
+				Display(timer, "bare call");
+
+
+				timer.Reset();timer.Start();
+				for (uint i = 0; i < iterations; ++i)
+					test.CallViaThunk(CallbackTest.MakeNoop(i));
+				timer.Stop();
+				Display(timer, "CallViaThunk");
+
+
+				timer.Reset();timer.Start();
+				for (uint i = 0; i < iterations; ++i)
+					test.CallViaGchandle(CallbackTest.MakeNoop(i));
+				timer.Stop();
+				Display(timer, "CallViaGchandle");
+
+				/*
+					4,194,304 iterations
+					bare call: 51ms
+					CallViaThunk: 4468ms
+					CallViaGchandle: 1911ms
+				*/
+			}
+		}
+		class CallbackTest : IDisposable
+		{
+			[MethodImpl(MethodImplOptions.NoInlining)] public static Action MakeNoop(uint i) { return () => { Noop(i); }; }
+			[MethodImpl(MethodImplOptions.NoInlining)] public static void Noop(uint i) {}
+
+			public CallbackTest()
+			{
+				var interpreter = _interpreter = new Lua();
+				_L = luanet.getstate(interpreter);
+				_call_via_gchandle_f = CallViaGchandleF;
+			}
+			readonly Lua _interpreter;
+			lua.State _L;
+			public void Dispose() { _interpreter.Dispose(); _L = default(lua.State); }
+
+			public void CallViaThunk(Action function)
+			{
+				if (function == null) throw new ArgumentNullException("function");
+				// todo: is it more performant to actually pass a GCHandle in through the ud parameter versus creating and GCing delegate thunks?
+				lua.CFunction wrapper = L =>
+				{
+					lua.settop(L, 0);
+					// no need for luanet.entercfunction here because it's guaranteed to be the same state
+					try { function(); }
+					catch (LuaInternalException) { throw; }
+					catch (Exception ex) { luanet.error(L, _interpreter, ex); }
+					return 0;
+				};
+				{
+					var L = _L;
+					if (lua.cpcall(L, wrapper, default(IntPtr)) != LUA.ERR.Success)
+						throw luanet.exceptionfromerror(L, _interpreter, -2);
+				}
+			}
+
+			public unsafe void CallViaGchandle(Action function)
+			{
+				if (function == null) throw new ArgumentNullException("function");
+				var L = _L;
+				var handle = GCHandle.Alloc(function);
+				var status = lua.cpcall(L, _call_via_gchandle_f, GCHandle.ToIntPtr(handle));
+				handle.Free();
+				if (status != 0)
+					throw luanet.exceptionfromerror(L, _interpreter, -2);
+			}
+			readonly lua.CFunction _call_via_gchandle_f;
+			unsafe int CallViaGchandleF(lua.State L)
+			{
+				Debug.Assert(luanet.infunction(L) && L == this._L);
+				var function = (Action) GCHandle.FromIntPtr(new IntPtr(lua.touserdata(L, 1))).Target;
+				lua.settop(L, 0);
+				// no need for luanet.entercfunction here because it's guaranteed to be the same state
+				try { function(); }
+				catch (LuaInternalException) { throw; }
+				catch (Exception ex) { luanet.error(L, _interpreter, ex); }
+				return 0;
+			}
+		}
+
 		[TestMethod] public void Indexer()
 		{
 			const uint iterations = 128*1024;

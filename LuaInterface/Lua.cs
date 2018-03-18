@@ -103,6 +103,8 @@ namespace LuaInterface
 
 			lua.getglobal(L, "tostring");
 			tostring_ref = luaL.@ref(L);
+
+			_cpcall_f = CPCallF;
 		}
 		internal int tostring_ref { get; private set; }
 
@@ -482,22 +484,27 @@ namespace LuaInterface
 		}
 
 		/// <summary>Calls <paramref name="function"/> in protected mode. If a Lua error occurs inside the function, it will be caught at this point and converted to a C# exception.</summary>
-		public void CPCall(Action function)
+		public unsafe void CPCall(Action function)
 		{
 			if (function == null) throw new ArgumentNullException("function");
-			// todo: is it more performant to actually pass a GCHandle in through the ud parameter versus creating and GCing delegate thunks?
-			lua.CFunction wrapper = L =>
-			{
-				lua.settop(L, 0);
-				// no need for luanet.entercfunction here because it's guaranteed to be the same state
-				function();
-				return 0;
-			};
-			{
-				var L = _L;
-				if (lua.cpcall(L, wrapper, default(IntPtr)) != LUA.ERR.Success)
-					throw translator.ExceptionFromError(L, -2);
-			}
+			var L = _L;
+			var handle = GCHandle.Alloc(function);
+			var status = lua.cpcall(L, _cpcall_f, GCHandle.ToIntPtr(handle));
+			handle.Free();
+			if (status != 0)
+				throw translator.ExceptionFromError(L, -2);
+		}
+		lua.CFunction _cpcall_f; // set to CPCallF in constructor
+		unsafe int CPCallF(lua.State L)
+		{
+			Debug.Assert(luanet.infunction(L) && L == this._L);
+			var function = (Action) GCHandle.FromIntPtr(new IntPtr(lua.touserdata(L, 1))).Target;
+			lua.settop(L, 0);
+			// no need for luanet.entercfunction here because it's guaranteed to be the same state
+			try { function(); }
+			catch (LuaInternalException) { throw; }
+			catch (Exception ex) { translator.throwError(L, ex); }
+			return 0;
 		}
 
 		#endregion
