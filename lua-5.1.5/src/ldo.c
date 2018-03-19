@@ -120,8 +120,14 @@ int luaD_rawrunprotected (lua_State *L, Pfunc f, void *ud) {
   L->errorJmp = &lj;
   if (G(L)->ftry != NULL) {
     ftrystatus = G(L)->ftry(L, f, ud);
-    if (ftrystatus && lj.status == 0)
-      lj.status = ftrystatus == LUA_ERRRUN ? LUA_ERRRUN : -1;
+    if (ftrystatus != 0) {
+      if (lj.status == 0)
+        lj.status = ftrystatus == LUA_ERRRUN ? LUA_ERRRUN : -1;
+    }
+    else if (lj.status != 0) {
+      /* the throw function didn't correctly jump to the try function. the stack is in an unknown state */
+      exit(EXIT_FAILURE);
+    }
   }
   else {
     LUAI_TRY(L, &lj,
