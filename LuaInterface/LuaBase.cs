@@ -130,7 +130,7 @@ namespace LuaInterface
 		{
 			if (o == null || o.Owner != Owner) return false;
 			var L = Owner._L;
-			luanet.checkstack(L, 2, "LuaBase.Equals");
+			luaclr.checkstack(L, 2, "LuaBase.Equals");
 			rawpush(L);
 			o.rawpush(L);
 			bool ret = lua.rawequal(L, -1, -2);
@@ -141,7 +141,7 @@ namespace LuaInterface
 		public unsafe override int GetHashCode()
 		{
 			var L = Owner._L;
-			luanet.checkstack(L, 1, "LuaBase.GetHashCode");
+			luaclr.checkstack(L, 1, "LuaBase.GetHashCode");
 			rawpush(L);
 			void* ptr = lua.topointer(L, -1);
 			lua.pop(L,1);
@@ -157,7 +157,7 @@ namespace LuaInterface
 		{
 			if (o == null || o.Owner != Owner) return false;
 			var L = Owner._L;
-			luanet.checkstack(L, 2, "LuaBase.LuaEquals");
+			luaclr.checkstack(L, 2, "LuaBase.LuaEquals");
 			rawpush(L);
 			o.rawpush(L);
 			int oldTop = -3;
@@ -185,7 +185,7 @@ namespace LuaInterface
 		public override string ToString()
 		{
 			var L = Owner._L;
-			luanet.checkstack(L, 2, "LuaBase.ToString");
+			luaclr.checkstack(L, 2, "LuaBase.ToString");
 			luaL.getref(L, Owner.tostring_ref);
 			rawpush(L);
 			if (lua.pcall(L, 1, 1, 0) != LUA.ERR.Success)
@@ -205,7 +205,7 @@ namespace LuaInterface
 			get
 			{
 				var L = Owner._L;
-				luanet.checkstack(L, 1, "LuaBase.get_Indexer(String[])"); StackAssert.Start(L);
+				luaclr.checkstack(L, 1, "LuaBase.get_Indexer(String[])"); StackAssert.Start(L);
 				rawpush(L);
 				var ret = Owner.getNestedObject(L, -1, path);
 				lua.pop(L,1);                                             StackAssert.End();
@@ -214,7 +214,7 @@ namespace LuaInterface
 			set
 			{
 				var L = Owner._L;
-				luanet.checkstack(L, 1, "LuaBase.set_Indexer(String[])"); StackAssert.Start(L);
+				luaclr.checkstack(L, 1, "LuaBase.set_Indexer(String[])"); StackAssert.Start(L);
 				rawpush(L);
 				Owner.setNestedObject(L, -1, path, value);
 				lua.pop(L,1);                                             StackAssert.End();
@@ -227,7 +227,7 @@ namespace LuaInterface
 			get
 			{
 				var L = Owner._L;
-				luanet.checkstack(L, 2, "LuaBase.get_Indexer(String)"); StackAssert.Start(L);
+				luaclr.checkstack(L, 2, "LuaBase.get_Indexer(String)"); StackAssert.Start(L);
 				rawpush(L);
 				lua.getfield(L, -1, field);
 				var obj = Owner.translator.getObject(L,-1);
@@ -237,7 +237,7 @@ namespace LuaInterface
 			set
 			{
 				var L = Owner._L;
-				luanet.checkstack(L, 2, "LuaBase.set_Indexer(String)"); StackAssert.Start(L);
+				luaclr.checkstack(L, 2, "LuaBase.set_Indexer(String)"); StackAssert.Start(L);
 				rawpush(L);
 				Owner.translator.push(L,value);
 				lua.setfield(L, -2, field);
@@ -251,7 +251,7 @@ namespace LuaInterface
 			get
 			{
 				var L = Owner._L;
-				luanet.checkstack(L, 2, "LuaBase.get_Indexer(Object)"); StackAssert.Start(L);
+				luaclr.checkstack(L, 2, "LuaBase.get_Indexer(Object)"); StackAssert.Start(L);
 				rawpush(L);
 				Owner.translator.push(L,field);
 				lua.gettable(L,-2);
@@ -262,7 +262,7 @@ namespace LuaInterface
 			set
 			{
 				var L = Owner._L;
-				luanet.checkstack(L, 3, "LuaBase.set_Indexer(Object)"); StackAssert.Start(L);
+				luaclr.checkstack(L, 3, "LuaBase.set_Indexer(Object)"); StackAssert.Start(L);
 				rawpush(L);
 				Owner.translator.push(L,field);
 				Owner.translator.push(L,value);
@@ -280,7 +280,7 @@ namespace LuaInterface
 		public LuaType FieldType(object field)
 		{
 			var L = Owner._L;
-			luanet.checkstack(L, 2, "LuaBase.FieldType"); StackAssert.Start(L);
+			luaclr.checkstack(L, 2, "LuaBase.FieldType"); StackAssert.Start(L);
 			push(L);
 			Owner.translator.push(L, field);
 			lua.gettable(L,-2);
@@ -294,7 +294,7 @@ namespace LuaInterface
 		{
 			field.VerifySupport("field");
 			var L = Owner._L;
-			luanet.checkstack(L, 2, "LuaBase.GetValue"); StackAssert.Start(L);
+			luaclr.checkstack(L, 2, "LuaBase.GetValue"); StackAssert.Start(L);
 			rawpush(L);
 			field.push(L);
 			lua.gettable(L,-2);
@@ -308,7 +308,7 @@ namespace LuaInterface
 		{
 			field.VerifySupport("field"); value.VerifySupport("value");
 			var L = Owner._L;
-			luanet.checkstack(L, 3, "LuaBase.SetValue"); StackAssert.Start(L);
+			luaclr.checkstack(L, 3, "LuaBase.SetValue"); StackAssert.Start(L);
 			rawpush(L);
 			field.push(L);
 			value.push(L);
@@ -331,7 +331,7 @@ namespace LuaInterface
 			get
 			{
 				var L = Owner._L;
-				luanet.checkstack(L, 1, "LuaBase.LongLength");
+				luaclr.checkstack(L, 1, "LuaBase.LongLength");
 				rawpush(L);
 				var len = lua.objlen(L, -1);
 				lua.pop(L,1);
@@ -354,7 +354,7 @@ namespace LuaInterface
 		{
 			var L = Owner._L; var translator = Owner.translator;
 			int nArgs = args==null ? 0 : args.Length;
-			luanet.checkstack(L, nArgs + 1, "LuaBase.call");
+			luaclr.checkstack(L, nArgs + 1, "LuaBase.call");
 			int oldTop=lua.gettop(L);
 
 			translator.push(L,this);
@@ -378,7 +378,7 @@ namespace LuaInterface
 			get
 			{
 				var L = Owner._L;
-				luanet.checkstack(L, 2, "LuaBase.get_Metatable"); StackAssert.Start(L);
+				luaclr.checkstack(L, 2, "LuaBase.get_Metatable"); StackAssert.Start(L);
 				push(L);
 				if (lua.getmetatable(L,-1))
 				{
@@ -391,7 +391,7 @@ namespace LuaInterface
 			set
 			{
 				var L = Owner._L;
-				luanet.checkstack(L, 2, "LuaBase.set_Metatable"); StackAssert.Start(L);
+				luaclr.checkstack(L, 2, "LuaBase.set_Metatable"); StackAssert.Start(L);
 				push(L);
 				if (value == null) lua.pushnil(L);
 				else value.push(L);
@@ -410,7 +410,7 @@ namespace LuaInterface
 			get
 			{
 				var L = Owner._L;
-				luanet.checkstack(L, 2, "LuaBase.get_Environment"); StackAssert.Start(L);
+				luaclr.checkstack(L, 2, "LuaBase.get_Environment"); StackAssert.Start(L);
 				push(L);
 				lua.getfenv(L, -1);
 				if (!lua.isnil(L, -1))
@@ -424,7 +424,7 @@ namespace LuaInterface
 			set
 			{
 				var L = Owner._L;
-				luanet.checkstack(L, 2, "LuaBase.set_Environment"); StackAssert.Start(L);
+				luaclr.checkstack(L, 2, "LuaBase.set_Environment"); StackAssert.Start(L);
 				push(L);
 				if (value == null) lua.pushnil(L);
 				else value.push(L);

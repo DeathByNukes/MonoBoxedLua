@@ -57,6 +57,33 @@ LUA_API int luaclr_getfreestack (lua_State *L) {
   return res;
 }
 
+static void f_checkstack (lua_State *L, void *ud) {
+  int size = *cast(int *, ud);
+  luaD_checkstack(L, size);
+  if (L->ci->top < L->top + size)
+    L->ci->top = L->top + size;
+}
+LUA_API int luaclr_checkstack (lua_State *L, int size) {
+  int res = 0;
+  int status;
+  lua_lock(L);
+  if (size > LUAI_MAXCSTACK || (L->top - L->base + size) > LUAI_MAXCSTACK)
+    res = 1;  /* stack overflow */
+  else if (size > 0) {
+    status = luaD_rawrunprotected(L, f_checkstack, &size);
+    if (status != 0) {
+      if (status == LUA_ERRMEM) {
+        res = 2;
+      }
+      else {
+        luaD_throw(L, status);
+      }
+    }
+  }
+  lua_unlock(L);
+  return res;
+}
+
 LUA_API void luaclr_setbytecodeenabled (lua_State *L, int value) {
   lua_lock(L);
   lua_assert(value == 0 || value == 1);

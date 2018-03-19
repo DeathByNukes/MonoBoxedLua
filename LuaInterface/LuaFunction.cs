@@ -21,7 +21,7 @@ namespace LuaInterface
 		public unsafe void Dump(Stream output)
 		{
 			var L = Owner._L;
-			luanet.checkstack(L, 1, "LuaFunction.Dump");
+			luaclr.checkstack(L, 1, "LuaFunction.Dump");
 			int oldTop = lua.gettop(L);
 			push(L);
 			int err;

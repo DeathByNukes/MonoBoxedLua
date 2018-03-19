@@ -79,7 +79,7 @@ namespace LuaInterface.LuaAPI
 		public IEnumerator<StackIndexChild> GetEnumerator()
 		{
 			_log("GetEnumerator()");
-			luanet.checkstack(L, 2, "StackIndex.GetEnumerator");
+			luaclr.checkstack(L, 2, "StackIndex.GetEnumerator");
 			L.NullCheck();
 			var results = new List<StackIndexChild>();
 			int index = luanet.absoluteindex(L, Index);
@@ -129,7 +129,7 @@ namespace LuaInterface.LuaAPI
 		{
 			_keys[_keys.Length-1].VerifySupport();
 			var L = Parent.L;
-			luanet.checkstack(L, 2, "StackIndexChild.push"); StackAssert.Start(L);
+			luaclr.checkstack(L, 2, "StackIndexChild.push"); StackAssert.Start(L);
 			Dbg.Assert(_keys.All(k=>k.IsSupported));
 			var keys = _keys;
 
@@ -200,7 +200,7 @@ namespace LuaInterface.LuaAPI
 		{
 			_log("GetEnumerator()");
 			var L = Parent.L;
-			luanet.checkstack(L, 3, "StackIndexChild.GetEnumerator");
+			luaclr.checkstack(L, 3, "StackIndexChild.GetEnumerator");
 			var results = new List<StackIndexChild>();
 			this.push();
 			Dbg.Assert(_keys.All(k=>k.IsSupported));

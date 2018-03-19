@@ -74,7 +74,7 @@ namespace LuaInterface
 			if (L.IsNull) throw new ArgumentNullException("L");
 			if (luaclr.mainthread(L) != L)
 				throw new InvalidOperationException("LuaInterface.Lua initialized with a lua_State that isn't the main thread.");
-			luanet.checkstack(L, LUA.MINSTACK, "new Lua(lua.State)");
+			luaclr.checkstack(L, LUA.MINSTACK, "new Lua(lua.State)");
 
 			 // Check for existing LuaInterface marker
 			lua.pushstring(L, _LuaInterfaceMarker);
@@ -151,7 +151,7 @@ namespace LuaInterface
 		public void SecureLuaFunctions()
 		{
 			var L = _L;
-			luanet.checkstack(L, 2, "Lua.SecureLuaFunctions");
+			luaclr.checkstack(L, 2, "Lua.SecureLuaFunctions");
 
 			luaclr.setbytecodeenabled(L, false);
 
@@ -328,7 +328,7 @@ namespace LuaInterface
 			if (chunk == null) throw new ArgumentNullException("chunk");
 			Debug.Assert(chunk.IndexOf('\0') == -1, "must not contain null characters");
 			var L = _L;
-			luanet.checkstack(L, 1, "Lua.LoadString");
+			luaclr.checkstack(L, 1, "Lua.LoadString");
 			if (luaL.loadstring(L, chunk) == LUA.ERR.Success)
 				return new LuaFunction(L, this);
 			else
@@ -340,7 +340,7 @@ namespace LuaInterface
 			if (chunk == null || name == null) throw new ArgumentNullException(chunk == null ? "chunk" : "name");
 			Debug.Assert(chunk.IndexOf('\0') == -1, "must not contain null characters");
 			var L = _L;
-			luanet.checkstack(L, 1, "Lua.LoadString");
+			luaclr.checkstack(L, 1, "Lua.LoadString");
 			if (luaL.loadbuffer(L, chunk, name) == LUA.ERR.Success)
 				return new LuaFunction(L, this);
 			else
@@ -352,7 +352,7 @@ namespace LuaInterface
 		{
 			if (fileName == null) throw new ArgumentNullException("fileName");
 			var L = _L;
-			luanet.checkstack(L, 1, "Lua.LoadFile");
+			luaclr.checkstack(L, 1, "Lua.LoadFile");
 			if (luaL.loadfile(L, fileName) == LUA.ERR.Success)
 				return new LuaFunction(L, this);
 			else
@@ -367,7 +367,7 @@ namespace LuaInterface
 			if (chunk.Array == null) throw new ArgumentNullException("chunk");
 			// ArraySegment validates the offset and length when it is first constructed
 			var L = _L;
-			luanet.checkstack(L, 1, "Lua.LoadBuffer");
+			luaclr.checkstack(L, 1, "Lua.LoadBuffer");
 			LUA.ERR status;
 			fixed (byte* array = chunk.Array)
 				status = luaL.loadbuffer(L, new IntPtr(array + chunk.Offset), chunk.Count, name);
@@ -390,7 +390,7 @@ namespace LuaInterface
 			expression = "return "+expression;
 			var L = _L;
 			int arg_count = args == null ? 0 : args.Length;
-			luanet.checkstack(L, arg_count+1, "Lua.Eval");
+			luaclr.checkstack(L, arg_count+1, "Lua.Eval");
 			if (luaL.loadstring(L, expression) == LUA.ERR.Success)
 			{
 				for (int i = 0; i < arg_count; ++i)
@@ -419,7 +419,7 @@ namespace LuaInterface
 		public object[] DoString(string chunk, string chunkName)
 		{
 			var L = _L;
-			luanet.checkstack(L, 1, "Lua.DoString");
+			luaclr.checkstack(L, 1, "Lua.DoString");
 			int oldTop = lua.gettop(L);
 			if (luaL.loadbuffer(L, chunk, chunkName) == LUA.ERR.Success)
 				if (lua.pcall(L, 0, LUA.MULTRET, 0) == LUA.ERR.Success)
@@ -471,7 +471,7 @@ namespace LuaInterface
 		public object[] DoFile(string fileName)
 		{
 			var L = _L;
-			luanet.checkstack(L, 2, "Lua.DoFile");
+			luaclr.checkstack(L, 2, "Lua.DoFile");
 			int oldTop=lua.gettop(L);
 			lua.pushcfunction(L,tracebackFunction); // not removed by pcall
 			if (luaL.loadfile(L,fileName) == LUA.ERR.Success)
@@ -661,7 +661,7 @@ namespace LuaInterface
 			var L = _L;
 			if (L == _mainthread)
 				return null;
-			luanet.checkstack(L, 1, "Lua.GetCurrentThread");
+			luaclr.checkstack(L, 1, "Lua.GetCurrentThread");
 			lua.pushthread(L);
 			return new LuaThread(L, L, this);
 		}
@@ -673,7 +673,7 @@ namespace LuaInterface
 		public double GetNumber(string fullPath)
 		{
 			var L = _L;
-			luanet.checkstack(L, 2, "Lua.GetNumber"); StackAssert.Start(L);
+			luaclr.checkstack(L, 2, "Lua.GetNumber"); StackAssert.Start(L);
 			luanet.getnestedfield(L, LUA.GLOBALSINDEX, fullPath);
 			CheckType(L, fullPath, LUA.T.NUMBER);
 			var ret = lua.tonumber(L,-1);
@@ -684,7 +684,7 @@ namespace LuaInterface
 		public string GetString(string fullPath)
 		{
 			var L = _L;
-			luanet.checkstack(L, 2, "Lua.GetString"); StackAssert.Start(L);
+			luaclr.checkstack(L, 2, "Lua.GetString"); StackAssert.Start(L);
 			luanet.getnestedfield(L, LUA.GLOBALSINDEX, fullPath);
 			CheckType(L, fullPath, LUA.T.STRING);
 			var ret = lua.tostring(L,-1);
@@ -695,7 +695,7 @@ namespace LuaInterface
 		public LuaTable GetTable(string fullPath)
 		{
 			var L = _L;
-			luanet.checkstack(L, 2, "Lua.GetTable");
+			luaclr.checkstack(L, 2, "Lua.GetTable");
 			luanet.getnestedfield(L, LUA.GLOBALSINDEX, fullPath);
 			var type = lua.type(L,-1);
 			if (type == LUA.T.NIL)
@@ -717,7 +717,7 @@ namespace LuaInterface
 		public LuaFunction GetFunction(string fullPath)
 		{
 			var L = _L;                         StackAssert.Start(L);
-			luanet.checkstack(L, 2, "Lua.GetFunction");
+			luaclr.checkstack(L, 2, "Lua.GetFunction");
 			luanet.getnestedfield(L, LUA.GLOBALSINDEX, fullPath);
 			switch (lua.type(L,-1))
 			{
@@ -766,7 +766,7 @@ namespace LuaInterface
 		/// <summary>[-0, +0, e] Navigates a table in the top of the stack, returning the value of the specified field</summary>
 		internal object getNestedObject(lua.State L, int index, IEnumerable<string> fields)
 		{
-			luanet.checkstack(L, 2, "Lua.getNestedObject"); StackAssert.Start(L);
+			luaclr.checkstack(L, 2, "Lua.getNestedObject"); StackAssert.Start(L);
 			luanet.getnestedfield(L, index, fields);
 			var ret = translator.getObject(L,-1);
 			lua.pop(L,1);                                   StackAssert.End();
@@ -781,7 +781,7 @@ namespace LuaInterface
 		/// <summary>[-0, +0, e] Navigates a table to set the value of one of its fields</summary>
 		internal void setNestedObject(lua.State L, int index, IEnumerable<string> pathWithoutField, string field, object val)
 		{
-			luanet.checkstack(L, 2, "Lua.setNestedObject"); StackAssert.Start(L);
+			luaclr.checkstack(L, 2, "Lua.setNestedObject"); StackAssert.Start(L);
 			luanet.getnestedfield(L, index, pathWithoutField);
 			translator.push(L,val);
 			lua.setfield(L, -2, field);
@@ -800,7 +800,7 @@ namespace LuaInterface
 		public void NewTable(string fullPath, int narr, int nrec)
 		{
 			var L = _L;
-			luanet.checkstack(L, 2, "Lua.NewTable"); StackAssert.Start(L);
+			luaclr.checkstack(L, 2, "Lua.NewTable"); StackAssert.Start(L);
 			string[] path = fullPath.Split('.');
 			luanet.getnestedfield(L, LUA.GLOBALSINDEX, path.Take(path.Length-1));
 			lua.createtable(L, narr, nrec);
@@ -821,7 +821,7 @@ namespace LuaInterface
 		public LuaTable NewTable(int narr, int nrec)
 		{
 			var L = _L;
-			luanet.checkstack(L, 1, "Lua.NewTable");
+			luaclr.checkstack(L, 1, "Lua.NewTable");
 			lua.createtable(L, narr, nrec);
 			return new LuaTable(L, this) {IsOrphaned = true};
 		}
@@ -836,7 +836,7 @@ namespace LuaInterface
 		public LuaUserData NewUserData(UIntPtr size, LuaTable metatable)
 		{
 			var L = _L;
-			luanet.checkstack(L, 2, "Lua.NewUserData");
+			luaclr.checkstack(L, 2, "Lua.NewUserData");
 			lua.newuserdata(L, size);
 			if (metatable != null)
 			{
@@ -864,7 +864,7 @@ namespace LuaInterface
 			if (contents == null)
 				return null;
 			var L = _L;
-			luanet.checkstack(L, 1, "Lua.NewString");
+			luaclr.checkstack(L, 1, "Lua.NewString");
 			lua.pushstring(L, contents);
 			return new LuaString(L, this);
 		}
@@ -874,7 +874,7 @@ namespace LuaInterface
 			if (contents == null)
 				return null;
 			var L = _L;
-			luanet.checkstack(L, 1, "Lua.NewString");
+			luaclr.checkstack(L, 1, "Lua.NewString");
 			lua.pushstring(L, contents);
 			return new LuaString(L, this);
 		}
@@ -885,7 +885,7 @@ namespace LuaInterface
 		{
 			if (f == null) throw new ArgumentNullException("function");
 			var L = _L;
-			luanet.checkstack(L, 1, "Lua.NewThread");
+			luaclr.checkstack(L, 1, "Lua.NewThread");
 			var co = lua.newthread(L);
 			Debug.Assert(lua.gettop(co) == 0);
 			f.push(co);
@@ -973,7 +973,7 @@ namespace LuaInterface
 		{
 			if (type == null) throw new ArgumentNullException("type");
 			var L = _L;
-			luanet.checkstack(L, 1, "Lua.ImportType");
+			luaclr.checkstack(L, 1, "Lua.ImportType");
 			ObjectTranslator.pushType(L, type);
 			return new LuaUserData(L, this);
 		}

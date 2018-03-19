@@ -49,7 +49,7 @@ namespace LuaInterface
 			var L = owner._L;
 			var co = _co;
 			int narg = args == null ? 0 : args.Length;
-			luanet.checkstack(L, narg, "LuaThread.Resume");
+			luaclr.checkstack(L, narg, "LuaThread.Resume");
 			if (!lua.checkstack(co, narg))
 				throw new LuaException("too many arguments to resume");
 			var costatus = CoStatus(L, co);

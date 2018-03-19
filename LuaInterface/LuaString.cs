@@ -14,7 +14,7 @@ namespace LuaInterface
 			get
 			{
 				var L = Owner._L;
-				luanet.checkstack(L, 1, "LuaString.Value");
+				luaclr.checkstack(L, 1, "LuaString.Value");
 				push(L);
 				var ret = lua.tostring(L, -1);
 				lua.pop(L, 1);
@@ -28,7 +28,7 @@ namespace LuaInterface
 			get
 			{
 				var L = Owner._L;
-				luanet.checkstack(L, 1, "LuaString.RawValue");
+				luaclr.checkstack(L, 1, "LuaString.RawValue");
 				push(L);
 				int oldTop = -2;
 				try

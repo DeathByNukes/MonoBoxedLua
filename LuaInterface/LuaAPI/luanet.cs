@@ -123,9 +123,14 @@ namespace LuaInterface.LuaAPI
 			return lua.getstack(L, 0, ref ar); // returns unsuccessful if there is no stack
 		}
 
-		/// <summary>[-0, +0, m] luaL.where clone that returns a string rather than pushing to the stack.</summary>
+		/// <summary>[-0, +0, -] luaL.where clone that returns a string rather than pushing to the stack.</summary>
 		public static string where(lua.State L, int level)
 		{
+			/*
+				I checked lua_getinfo implementation and couldn't find any memory allocation for the 'S' or 'l' flags.
+				My guess is that the luaL_where documentation marked it as m because it uses lua_pushfstring.
+				- DBN
+			*/
 			var ar = new lua.Debug();
 			if (lua.getstack(L, level, ref ar))  // check function at level
 			{
@@ -136,16 +141,6 @@ namespace LuaInterface.LuaAPI
 			return "";  // else, no information available...
 		}
 
-		/// <summary>[-0, +0, m] Grows the stack size to top + <paramref name="sz"/> elements, throwing a CLR exception if the stack cannot grow to that size.</summary>
-		/// <param name="L"></param><param name="sz"></param><param name="mes">An additional text to go into the error message.</param>
-		/// <exception cref="LuaScriptException"></exception>
-		public static void checkstack(lua.State L, int sz, string mes)
-		{
-			Debug.Assert(!string.IsNullOrEmpty(mes));
-			if (!lua.checkstack(L, sz))
-				throw new LuaScriptException(string.Format("stack overflow ({0})", mes), luanet.where(L, 1));
-		}
-		
 		/// <summary>[-0, +0, m] Checks whether the value at the given acceptable index is of the type <paramref name="tname"/> (see <see cref="luaL.newmetatable"/>).</summary>
 		public static bool hasmetatable(lua.State L, int index, string tname)
 		{

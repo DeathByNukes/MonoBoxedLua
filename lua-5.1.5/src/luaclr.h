@@ -11,6 +11,8 @@ LUA_API void luaclr_settrythrowf (lua_State *L, luaclr_Try ftry, luaclr_Throw ft
 
 LUA_API int luaclr_getfreestack (lua_State *L);
 
+LUA_API int luaclr_checkstack (lua_State *L, int size);
+
 LUA_API void luaclr_setbytecodeenabled (lua_State *L, int value);
 
 LUA_API int luaclr_getbytecodeenabled (lua_State *L);
