@@ -4,13 +4,37 @@ using System.Diagnostics;
 namespace LuaInterface.LuaAPI
 {
 	/// <summary>This exception is for internal Lua use and should not be caught. (Catch and rethrow is ok though.)</summary>
+	[DebuggerDisplay("LuaInternalException({ErrCode}) DO NOT CATCH")]
 	public sealed class LuaInternalException : Exception
 	{
+		const string _Message = "A Lua error was thrown. This exception is for internal Lua use and should not be caught.";
 		private LuaInternalException(lua.State L, LUA.ERR errcode)
-		: base("A Lua error (LUA_ERR" + errcode.ToString() + ") was thrown. This exception is for internal Lua use and should not be caught.")
+		: base(_Message)
 		{
 			this.L = L;
 			this.ErrCode = errcode;
+		}
+
+		/// <summary>Accessing this property will terminate the process.</summary>
+		[DebuggerBrowsable(DebuggerBrowsableState.Never)]
+		public override string Message { get { return _badCall("Message"); } }
+
+		/// <summary>Calling this function will terminate the process. If you really need the string prior to rethrowing, call <see cref="ToStringSafe"/>.</summary>
+		public override string ToString() { return _badCall("ToString()"); }
+
+		/// <summary>Convert the exception to a string.</summary>
+		public string ToStringSafe() { return base.ToString(); }
+
+		string _badCall(string fn)
+		{
+			#if DEBUG
+			Debug.Fail("This exception is for internal Lua use and should not be caught.");
+			#else
+			if (Debugger.IsAttached)
+				Debugger.Break();
+			#endif
+			Environment.FailFast(string.Format("LuaInternalException.{0} was called. This might mean it was accidentally caught by a general catch, which can result in memory corruption.", fn));
+			throw null;
 		}
 
 		public readonly lua.State L;
@@ -72,7 +96,7 @@ namespace LuaInterface.LuaAPI
 			throw new LuaInternalException(this);
 		}
 		private LuaInternalException(LuaInternalException ex)
-		: base(ex.Message, ex)
+		: base(_Message, ex)
 		{
 			this.L = ex.L;
 			this.ErrCode = ex.ErrCode;
