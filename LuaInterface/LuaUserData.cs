@@ -19,7 +19,7 @@ namespace LuaInterface
 			get
 			{
 				var L = Owner._L;
-				luanet.checkstack(L, 1, "LuaUserData.Block");
+				luaclr.checkstack(L, 1, "LuaUserData.Block");
 				push(L);
 				var ret = new LPtr {
 					Address = lua.touserdata(L,-1),

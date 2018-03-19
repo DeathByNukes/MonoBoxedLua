@@ -22,7 +22,7 @@ namespace LuaInterface
 		public ObjectTranslator(lua.State L, Lua interpreter)
 		{
 			Debug.Assert(interpreter.IsSameLua(L));
-			luanet.checkstack(L, 1, "new ObjectTranslator");
+			luaclr.checkstack(L, 1, "new ObjectTranslator");
 			this.interpreter = interpreter;
 			typeChecker      = new CheckType(interpreter);
 			metaFunctions    = new MetaFunctions(L, this);

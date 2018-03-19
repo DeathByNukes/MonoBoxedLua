@@ -91,7 +91,7 @@ namespace LuaInterface
 			})(), "enum conversion to double isn't expected to throw exceptions");
 
 			StackAssert.Start(L);
-			luanet.checkstack(L, 3, "LuaRegistrationHelper._PushEnumeration");
+			luaclr.checkstack(L, 3, "LuaRegistrationHelper._PushEnumeration");
 			lua.createtable(L, 0, names.Length);
 			for (int i = 0; i < names.Length; ++i)
 			{

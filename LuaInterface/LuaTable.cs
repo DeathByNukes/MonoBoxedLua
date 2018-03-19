@@ -25,7 +25,7 @@ namespace LuaInterface
 		public ulong LongCount()
 		{
 			var L = Owner._L;
-			luanet.checkstack(L, 3, "LuaTable.LongCount"); StackAssert.Start(L);
+			luaclr.checkstack(L, 3, "LuaTable.LongCount"); StackAssert.Start(L);
 			ulong count = 0;
 			push(L);
 			lua.pushnil(L);
@@ -42,7 +42,7 @@ namespace LuaInterface
 		public void Clear()
 		{
 			var L = Owner._L;
-			luanet.checkstack(L, 4, "LuaTable.Clear"); StackAssert.Start(L);
+			luaclr.checkstack(L, 4, "LuaTable.Clear"); StackAssert.Start(L);
 			push(L);
 			lua.pushnil(L);
 			while (lua.next(L, -2))
@@ -61,7 +61,7 @@ namespace LuaInterface
 			get
 			{
 				var L = Owner._L;
-				luanet.checkstack(L, 3, "LuaTable.IsEmpty"); StackAssert.Start(L);
+				luaclr.checkstack(L, 3, "LuaTable.IsEmpty"); StackAssert.Start(L);
 				push(L);
 				lua.pushnil(L);
 				if (lua.next(L, -2))
@@ -84,7 +84,7 @@ namespace LuaInterface
 		public string Summarize(int strings_limit)
 		{
 			var L = Owner._L;
-			luanet.checkstack(L, 3, "LuaTable.Summarize");
+			luaclr.checkstack(L, 3, "LuaTable.Summarize");
 			push(L);
 			var ret = luanet.summarizetable(L, -1, strings_limit);
 			lua.pop(L,1);
@@ -99,7 +99,7 @@ namespace LuaInterface
 		public object RawGet(int field)
 		{
 			var L = Owner._L;
-			luanet.checkstack(L, 2, "LuaTable.RawGet"); StackAssert.Start(L);
+			luaclr.checkstack(L, 2, "LuaTable.RawGet"); StackAssert.Start(L);
 			push(L);
 			lua.rawgeti(L, -1, field);
 			var obj = Owner.translator.getObject(L, -1);
@@ -111,7 +111,7 @@ namespace LuaInterface
 		public object RawGet(string field)
 		{
 			var L = Owner._L;
-			luanet.checkstack(L, 2, "LuaTable.RawGet"); StackAssert.Start(L);
+			luaclr.checkstack(L, 2, "LuaTable.RawGet"); StackAssert.Start(L);
 			push(L);
 			lua.pushstring(L, field);
 			lua.rawget(L, -2);
@@ -124,7 +124,7 @@ namespace LuaInterface
 		public object RawGet(object field)
 		{
 			var L = Owner._L;
-			luanet.checkstack(L, 2, "LuaTable.RawGet"); StackAssert.Start(L);
+			luaclr.checkstack(L, 2, "LuaTable.RawGet"); StackAssert.Start(L);
 			push(L);
 			Owner.translator.push(L, field);
 			lua.rawget(L, -2);
@@ -138,7 +138,7 @@ namespace LuaInterface
 		{
 			field.VerifySupport("field");
 			var L = Owner._L;
-			luanet.checkstack(L, 2, "LuaTable.RawGetValue"); StackAssert.Start(L);
+			luaclr.checkstack(L, 2, "LuaTable.RawGetValue"); StackAssert.Start(L);
 			push(L);
 			field.push(L);
 			lua.rawget(L, -2);
@@ -151,7 +151,7 @@ namespace LuaInterface
 		public LuaValue RawGetValue(int field)
 		{
 			var L = Owner._L;
-			luanet.checkstack(L, 2, "LuaTable.RawGetValue"); StackAssert.Start(L);
+			luaclr.checkstack(L, 2, "LuaTable.RawGetValue"); StackAssert.Start(L);
 			push(L);
 			lua.rawgeti(L, -1, field);
 			var obj = LuaValue.read(L, -1, false);
@@ -164,7 +164,7 @@ namespace LuaInterface
 		{
 			field.VerifySupport("field"); value.VerifySupport("value");
 			var L = Owner._L;
-			luanet.checkstack(L, 3, "LuaTable.RawSetValue"); StackAssert.Start(L);
+			luaclr.checkstack(L, 3, "LuaTable.RawSetValue"); StackAssert.Start(L);
 			push(L);
 			field.push(L);
 			value.push(L);
@@ -177,7 +177,7 @@ namespace LuaInterface
 		{
 			value.VerifySupport("value");
 			var L = Owner._L;
-			luanet.checkstack(L, 2, "LuaTable.RawSetValue"); StackAssert.Start(L);
+			luaclr.checkstack(L, 2, "LuaTable.RawSetValue"); StackAssert.Start(L);
 			push(L);
 			value.push(L);
 			lua.rawseti(L, -2, field);
@@ -189,7 +189,7 @@ namespace LuaInterface
 		public void RawSet(int field, object value)
 		{
 			var L = Owner._L;
-			luanet.checkstack(L, 2, "LuaTable.RawSet"); StackAssert.Start(L);
+			luaclr.checkstack(L, 2, "LuaTable.RawSet"); StackAssert.Start(L);
 			push(L);
 			Owner.translator.push(L, value);
 			lua.rawseti(L, -2, field);
@@ -200,7 +200,7 @@ namespace LuaInterface
 		public void RawSet(string field, object value)
 		{
 			var L = Owner._L;
-			luanet.checkstack(L, 3, "LuaTable.RawSet"); StackAssert.Start(L);
+			luaclr.checkstack(L, 3, "LuaTable.RawSet"); StackAssert.Start(L);
 			push(L);
 			lua.pushstring(L, field);
 			Owner.translator.push(L, value);
@@ -212,7 +212,7 @@ namespace LuaInterface
 		public void RawSet(object field, object value)
 		{
 			var L = Owner._L;
-			luanet.checkstack(L, 3, "LuaTable.RawSet"); StackAssert.Start(L);
+			luaclr.checkstack(L, 3, "LuaTable.RawSet"); StackAssert.Start(L);
 			push(L);
 			Owner.translator.push(L, field);
 			Owner.translator.push(L, value);
@@ -229,7 +229,7 @@ namespace LuaInterface
 		public LuaType RawFieldType(object field)
 		{
 			var L = Owner._L;
-			luanet.checkstack(L, 2, "LuaTable.RawFieldType"); StackAssert.Start(L);
+			luaclr.checkstack(L, 2, "LuaTable.RawFieldType"); StackAssert.Start(L);
 			push(L);
 			Owner.translator.push(L, field);
 			lua.rawget(L,-2);
@@ -253,7 +253,7 @@ namespace LuaInterface
 		public void ForEach(Action<object, object> body)
 		{
 			var L = Owner._L; var translator = Owner.translator;
-			luanet.checkstack(L, 3, "LuaTable.ForEach");
+			luaclr.checkstack(L, 3, "LuaTable.ForEach");
 			int oldTop = lua.gettop(L);
 			push(L);
 			try
@@ -277,7 +277,7 @@ namespace LuaInterface
 		public void ForEachI(Action<int, object> body)
 		{
 			var L = Owner._L; var translator = Owner.translator;
-			luanet.checkstack(L, 2, "LuaTable.ForEachI");
+			luaclr.checkstack(L, 2, "LuaTable.ForEachI");
 			int oldTop = lua.gettop(L);
 			push(L);
 			try
@@ -303,7 +303,7 @@ namespace LuaInterface
 		public void ForEachIV(Action<int, LuaValue> body)
 		{
 			var L = Owner._L;
-			luanet.checkstack(L, 2, "LuaTable.ForEachIV");
+			luaclr.checkstack(L, 2, "LuaTable.ForEachIV");
 			int oldTop = lua.gettop(L);
 			push(L);
 			try
@@ -331,7 +331,7 @@ namespace LuaInterface
 		public void ForEachS(Action<string, object> body)
 		{
 			var L = Owner._L; var translator = Owner.translator;
-			luanet.checkstack(L, 3, "LuaTable.ForEachS");
+			luaclr.checkstack(L, 3, "LuaTable.ForEachS");
 			int oldTop = lua.gettop(L);
 			push(L);
 			try
@@ -353,7 +353,7 @@ namespace LuaInterface
 		public void ForEachSV(Action<string, LuaValue> body)
 		{
 			var L = Owner._L;
-			luanet.checkstack(L, 3, "LuaTable.ForEachSV");
+			luaclr.checkstack(L, 3, "LuaTable.ForEachSV");
 			int oldTop = lua.gettop(L);
 			push(L);
 			try
@@ -375,7 +375,7 @@ namespace LuaInterface
 		public void ForEachV(Action<LuaValue, object> body)
 		{
 			var L = Owner._L; var translator = Owner.translator;
-			luanet.checkstack(L, 3, "LuaTable.ForEachV");
+			luaclr.checkstack(L, 3, "LuaTable.ForEachV");
 			int oldTop = lua.gettop(L);
 			push(L);
 			try
@@ -396,7 +396,7 @@ namespace LuaInterface
 		public void ForEachVV(Action<LuaValue, LuaValue> body)
 		{
 			var L = Owner._L;
-			luanet.checkstack(L, 3, "LuaTable.ForEachVV");
+			luaclr.checkstack(L, 3, "LuaTable.ForEachVV");
 			int oldTop = lua.gettop(L);
 			push(L);
 			try

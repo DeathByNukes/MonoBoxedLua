@@ -35,6 +35,11 @@ namespace LuaInterface.LuaAPI
 		/// <summary>[-0, +0, -] Returns how many free slots are currently allocated on the stack.</summary>
 		[DllImport(DLL,CallingConvention=CC,EntryPoint="luaclr_getfreestack")] public static extern int getfreestack(lua.State L);
 
+		/// <summary>[-0, +0, -] lua_checkstack clone that can't throw memory errors.</summary>
+		[DllImport(DLL,CallingConvention=CC,EntryPoint="luaclr_checkstack")] public static extern StackStatus checkstack(lua.State L, int sz);
+		/// <summary>Status codes from <see cref="checkstack(lua.State, int)"/>.</summary>
+		public enum StackStatus { Success, Overflow, AllocFailure }
+
 		/// <summary>[-0, +0, -] If set to false, the Lua parser will not recognize LUA_SIGNATURE and so will not ever invoke the bytecode parser.</summary>
 		[DllImport(DLL,CallingConvention=CC,EntryPoint="luaclr_setbytecodeenabled")] public static extern void setbytecodeenabled(lua.State L, bool value);
 		/// <summary>[-0, +0, -] Get the current <see cref="setbytecodeenabled"/> setting. For new Lua states, the default is true.</summary>
@@ -206,6 +211,26 @@ namespace LuaInterface.LuaAPI
 			if (cast != null)
 				cast.Rethrow();
 			return ex;
+		}
+
+		/// <summary>[-0, +0, -] Grows the stack size to top + <paramref name="sz"/> elements, throwing a CLR exception if the stack cannot grow to that size.</summary>
+		/// <param name="L"></param><param name="sz"></param><param name="mes">An additional text to go into the error message.</param>
+		/// <exception cref="LuaScriptException"></exception>
+		public static void checkstack(lua.State L, int sz, string mes)
+		{
+			Debug.Assert(!string.IsNullOrEmpty(mes));
+			var status = luaclr.checkstack(L, sz);
+			if (status == StackStatus.Success)
+				return;
+			string format;
+			if (status == StackStatus.Overflow)
+				format = "stack overflow ({0})";
+			else
+			{
+				Debug.Assert(status == StackStatus.AllocFailure);
+				format = "not enough memory ({0})";
+			}
+			throw new LuaScriptException(string.Format(format, mes), luanet.where(L, 1));
 		}
 
 		/// <summary>[-0, +0, v] Raises a Lua error "out of memory" without making any CLR heap allocations.</summary>

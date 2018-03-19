@@ -270,5 +270,45 @@ namespace LuaInterfaceTest
 				Console.WriteLine(GetPCallError<string>(lua.DoString("return pcall(callback)")));
 			}
 		}
+		[TestMethod] public void StackOverflow()
+		{
+			const int LUAI_MAXCSTACK = 8000;
+			using (var lua = new Lua())
+			{
+				var L = LuaInterface.LuaAPI.luanet.getstate(lua);
+				Action[] bodies =
+				{
+					()=> {
+						lua.CPCall(() => {
+							LuaInterface.LuaAPI.luaL.checkstack(L, LUAI_MAXCSTACK+1, "luaL path 1");
+						});
+					},
+					()=> {
+						lua.CPCall(() => {
+							LuaInterface.LuaAPI.lua.pushnil(L);
+							LuaInterface.LuaAPI.luaL.checkstack(L, LUAI_MAXCSTACK, "luaL path 2");
+						});
+					},
+					()=> {
+						LuaInterface.LuaAPI.luaclr.checkstack(L, LUAI_MAXCSTACK+1, "luaclr path 1");
+					},
+					()=> {
+						LuaInterface.LuaAPI.lua.pushnil(L);
+						LuaInterface.LuaAPI.luaclr.checkstack(L, LUAI_MAXCSTACK, "luaclr path 2");
+					},
+				};
+				foreach (var body in bodies)
+				try
+				{
+					body();
+					Assert.Fail("No error was thrown.");
+				}
+				catch (LuaScriptException ex)
+				{
+					Assert.IsTrue(ex.Message.Contains("stack overflow"), "Error was not a stack overflow.");
+					LuaInterface.LuaAPI.lua.settop(L, 0);
+				}
+			}
+		}
 	}
 }
