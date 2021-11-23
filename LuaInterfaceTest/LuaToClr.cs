@@ -1,4 +1,5 @@
-﻿using LuaInterface;
+﻿using System;
+using LuaInterface;
 
 namespace LuaInterfaceTest
 {
@@ -104,6 +105,50 @@ namespace LuaInterfaceTest
 				Assert.AreEqual(TestEnum.A, lua.Eval("TestEnum.A"));
 				Assert.AreEqual(TestEnum.B, lua.Eval("...", TestEnum.B));
 				Assert.AreEqual(TestEnum.C, lua.Eval<TestEnum>("TestEnum.C"));
+			}
+		}
+
+		[TestMethod] public void Delegate()
+		{
+			using (var lua = new Lua())
+			{
+				int a = 0;
+				lua["a"] = new Action(() => ++a);
+
+				try
+				{
+					lua.DoString("a()");
+					Assert.Fail("Update this unit test if support for calling delegates directly has been added.");
+				}
+				catch (LuaScriptException ex)
+				{
+					Assert.AreEqual(@"[string ""a()""]:1: attempt to call global 'a' (a userdata value)", ex.Message);
+				}
+				Assert.AreEqual(0, a);
+
+				lua.DoString("a:Invoke()");
+				Assert.AreEqual(1, a);
+
+				int b = 0;
+				lua["b"] = new Action<Func<int,int>>(f => b = f(b));
+
+				lua.DoString("b:Invoke(function(current) return current + 1 end)");
+				Assert.AreEqual(1, b);
+
+				try
+				{
+					lua.DoString("b:Invoke(function(current) return {} end)");
+					Assert.Fail("Can't convert table to int.");
+				}
+				catch (LuaScriptException ex_outer)
+				{
+					UAssert.IsInstanceOf<NullReferenceException>(ex_outer.InnerException);
+					var ex = (NullReferenceException) ex_outer.InnerException;
+					Assert.AreEqual("LuaInterface_generatedcode", ex.Source);
+					Assert.AreEqual("LuaGeneratedClass", ex.TargetSite.DeclaringType.FullName.Substring(0, "LuaGeneratedClass".Length));
+					Assert.AreEqual("Int32 CallFunction(Int32)", ex.TargetSite.ToString());
+					// todo: improve generated code to throw a proper exception and update this test
+				}
 			}
 		}
 	}
