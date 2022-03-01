@@ -28,7 +28,7 @@ namespace LuaInterface.LuaAPI
 		string _badCall(string fn)
 		{
 			#if DEBUG
-			Debug.Fail("This exception is for internal Lua use and should not be caught.");
+			Debug.Assert(false, "This exception is for internal Lua use and should not be caught.");
 			#else
 			if (Debugger.IsAttached)
 				Debugger.Break();
