@@ -219,15 +219,24 @@ namespace LuaInterface.LuaAPI
 		public static void checkstack(lua.State L, int sz, string mes)
 		{
 			Debug.Assert(!string.IsNullOrEmpty(mes));
-			var status = luaclr.checkstack(L, sz);
-			if (status == StackStatus.Success)
-				return;
 			string format;
-			if (status == StackStatus.Overflow)
-				format = "stack overflow ({0})";
+			if (false) // temporarily removed because it isn't in the cross-built binaries
+			{
+				var status = luaclr.checkstack(L, sz); // temporarily removed because it isn't in the cross-built binaries
+				if (status == StackStatus.Success)
+					return;
+				if (status == StackStatus.Overflow)
+					format = "stack overflow ({0})";
+				else
+				{
+					Debug.Assert(status == StackStatus.AllocFailure);
+					format = "not enough memory ({0})";
+				}
+			}
 			else
 			{
-				Debug.Assert(status == StackStatus.AllocFailure);
+				if (lua.checkstack(L, sz))
+					return;
 				format = "not enough memory ({0})";
 			}
 			throw new LuaScriptException(string.Format(format, mes), luanet.where(L, 1));
