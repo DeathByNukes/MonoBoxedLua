@@ -547,7 +547,7 @@ namespace LuaInterface
 
 			pushObject(L,o);
 		}
-		
+
 
 		static bool IsInteger(double x) {
 			return Math.Ceiling(x) == x;
@@ -628,7 +628,7 @@ namespace LuaInterface
 					extractValue = null;
 					Debug.WriteLine("Type wasn't correct");
 				}
-				if (extractValue != null)  
+				if (extractValue != null)
 				{
 					int index = paramList.Add(extractValue(L, currentLuaParam));
 
@@ -718,6 +718,34 @@ namespace LuaInterface
 
 			Debug.WriteLine("Type wasn't Params object.");
 			return false;
+		}
+
+		internal List<Predicate<MemberInfo>> memberFilters = new List<Predicate<MemberInfo>>();
+		/// <summary>[-0, +0, -, no throw] Checks if the member is accessible from inside the sandbox.</summary>
+		internal bool memberIsAllowed(MemberInfo member)
+		{
+			var filters = memberFilters;
+			if (member == null || filters.Count == 0)
+				return true;
+			try
+			{
+				for (int i = 0; i < filters.Count; i++) // Don't store the count in case a filter changes it.
+					if (!filters[i](member))
+						return false;
+				return true;
+			}
+			catch (Exception ex)
+			{
+				try
+				{
+					Debug.Assert(false);
+					if (Debugger.IsAttached)
+						Debugger.Break();
+					Environment.FailFast("Exception was thrown by member filter, which is not permitted.", ex);
+				}
+				catch {}
+				for (;;) Environment.FailFast("Exception was thrown by member filter, which is not permitted.");
+			}
 		}
 	}
 }

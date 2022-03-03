@@ -312,7 +312,37 @@ namespace LuaInterface
 
 		#endregion
 
+		#region MemberFilter
 
+		/// <summary>Member filters are hooks that control what individual members of managed types are accessible to Lua. They are not allowed to throw exceptions.</summary>
+		/// <exception cref="ArgumentNullException"></exception>
+		public void AddMemberFilter(Predicate<MemberInfo> filter)
+		{
+			if (filter == null) throw new ArgumentNullException("filter");
+			translator.memberFilters.Add(filter);
+		}
+		/// <summary>Member filters are hooks that control what individual members of managed types are accessible to Lua.</summary>
+		/// <exception cref="ArgumentNullException"></exception>
+		public bool RemoveMemberFilter(Predicate<MemberInfo> filter)
+		{
+			if (filter == null) throw new ArgumentNullException("filter");
+			return translator.memberFilters.Remove(filter);
+		}
+		/// <summary>Member filters are hooks that control what individual members of managed types are accessible to Lua.</summary>
+		/// <exception cref="ArgumentOutOfRangeException"></exception>
+		public void RemoveMemberFilter(int index)
+		{
+			translator.memberFilters.RemoveAt(index);
+		}
+		/// <summary>Member filters are hooks that control what individual members of managed types are accessible to Lua.</summary>
+		public void ClearMemberFilters()
+		{
+			translator.memberFilters.Clear();
+		}
+		/// <summary>Member filters are hooks that control what individual members of managed types are accessible to Lua.</summary>
+		public IList<Predicate<MemberInfo>> MemberFilters { get { return translator.memberFilters.AsReadOnly(); } }
+
+		#endregion
 
 		/// <summary>True while a script is being executed</summary>
 		public bool IsExecuting { get { return luanet.infunction(_L); } }
@@ -952,7 +982,7 @@ namespace LuaInterface
 			luaclr.pushcfunction(L, new LuaMethodWrapper(translator, function.Target, method.DeclaringType, method).call);
 			return new LuaFunction(L, this);
 		}
-		
+
 		/// <summary><para>Loads all types in the assembly just like the Lua function load_assembly.</para><para>Lua scripts can access static members and constructors of loaded types via the import_type function.</para></summary>
 		public void LoadAssembly(Assembly assembly)
 		{

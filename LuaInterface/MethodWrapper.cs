@@ -122,7 +122,7 @@ namespace LuaInterface
 					targetObject = isStatic ? null : _ExtractTarget(L, 1);
 
 					//lua.remove(L,1); // Pops the receiver
-					if (_LastCalledMethod.cachedMethod != null) // Cached?
+					if (_LastCalledMethod.cachedMethod != null && _Translator.memberIsAllowed(_LastCalledMethod.cachedMethod)) // Cached?
 					{
 						int numStackToSkip = isStatic ? 0 : 1; // If this is an instance invoe we will have an extra arg on the stack for the targetObject
 						int numArgsPassed = lua.gettop(L) - numStackToSkip;
@@ -189,8 +189,13 @@ namespace LuaInterface
 							bool isMethod = _Translator.matchParameters(L, m, ref _LastCalledMethod);
 							if (isMethod)
 							{
-								hasMatch = true;
-								break;
+								if (_Translator.memberIsAllowed(member))
+								{
+									hasMatch = true;
+									break;
+								}
+								if (_Members.Length == 1)
+									return luaL.error(L, "method call failed (access denied)");
 							}
 						}
 						if (!hasMatch)
@@ -203,6 +208,9 @@ namespace LuaInterface
 				}
 				else // Method from MethodBase instance
 				{
+					if (!_Translator.memberIsAllowed(methodToCall))
+						return luaL.error(L, "method call failed (access denied)");
+
 					if (methodToCall.ContainsGenericParameters)
 					{
 						// bool isMethod = //* not used
@@ -241,6 +249,8 @@ namespace LuaInterface
 
 				if (failedCall)
 				{
+					if (!_Translator.memberIsAllowed(_LastCalledMethod.cachedMethod))
+						return luaL.error(L, "method call failed (access denied)");
 					luaL.checkstack(L, _LastCalledMethod.outList.Length + 6, "MethodWrapper.call");
 					try
 					{

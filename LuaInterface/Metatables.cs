@@ -157,6 +157,8 @@ namespace LuaInterface
 						ParameterInfo[] actualParms = mInfo.GetParameters();
 						if (actualParms.Length != 1) //check if the signature matches the input
 							continue;
+						if (!translator.memberIsAllowed(mInfo))
+							continue;
 						// Get the index in a form acceptable to the getter
 						index = translator.getAsType(L, 2, actualParms[0].ParameterType);
 						// Just call the indexer - if out of bounds an exception will happen
@@ -287,6 +289,8 @@ namespace LuaInterface
 				return 2;
 
 			case MemberTypes.Field:
+				if (!translator.memberIsAllowed(member))
+					return luaL.error(L, "field read failed (access denied)");
 				try { value = ((FieldInfo) member).GetValue(obj); }
 				catch { goto default; }
 				translator.push(L, value);
@@ -294,6 +298,8 @@ namespace LuaInterface
 
 			case MemberTypes.Property:
 				// todo: support indexed properties
+				if (!translator.memberIsAllowed(member))
+					return luaL.error(L, "property call failed (access denied)");
 				try { value = ((PropertyInfo) member).GetValue(obj, null); }
 				catch (TargetInvocationException ex) { return translator.throwError(L, luaclr.verifyex(ex.InnerException)); }
 				catch { goto default; }
@@ -301,6 +307,8 @@ namespace LuaInterface
 				break;
 
 			case MemberTypes.Event:
+				if (!translator.memberIsAllowed(member))
+					return luaL.error(L, "event read failed (access denied)");
 				value = new RegisterEventHandler(translator.pendingEvents, obj, (EventInfo) member);
 				translator.push(L, value);
 				break;
@@ -378,13 +386,16 @@ namespace LuaInterface
 					else
 					{
 						// Try to see if we have a this[] accessor
-						MethodInfo setter = type.GetMethod("set_Item");
+						MethodInfo setter = type.GetMethod("set_Item"); // todo: overloads
 						if (setter == null)
 							return luaL.error(L, detailMessage); // Pass the original message from trySetMember because it is probably best
 
 						ParameterInfo[] args = setter.GetParameters();
 						if (args.Length != 2) // avoid throwing IndexOutOfRangeException for functions that take less than 2 arguments. that would be confusing in this context.
 							return luaL.error(L, detailMessage);
+
+						if (!translator.memberIsAllowed(setter))
+							return luaL.error(L, "index setter call failed (access denied)");
 
 						object index = translator.getAsType(L, 2, args[0].ParameterType);
 						// The new value the user specified
@@ -397,7 +408,7 @@ namespace LuaInterface
 				}
 				catch (TargetInvocationException ex) { return translator.throwError(L, luaclr.verifyex(ex.InnerException)); }
 				catch (LuaInternalException) { throw; }
-				catch (Exception ex) { return luaL.error(L, "Index setter call failed: "+ex.Message); }
+				catch (Exception ex) { return luaL.error(L, "index setter call failed ("+ex.Message+")"); }
 			}
 		}
 
@@ -444,13 +455,18 @@ namespace LuaInterface
 				}
 				member = members[0];
 				if (!(member is MethodBase))
+				{
+					Debug.Assert(members.Length == 1); // todo: support other overloads
 					setMemberCache(targetType, fieldName, member);
+				}
 			}
 
 			object val;
 			switch (member.MemberType)
 			{
 			case MemberTypes.Field:
+				if (!translator.memberIsAllowed(member))
+					luaL.error(L, "field write failed (access denied)");
 				var field = (FieldInfo) member;
 				val = translator.getAsType(L, 3, field.FieldType);
 
@@ -461,11 +477,13 @@ namespace LuaInterface
 				}
 				catch (Exception ex)
 				{
-					detailMessage = "Field write failed: "+ex.Message;
+					detailMessage = "field write failed ("+ex.Message+")";
 					return false;
 				}
 
 			case MemberTypes.Property:
+				if (!translator.memberIsAllowed(member))
+					luaL.error(L, "property setter call failed (access denied)");
 				PropertyInfo property = (PropertyInfo)member;
 				val = translator.getAsType(L, 3, property.PropertyType);
 
@@ -481,7 +499,7 @@ namespace LuaInterface
 				}
 				catch (Exception ex)
 				{
-					detailMessage = "Property setter call failed: "+ex.Message;
+					detailMessage = "property setter call failed ("+ex.Message+")";
 					return false;
 				}
 
@@ -555,14 +573,20 @@ namespace LuaInterface
 				foreach (ConstructorInfo constructor in constructors)
 				if (translator.matchParameters(L, constructor, ref validConstructor))
 				{
+					if (!translator.memberIsAllowed(constructor))
+					{
+						if (constructors.Length == 1)
+							return luaL.error(L, "constructor call failed (access denied)");
+						continue;
+					}
 					object result;
 					try { result = constructor.Invoke(validConstructor.args); }
 					catch (TargetInvocationException ex) { return translator.throwError(L, luaclr.verifyex(ex.InnerException)); }
-					catch (Exception ex) { return luaL.error(L, "Constructor call failed: "+ex.Message); }
+					catch (Exception ex) { return luaL.error(L, "constructor call failed ("+ex.Message+")"); }
 					translator.push(L, result);
 					return 1;
 				}
-				return luaL.error(L, klass.UnderlyingSystemType+" constructor arguments do not match");
+				return luaL.error(L, "constructor arguments do not match ("+klass.UnderlyingSystemType+")");
 			}
 		}
 	}
