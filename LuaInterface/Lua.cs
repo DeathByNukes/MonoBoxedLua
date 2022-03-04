@@ -198,6 +198,16 @@ namespace LuaInterface
 			lua.setglobal(L, "loadfile");
 			lua.pushcclosure(L, _dofile, 1); // upvalue(1) = loadfile
 			lua.setglobal(L, "dofile");
+
+			// disallow all reflection
+			luanet.addtranslator(this, (o, type) =>
+			{
+				var ns = type.Namespace;
+				if (ns == null || !ns.StartsWith("System.Reflect", StringComparison.Ordinal))
+					return false;
+				lua.pushstring(L, o.ToString());
+				return true;
+			});
 		}
 		// wrapper around the real loadstring function (must be stored in an upvalue) that throws an error if the string is bytecode
 		static unsafe readonly lua.CFunction _loadstring = L =>

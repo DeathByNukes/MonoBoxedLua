@@ -545,13 +545,6 @@ namespace LuaInterface
 						return;
 			}
 
-			// disallow all reflection
-			if ((o.GetType().Namespace ?? "").StartsWith("System.Reflect", StringComparison.Ordinal))
-			{
-				lua.pushstring(L, o.ToString());
-				return;
-			}
-
 			pushObject(L,o);
 		}
 		readonly internal List<Func<object, Type, bool>> userTranslators = new List<Func<object, Type, bool>>();

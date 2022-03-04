@@ -24,7 +24,7 @@ namespace LuaInterfaceTest
 			using (var lua = new Lua())
 			{
 				// with access to the object returned by GetType() it is possible to use MethodInfo.Invoke on arbitrary methods
-				// therefore, ObjectTranslator.push blacklists all types in the System.Reflection namespace
+				// therefore, SecureLuaFunctions blacklists all types in the System.Reflection namespace
 				// blacklisted types are converted to strings (ToString) and the string is pushed instead.
 				lua["object"] = new object();
 				lua.DoString(@"t = object:GetType()");
