@@ -15,7 +15,7 @@ namespace LuaInterface
 	/// <para>The As* properties attempt to cast to the desired value and return null if the cast fails. They do not throw any exceptions.</para>
 	/// <para>The TryGetAs methods attempt to cast to the same type as the argument. If the cast succeeds, the value is assigned to the specified variable; otherwise, the variable is left unchanged and false is returned. Warning: <see cref="TryGetAs(ref string)"/> operates the same as all the other overloads; it considers nil to be a non-string type and will never set a string variable to null.</para>
 	/// </remarks>
-	[StructLayout(LayoutKind.Auto)] public struct LuaValue
+	[StructLayout(LayoutKind.Auto)] public struct LuaValue : luanet.IPushable
 	{
 		[StructLayout(LayoutKind.Explicit)] struct Union
 		{
@@ -211,7 +211,9 @@ namespace LuaInterface
 		}
 
 		/// <summary>[-0, +1, e] Pushes the value, or raises a Lua error if the value is unknown. (see <see cref="IsSupported"/>)</summary>
-		public void push(lua.State L)
+		void luanet.IPushable.push(lua.State L) { this.push(L); }
+		/// <summary>[-0, +1, e] Pushes the value, or raises a Lua error if the value is unknown. (see <see cref="IsSupported"/>)</summary>
+		internal void push(lua.State L)
 		{
 			switch (this.Type)
 			{

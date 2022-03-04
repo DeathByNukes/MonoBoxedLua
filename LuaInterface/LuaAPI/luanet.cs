@@ -63,15 +63,17 @@ namespace LuaInterface.LuaAPI
 		{
 			return interpreter._L;
 		}
-		/// <summary>[-0, +1, e] Pushes the referenced object onto its owner's stack.</summary>
-		[MethodImpl(INLINE)] public static void pushobject(lua.State L, LuaBase o)
+		/// <summary>Implemented by objects that can translate themselves to a Lua value.</summary>
+		public interface IPushable
+		{
+			/// <summary>[-0, +1, e] Pushes a Lua translation of the object to the top of the Lua stack.</summary>
+			void push(lua.State L);
+		}
+		/// <summary>[-0, +1, e] Pushes a translation of the referenced object onto the stack.</summary>
+		[MethodImpl(INLINE)] public static void pushobject<T>(lua.State L, T o) where T : IPushable // Generic so structs don't need to be boxed.
 		{
 			if (o == null)
 				lua.pushnil(L);
-			else if (o.IsDisposed)
-				luaL.error(L, "Attempted to use a disposed {0}.", o.GetType().Name);
-			else if (!o.Owner.IsSameLua(L))
-				luaL.error(L, o.CrossInterpreterError());
 			else
 				o.push(L);
 		}

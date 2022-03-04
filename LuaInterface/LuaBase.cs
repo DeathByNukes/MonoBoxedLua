@@ -5,7 +5,7 @@ using LuaInterface.LuaAPI;
 namespace LuaInterface
 {
 	/// <summary>Base class for all Lua object references.</summary>
-	public abstract class LuaBase : IDisposable
+	public abstract class LuaBase : IDisposable, luanet.IPushable
 	{
 		#region Constructor / State
 
@@ -84,6 +84,16 @@ namespace LuaInterface
 			Owner = null;
 			//if (disposing)
 			//	/* dispose managed objects here */;
+		}
+
+		void luanet.IPushable.push(lua.State L)
+		{
+			if (this.IsDisposed)
+				luaL.error(L, "Attempted to use a disposed {0}.", this.GetType().Name);
+			else if (!_interpreter.IsSameLua(L))
+				luaL.error(L, this.CrossInterpreterError());
+			else
+				this.push(L);
 		}
 
 		/// <summary>[-0, +1, -] Push the referenced object onto the stack. The type of the value is guaranteed to match the class.</summary>

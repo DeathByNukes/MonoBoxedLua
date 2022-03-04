@@ -529,14 +529,12 @@ namespace LuaInterface
 				              if (t.Owner != interpreter) luaL.error(L, t.CrossInterpreterError());
 				              t.push(L); return; }  }
 			#endif
-			{	var x = o as LuaBase;
-				if(x!=null) { if (x.Owner != interpreter) luaL.error(L, x.CrossInterpreterError());
-				              x.push(L); return; }  }
+
+			{	var x = o as luanet.IPushable;
+				if(x!=null) { x.push(L); return; }  }
 
 			{	var x = o as lua.CFunction;
 				if(x!=null) { luaclr.pushcfunction(L,x); return; }  }
-
-			if(o is LuaValue) { ((LuaValue)o).push(L); return; }
 
 			// disallow all reflection
 			if ((o.GetType().Namespace ?? "").StartsWith("System.Reflect", StringComparison.Ordinal))
