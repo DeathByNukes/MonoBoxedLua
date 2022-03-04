@@ -171,12 +171,14 @@ namespace LuaInterface
 					difftime = o.difftime,
 					time     = o.time,
 				}
-				io = nil
-				package = nil
-				module  = nil
-				require = nil
+				io            = nil
+				package       = nil
+				module        = nil
+				require       = nil
+				load          = nil
 				load_assembly = nil
 				make_object	  = nil
+				free_object	  = nil
 				free_object	  = nil
 			");
 
@@ -189,9 +191,8 @@ namespace LuaInterface
 				lua.setglobal(L, "loadstring");
 			}
 
-			luaclr.pushcfunction(L, L2 => luaL.error(L2, "load() is disabled because a secure version is not implemented yet."));
-			lua.setglobal(L, "load");
-
+			//luaclr.pushcfunction(L, todo);
+			//lua.setglobal(L, "load");
 			luaclr.pushcfunction(L, _loadfile);
 			lua.pushvalue(L, -1);
 			lua.setglobal(L, "loadfile");
