@@ -536,6 +536,15 @@ namespace LuaInterface
 			{	var x = o as lua.CFunction;
 				if(x!=null) { luaclr.pushcfunction(L,x); return; }  }
 
+			var translators = this.userTranslators;
+			if (translators.Count != 0)
+			{
+				var type = o.GetType();
+				for (int i = 0; i < translators.Count; i++) // Don't store the count in case it changes mid-loop.
+					if (translators[i](o, type))
+						return;
+			}
+
 			// disallow all reflection
 			if ((o.GetType().Namespace ?? "").StartsWith("System.Reflect", StringComparison.Ordinal))
 			{
@@ -545,6 +554,7 @@ namespace LuaInterface
 
 			pushObject(L,o);
 		}
+		readonly internal List<Func<object, Type, bool>> userTranslators = new List<Func<object, Type, bool>>();
 
 
 		static bool IsInteger(double x) {
