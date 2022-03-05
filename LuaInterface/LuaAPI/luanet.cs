@@ -297,16 +297,18 @@ namespace LuaInterface.LuaAPI
 			}
 		}
 
+		public delegate bool translator(lua.State L, Lua interpreter, object o, Type type);
+
 		/// <summary>Translators are hooks that intercept objects about to be converted to Lua userdata and handle pushing them to the stack manually. Return true if pushed successfully, false if not handled and nothing pushed. They should not throw exceptions but can raise Lua errors. </summary>
 		/// <exception cref="ArgumentNullException"></exception>
-		public static void addtranslator(Lua lua, Func<object, Type, bool> filter)
+		public static void addtranslator(Lua lua, luanet.translator filter)
 		{
 			if (filter == null) throw new ArgumentNullException("filter");
 			lua.translator.userTranslators.Add(filter);
 		}
 		/// <summary>Translators are hooks that intercept objects about to be converted to Lua userdata and handle pushing them to the stack manually.</summary>
 		/// <exception cref="ArgumentNullException"></exception>
-		public static bool removetranslator(Lua lua, Func<object, Type, bool> filter)
+		public static bool removetranslator(Lua lua, luanet.translator filter)
 		{
 			if (filter == null) throw new ArgumentNullException("filter");
 			return lua.translator.userTranslators.Remove(filter);
@@ -322,6 +324,6 @@ namespace LuaInterface.LuaAPI
 		{
 			lua.translator.userTranslators.Clear();
 		}
-		public static IList<Func<object, Type, bool>> gettranslators(Lua lua) { return lua.translator.userTranslators.AsReadOnly(); }
+		public static IList<luanet.translator> gettranslators(Lua lua) { return lua.translator.userTranslators.AsReadOnly(); }
 	}
 }

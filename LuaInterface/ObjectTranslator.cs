@@ -497,7 +497,7 @@ namespace LuaInterface
 		/// <summary>[-0, +1, e] Pushes the object into the Lua stack according to its type.</summary>
 		internal void push(lua.State L, object o)
 		{
-			Debug.Assert(interpreter.IsSameLua(L));
+			Debug.Assert(this.interpreter.IsSameLua(L));
 			if (o == null)
 			{
 				lua.pushnil(L);
@@ -523,6 +523,8 @@ namespace LuaInterface
 			case TypeCode.DateTime: break;
 			}
 
+			var interpreter = this.interpreter;
+
 			#if ! __NOGEN__
 			{	var x = AsILua(o);
 				if(x!=null) { var t = x.__luaInterface_getLuaTable();
@@ -541,13 +543,13 @@ namespace LuaInterface
 			{
 				var type = o.GetType();
 				for (int i = 0; i < translators.Count; i++) // Don't store the count in case it changes mid-loop.
-					if (translators[i](o, type))
+					if (translators[i](L, interpreter, o, type))
 						return;
 			}
 
 			pushObject(L,o);
 		}
-		readonly internal List<Func<object, Type, bool>> userTranslators = new List<Func<object, Type, bool>>();
+		readonly internal List<luanet.translator> userTranslators = new List<luanet.translator>();
 
 
 		static bool IsInteger(double x) {

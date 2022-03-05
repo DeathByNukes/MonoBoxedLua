@@ -200,7 +200,7 @@ namespace LuaInterface
 			lua.setglobal(L, "dofile");
 
 			// disallow all reflection
-			luanet.addtranslator(this, (o, type) =>
+			luanet.addtranslator(this, (L2, interpreter, o, type) =>
 			{
 				var ns = type.Namespace;
 				if (ns == null || !ns.StartsWith("System.Reflect", StringComparison.Ordinal))
