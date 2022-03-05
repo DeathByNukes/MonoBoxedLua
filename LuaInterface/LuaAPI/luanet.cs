@@ -297,9 +297,10 @@ namespace LuaInterface.LuaAPI
 			}
 		}
 
+		/// <summary>[-0, +(0|1), e] Translators are hooks that intercept objects about to be converted to Lua userdata and return true if they pushed a custom translation of that object to the stack.</summary>
 		public delegate bool translator(lua.State L, Lua interpreter, object o, Type type);
 
-		/// <summary>Translators are hooks that intercept objects about to be converted to Lua userdata and handle pushing them to the stack manually. Return true if pushed successfully, false if not handled and nothing pushed. They should not throw exceptions but can raise Lua errors. </summary>
+		/// <summary>Translators are hooks that intercept objects about to be converted to Lua userdata and handle pushing them to the stack manually.</summary>
 		/// <exception cref="ArgumentNullException"></exception>
 		public static void addtranslator(Lua lua, luanet.translator filter)
 		{
