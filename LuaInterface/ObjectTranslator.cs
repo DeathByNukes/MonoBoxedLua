@@ -744,7 +744,10 @@ namespace LuaInterface
 					Debug.Assert(false);
 					if (Debugger.IsAttached)
 						Debugger.Break();
-					Environment.FailFast("Exception was thrown by member filter, which is not permitted.", ex);
+					string ex_str;
+					var liex = ex as LuaInternalException;
+					ex_str = liex == null ? ex.ToString() : liex.ToStringSafe();
+					Environment.FailFast("Exception was thrown by member filter, which is not permitted.\n" + ex);
 				}
 				catch {}
 				for (;;) Environment.FailFast("Exception was thrown by member filter, which is not permitted.");
