@@ -948,7 +948,7 @@ namespace LuaInterface
 		public void RegisterFunction(string path, object target, MethodBase function)
 		{
 			if (path == null) throw new ArgumentNullException("path");
-			if (function == null) throw new ArgumentNullException("function");
+			if (function == null) throw new ArgumentNullException("No function specified. Did a function lookup fail?\npath="+path,"function");
 			if (function.IsStatic != (target == null)) throw NewMethodTargetError(target);
 
 			this[path] = new lua.CFunction(new LuaMethodWrapper(translator, target, function.DeclaringType, function).call);
@@ -982,6 +982,7 @@ namespace LuaInterface
 		public void RegisterFunction(string path, Delegate function)
 		{
 			if (path == null) throw new ArgumentNullException("path");
+			if (function == null) throw new ArgumentNullException("No function specified. Did a function lookup fail?\npath="+path,"function");
 			var method = function.Method;
 			this[path] = new lua.CFunction(new LuaMethodWrapper(translator, function.Target, method.DeclaringType, method).call);
 		}
