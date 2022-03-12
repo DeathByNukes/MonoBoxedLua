@@ -9,10 +9,24 @@ namespace LuaInterface.LuaAPI
 
 	public static partial class luaclr
 	{
-		const string DLL = "lua51.dll";
-		const CallingConvention CC = CallingConvention.Cdecl;
+		/// <summary>This is used with the name argument of <see cref="DllImportAttribute"/> for importing functions from the Lua library.</summary>
+		public const string LibraryName =
+			#if UNITY_STANDALONE_LINUX
+				"liblua-linux64.so";
+			#elif UNITY_STANDALONE_OSX || UNITY_EDITOR_OSX
+				"liblua-osx.dylib";
+			#else
+				"lua51.dll";
+			#endif
+		/// <summary>This is used with the calling convention argument of <see cref="DllImportAttribute"/> for importing functions from the Lua library.</summary>
+		public const CallingConvention LibraryCallingConvention = CallingConvention.Cdecl;
+
 		/// <summary>.NET 4.5 AggressiveInlining. Should be auto discarded on older build targets or otherwise ignored.</summary>
-		const MethodImplOptions INLINE = (MethodImplOptions) 0x0100;
+		public const MethodImplOptions MethodImplInline = (MethodImplOptions) 0x0100;
+
+		const string DLL = luaclr.LibraryName;
+		const CallingConvention CC = luaclr.LibraryCallingConvention;
+		const MethodImplOptions INLINE = luaclr.MethodImplInline;
 
 		#region native functions
 

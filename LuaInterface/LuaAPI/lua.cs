@@ -87,10 +87,9 @@ namespace LuaInterface.LuaAPI
 	/// </remarks>
 	public static unsafe partial class lua
 	{
-		const string DLL = "lua51.dll";
-		const CallingConvention CC = CallingConvention.Cdecl;
-		/// <summary>.NET 4.5 AggressiveInlining. Should be auto discarded on older build targets or otherwise ignored.</summary>
-		const MethodImplOptions INLINE = (MethodImplOptions) 0x0100;
+		const string DLL = luaclr.LibraryName;
+		const CallingConvention CC = luaclr.LibraryCallingConvention;
+		const MethodImplOptions INLINE = luaclr.MethodImplInline;
 
 
 		/// <summary>Delegate for methods passed to Lua as function pointers.</summary>

@@ -14,10 +14,9 @@ namespace LuaInterface.LuaAPI
 	/// </summary>
 	public static unsafe partial class luaL
 	{
-		const string DLL = "lua51.dll"; // lua aux lib
-		const CallingConvention CC = CallingConvention.Cdecl;
-		/// <summary>.NET 4.5 AggressiveInlining. Should be auto discarded on older build targets or otherwise ignored.</summary>
-		const MethodImplOptions INLINE = (MethodImplOptions) 0x0100;
+		const string DLL = luaclr.LibraryName;
+		const CallingConvention CC = luaclr.LibraryCallingConvention;
+		const MethodImplOptions INLINE = luaclr.MethodImplInline;
 
 
 		/// <summary>[-0, +0, -] Creates a new Lua state. It calls lua_newstate with an allocator based on the standard C realloc function and then sets a panic function (see <see cref="lua.atpanic"/>) that prints an error message to the standard error output in case of fatal errors.</summary><returns>Returns the new state, or NULL if there is a memory allocation error.</returns>
